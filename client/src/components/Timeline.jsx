@@ -30,13 +30,16 @@ const Timeline = () => {
     return (
         <div>
             <h2>Historical Timeline</h2>
-            <ul>
-                {events.map(event => (
-                    <li key={event.id}>
-                        <strong>{event.date}</strong> - {event.title}
-                    </li>
-                ))}
-            </ul>
+            <div className="overflow-x-auto whitespace-nowrap bg-gray-100 p-4 rounded">
+                <div className="flex space-x-4">
+                    {events.map(event => (
+                        <div key={event.id} className="bg-white shadow-lg rounded p-4 inline-block min-w-[250px]">
+                            <p className="text-gray-500">{new Date(event.date).toLocaleDateString()}</p>
+                            <h3 className="font-semibold text-lg">{event.title}</h3>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     );
 };
