@@ -1,5 +1,8 @@
 .dev/*
 
+client/.env
+server/.env
+
 # Node.js dependencies
 node_modules/
 npm-debug.log
