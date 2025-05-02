@@ -1,0 +1,40 @@
+.dev/*
+
+# Node.js dependencies
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+.env.local
+
+# Supabase local config (if any)
+supabase/.temp/
+supabase/.cache/
+
+# Logs
+logs/
+*.log
+log/
+debug.log
+
+# VS Code settings
+.vscode/
+
+# Build files
+dist/
+build/
+
+# Frontend dependencies
+client/node_modules/
+client/.next/
+client/.cache
+
+# Database files (if stored locally)
+server/database.sqlite
+server/database.sqlite-journal
+
+# Misc
+.DS_Store
+Thumbs.db
