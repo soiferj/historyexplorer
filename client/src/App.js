@@ -10,7 +10,6 @@ function App() {
             <p className="mt-2 text-lg text-gray-600">
                 Dive into key moments from history.
             </p>
-            <EventGraph />
             <Timeline />
         </div>
     );
