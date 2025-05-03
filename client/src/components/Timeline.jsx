@@ -1,5 +1,4 @@
 import React, { useRef, useEffect, useState } from "react";
-import supabase from "../supabase";
 import * as d3 from "d3";
 
 const Timeline = ({ user, accessToken }) => {
@@ -26,35 +25,40 @@ const Timeline = ({ user, accessToken }) => {
 
     const apiUrl = process.env.REACT_APP_API_URL;
 
-    // Fetch allowed emails from Supabase
+    // Fetch allowed emails from the server
     const [allowedEmails, setAllowedEmails] = useState([]);
 
     useEffect(() => {
         const fetchAllowedEmails = async () => {
-            const { data, error } = await supabase.from("allowed_emails").select("email");
-            if (!error && data) {
+            try {
+                const response = await fetch(`${apiUrl}/allowed-emails`, {
+                    headers: {
+                        ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                    }
+                });
+                if (!response.ok) throw new Error("Failed to fetch allowed emails");
+                const data = await response.json();
                 setAllowedEmails(data.map(e => e.email));
+            } catch (err) {
+                setAllowedEmails([]);
             }
         };
         fetchAllowedEmails();
-    }, []);
+    }, [apiUrl, accessToken]);
 
     useEffect(() => {
         const fetchEvents = async () => {
-            const { data, error } = await supabase
-                .from("events")
-                .select("*")
-                .order("date", { ascending: true });
-
-            if (error) {
-                console.error("Error fetching events:", error.message);
-                return;
+            try {
+                const response = await fetch(`${apiUrl}/events`);
+                if (!response.ok) throw new Error("Failed to fetch events");
+                const data = await response.json();
+                setEvents(sortEvents(data));
+            } catch (err) {
+                setEvents([]);
             }
-            setEvents(sortEvents(data));
         };
-
         fetchEvents();
-    }, []);
+    }, [apiUrl]);
 
     // Helper to sort events: BCE descending, CE ascending
     function sortEvents(events) {
@@ -252,11 +256,9 @@ const Timeline = ({ user, accessToken }) => {
             if (!response.ok) throw new Error(data.error || "Failed to add event");
             setForm({ title: "", description: "", book_reference: "", year: "", tags: "", date_type: "CE" });
             // Refetch events
-            const { data: newEvents, error: fetchError } = await supabase
-                .from("events")
-                .select("*")
-                .order("date", { ascending: true });
-            if (!fetchError) setEvents(sortEvents(newEvents));
+            const eventsRes = await fetch(`${apiUrl}/events`);
+            const newEvents = await eventsRes.json();
+            setEvents(sortEvents(newEvents));
         } catch (err) {
             setError(err.message);
         } finally {
@@ -305,11 +307,9 @@ const Timeline = ({ user, accessToken }) => {
             setEditMode(false);
             setSelectedEvent(null);
             // Refetch events
-            const { data: newEvents, error: fetchError } = await supabase
-                .from("events")
-                .select("*")
-                .order("date", { ascending: true });
-            if (!fetchError) setEvents(sortEvents(newEvents));
+            const eventsRes = await fetch(`${apiUrl}/events`);
+            const newEvents = await eventsRes.json();
+            setEvents(sortEvents(newEvents));
         } catch (err) {
             setEditError(err.message);
         }
@@ -328,11 +328,9 @@ const Timeline = ({ user, accessToken }) => {
             if (!response.ok) throw new Error("Failed to delete event");
             setSelectedEvent(null);
             // Refetch events
-            const { data: newEvents, error: fetchError } = await supabase
-                .from("events")
-                .select("*")
-                .order("date", { ascending: true });
-            if (!fetchError) setEvents(sortEvents(newEvents));
+            const eventsRes = await fetch(`${apiUrl}/events`);
+            const newEvents = await eventsRes.json();
+            setEvents(sortEvents(newEvents));
         } catch (err) {
             alert(err.message);
         }
