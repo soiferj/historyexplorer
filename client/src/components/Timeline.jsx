@@ -24,6 +24,8 @@ const Timeline = () => {
     const [editForm, setEditForm] = useState({ title: '', description: '', book_reference: '', year: '', tags: '', date_type: 'CE' });
     const [editError, setEditError] = useState("");
 
+    const apiUrl = process.env.REACT_APP_API_URL;
+
     useEffect(() => {
         const fetchEvents = async () => {
             const { data, error } = await supabase
@@ -39,12 +41,15 @@ const Timeline = () => {
             // Sort: BCE descending, CE ascending
             const sorted = (data || []).slice().sort((a, b) => {
                 if (a.date_type === b.date_type) {
-                    const aYear = new Date(a.date).getFullYear();
-                    const bYear = new Date(b.date).getFullYear();
+                    // Parse year as integer for BCE and CE
+                    const aYear = a.date ? parseInt(a.date.split("-")[0], 10) : 0;
+                    const bYear = b.date ? parseInt(b.date.split("-")[0], 10) : 0;
                     if (a.date_type === "BCE") {
-                        return bYear - aYear; // Descending for BCE
+                        // Descending for BCE (e.g., -500, -400, -300)
+                        return bYear - aYear;
                     } else {
-                        return aYear - bYear; // Ascending for CE
+                        // Ascending for CE (e.g., 100, 200, 300)
+                        return aYear - bYear;
                     }
                 }
                 // BCE before CE
@@ -135,7 +140,7 @@ const Timeline = () => {
         setSubmitting(true);
         setError("");
         try {
-            const response = await fetch("http://localhost:5000/events", {
+            const response = await fetch(`${apiUrl}/events`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -183,7 +188,7 @@ const Timeline = () => {
         e.preventDefault();
         setEditError("");
         try {
-            const response = await fetch(`http://localhost:5000/events/${selectedEvent.id}`, {
+            const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -211,7 +216,7 @@ const Timeline = () => {
         if (!selectedEvent) return;
         if (!window.confirm("Are you sure you want to delete this event?")) return;
         try {
-            const response = await fetch(`http://localhost:5000/events/${selectedEvent.id}`, {
+            const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "DELETE"
             });
             if (!response.ok) throw new Error("Failed to delete event");
@@ -303,32 +308,38 @@ const Timeline = () => {
                         {editMode ? (
                             <form onSubmit={handleEditSubmit} className="bg-gray-800/90 p-8 rounded-2xl mb-8 w-full max-w-xl flex flex-col gap-4 shadow-xl border border-gray-700">
                                 <h2 className="text-2xl font-bold mb-2 text-blue-300">Edit Event</h2>
+                                {/* Title */}
                                 <div className="flex flex-col gap-2 text-left">
                                     <label className="font-semibold text-gray-300" htmlFor="edit-title">Title</label>
                                     <input id="edit-title" name="title" value={editForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
                                 </div>
+                                {/* Year */}
                                 <div className="flex flex-col gap-2 text-left">
                                     <label className="font-semibold text-gray-300" htmlFor="edit-year">Year</label>
                                     <input id="edit-year" name="year" value={editForm.year} onChange={handleEditChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" maxLength={4} />
                                 </div>
+                                {/* Book Reference */}
+                                <div className="flex flex-col gap-2 text-left">
+                                    <label className="font-semibold text-gray-300" htmlFor="edit-book_reference">Book Reference</label>
+                                    <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book Reference" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+                                </div>
+                                {/* Description */}
+                                <div className="flex flex-col gap-2 text-left">
+                                    <label className="font-semibold text-gray-300" htmlFor="edit-description">Description</label>
+                                    <textarea id="edit-description" name="description" value={editForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-h-[80px] resize-vertical" />
+                                </div>
+                                {/* Tags */}
+                                <div className="flex flex-col gap-2 text-left">
+                                    <label className="font-semibold text-gray-300" htmlFor="edit-tags">Tags</label>
+                                    <input id="edit-tags" name="tags" value={editForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+                                </div>
+                                {/* Date Type */}
                                 <div className="flex flex-col gap-2 text-left">
                                     <label className="font-semibold text-gray-300" htmlFor="edit-date_type">Date Type</label>
                                     <select id="edit-date_type" name="date_type" value={editForm.date_type} onChange={handleEditChange} className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
                                         <option value="BCE">BCE</option>
                                         <option value="CE">CE</option>
                                     </select>
-                                </div>
-                                <div className="flex flex-col gap-2 text-left">
-                                    <label className="font-semibold text-gray-300" htmlFor="edit-book_reference">Book Reference</label>
-                                    <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book Reference" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                                </div>
-                                <div className="flex flex-col gap-2 text-left">
-                                    <label className="font-semibold text-gray-300" htmlFor="edit-tags">Tags</label>
-                                    <input id="edit-tags" name="tags" value={editForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                                </div>
-                                <div className="flex flex-col gap-2 text-left">
-                                    <label className="font-semibold text-gray-300" htmlFor="edit-description">Description</label>
-                                    <textarea id="edit-description" name="description" value={editForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-h-[80px] resize-vertical" />
                                 </div>
                                 <div className="flex gap-2 mt-2 justify-center">
                                     <button type="submit" className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 p-3 rounded-lg font-bold text-white shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed">Save</button>
@@ -338,16 +349,21 @@ const Timeline = () => {
                             </form>
                         ) : (
                             <>
+                                {/* Title */}
                                 <h2 className="text-3xl font-bold mb-4 text-blue-700">{selectedEvent.title}</h2>
-                                <p className="text-gray-700 mb-4 whitespace-pre-line">{selectedEvent.description}</p>
+                                {/* Year */}
                                 <p className="text-gray-500 mb-2 text-lg">Year: {new Date(selectedEvent.date).getFullYear()} {selectedEvent.date_type}</p>
+                                {/* Book Reference */}
                                 {selectedEvent.book_reference && (
-                                    <p className="mt-2 text-blue-800"><strong>Book:</strong> {selectedEvent.book_reference}</p>
+                                    <p className="mt-2 text-blue-800">Book: {selectedEvent.book_reference}</p>
                                 )}
+                                {/* Description */}
+                                <p className="text-gray-700 mb-4 whitespace-pre-line">{selectedEvent.description}</p>
+                                {/* Tags */}
                                 {selectedEvent.tags && selectedEvent.tags.length > 0 && (
                                     <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                                        <span className="bg-blue-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800">
-                                            {selectedEvent.tags.join(", ")}
+                                        <span className="bg-blue-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic">
+                                            <span className="italic font-normal text-gray-700 mr-1">Tags: </span>{selectedEvent.tags.join(", ")}
                                         </span>
                                     </div>
                                 )}
