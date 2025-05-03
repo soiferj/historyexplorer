@@ -88,28 +88,34 @@ const Timeline = ({ user, accessToken }) => {
         return era === 'BCE' ? -y : y;
     }
 
-    // D3 rendering effect, depends on events, searchTerm, and dateFilter
-    useEffect(() => {
-        if (!events || events.length === 0) return;
-
-        let filteredEvents = events.filter(event =>
+    // Calculate filtered events (all matching events)
+    const filteredEvents = (() => {
+        if (!events || events.length === 0) return [];
+        let filtered = events.filter(event =>
             event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             event.book_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
             event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase() === searchTerm.toLowerCase()))
         );
-
-        // Date range filter
         const startComparable = yearEraToComparable(dateFilter.startYear, dateFilter.startEra);
         const endComparable = yearEraToComparable(dateFilter.endYear, dateFilter.endEra);
         if (startComparable !== null || endComparable !== null) {
-            filteredEvents = filteredEvents.filter(event => {
+            filtered = filtered.filter(event => {
                 const eventYear = event.date ? parseInt(event.date.split("-")[0], 10) : null;
                 const eventComparable = event.date_type === 'BCE' ? -eventYear : eventYear;
                 if (startComparable !== null && eventComparable < startComparable) return false;
                 if (endComparable !== null && eventComparable > endComparable) return false;
                 return true;
             });
+        }
+        return filtered;
+    })();
+
+    // D3 rendering effect, depends on filteredEvents
+    useEffect(() => {
+        if (!filteredEvents || filteredEvents.length === 0) {
+            d3.select(svgRef.current).selectAll("*").remove();
+            return;
         }
 
         // Responsive SVG width
@@ -160,6 +166,18 @@ const Timeline = ({ user, accessToken }) => {
             .attr("r", 14)
             .attr("fill", "#3B82F6")
             .style("cursor", "pointer")
+            .on("mouseover", function (event, d) {
+                d3.select(this)
+                  .transition()
+                  .duration(150)
+                  .attr("r", 22);
+            })
+            .on("mouseout", function (event, d) {
+                d3.select(this)
+                  .transition()
+                  .duration(150)
+                  .attr("r", 14);
+            })
             .on("click", (event, d) => setSelectedEvent(d))
             .style("opacity", 0)
             .transition()
@@ -198,7 +216,7 @@ const Timeline = ({ user, accessToken }) => {
             .attr("dominant-baseline", "middle")
             .attr("style", `max-width: ${maxTextWidth}px; overflow: visible;`)
             .text(d => truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
-    }, [events, searchTerm, dateFilter]);
+    }, [filteredEvents]);
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -441,7 +459,10 @@ const Timeline = ({ user, accessToken }) => {
                     </button>
                 </div>
 
-                <svg ref={svgRef} className="timeline-svg bg-gray-800/80 rounded-2xl mx-auto block shadow-2xl z-10 w-full max-w-4xl" style={{marginBottom: '2rem'}}></svg>
+                {/* Scrollable timeline container */}
+                <div style={{ maxHeight: '340px', overflowY: 'auto', marginBottom: '2rem' }} className="w-full max-w-4xl mx-auto rounded-2xl shadow-2xl bg-gray-800/80">
+                    <svg ref={svgRef} className="timeline-svg w-full" />
+                </div>
 
                 {selectedEvent && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center">
