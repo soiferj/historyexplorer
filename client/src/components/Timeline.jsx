@@ -85,10 +85,18 @@ const Timeline = ({ user, accessToken }) => {
             (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase() === searchTerm.toLowerCase()))
         );
 
+        // Responsive SVG width
+        const svgWidth = Math.min(window.innerWidth - 40, 900); // up to 900px, with margin
+        const svgHeight = Math.max(filteredEvents.length * 100, 100);
+        const timelineX = 200; // move timeline left for more text space
+        const textX = timelineX + 40;
+        const maxTextWidth = svgWidth - textX - 40;
+
         const svg = d3.select(svgRef.current);
         svg.selectAll("*").remove(); // Clear previous render
-        svg.attr("width", 600)
-            .attr("height", Math.max(filteredEvents.length * 100, 100));
+        svg.attr("width", "100%")
+            .attr("height", svgHeight)
+            .attr("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
 
         if (filteredEvents.length === 0) return;
 
@@ -105,9 +113,9 @@ const Timeline = ({ user, accessToken }) => {
             .data(links)
             .enter()
             .append("line")
-            .attr("x1", 300)
+            .attr("x1", timelineX)
             .attr("y1", d => yScale(filteredEvents.indexOf(d.source)))
-            .attr("x2", 300)
+            .attr("x2", timelineX)
             .attr("y2", d => yScale(filteredEvents.indexOf(d.target)))
             .attr("stroke", "#ccc")
             .attr("stroke-width", 2)
@@ -120,7 +128,7 @@ const Timeline = ({ user, accessToken }) => {
             .data(filteredEvents)
             .enter()
             .append("circle")
-            .attr("cx", 300)
+            .attr("cx", timelineX)
             .attr("cy", (d, i) => yScale(i))
             .attr("r", 14)
             .attr("fill", "#3B82F6")
@@ -131,15 +139,38 @@ const Timeline = ({ user, accessToken }) => {
             .duration(500)
             .style("opacity", 1);
 
+        // Helper for truncating text with ellipsis
+        function truncateText(text, maxWidth, fontSize = 16, fontFamily = 'Orbitron, Segoe UI, Arial, sans-serif') {
+            // Create a temporary SVG text element to measure width
+            const tempSvg = d3.select(document.body).append("svg").attr("style", "position:absolute;left:-9999px;top:-9999px;");
+            const tempText = tempSvg.append("text")
+                .attr("font-size", fontSize)
+                .attr("font-family", fontFamily)
+                .text(text);
+            let width = tempText.node().getComputedTextLength();
+            let truncated = text;
+            while (width > maxWidth && truncated.length > 3) {
+                truncated = truncated.slice(0, -1);
+                tempText.text(truncated + '…');
+                width = tempText.node().getComputedTextLength();
+            }
+            tempSvg.remove();
+            return width > maxWidth ? truncated + '…' : truncated;
+        }
+
         svg.selectAll("text")
             .data(filteredEvents)
             .enter()
             .append("text")
-            .attr("x", 320)
+            .attr("x", textX)
             .attr("y", (d, i) => yScale(i) + 5)
             .attr("fill", "white")
-            .text(d => `${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`)
-            .style("font-size", "16px");
+            .attr("font-size", 16)
+            .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+            .attr("text-anchor", "start")
+            .attr("dominant-baseline", "middle")
+            .attr("style", `max-width: ${maxTextWidth}px; overflow: visible;`)
+            .text(d => truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
     }, [events, searchTerm]);
 
     // Helper to pad year to 4 digits
@@ -266,152 +297,164 @@ const Timeline = ({ user, accessToken }) => {
     const isAllowed = user && allowedEmails.includes(user.email);
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white text-center">
-            {/* Collapsible Add Event Form */}
-            {isAllowed && (
-                <button
-                    className="mb-4 px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-semibold text-white shadow transition"
-                    onClick={() => setShowForm(v => !v)}
-                >
-                    {showForm ? "Hide Add New Event" : "Add New Event"}
-                </button>
-            )}
-            {showForm && isAllowed && (
-                <form onSubmit={handleFormSubmit} className="bg-gray-800/90 p-8 rounded-2xl mb-8 w-full max-w-xl flex flex-col gap-4 shadow-xl border border-gray-700">
-                    <h2 className="text-2xl font-bold mb-2 text-blue-300">Add New Event</h2>
-                    <div className="flex flex-col gap-2 text-left">
-                        <label className="font-semibold text-gray-300" htmlFor="title">Title</label>
-                        <input id="title" name="title" value={form.title} onChange={handleFormChange} required placeholder="Title" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                    </div>
-                    <div className="flex flex-col gap-2 text-left">
-                        <label className="font-semibold text-gray-300" htmlFor="year">Year</label>
-                        <input id="year" name="year" value={form.year} onChange={handleFormChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" maxLength={4} />
-                    </div>
-                    <div className="flex flex-col gap-2 text-left">
-                        <label className="font-semibold text-gray-300" htmlFor="date_type">Date Type</label>
-                        <select id="date_type" name="date_type" value={form.date_type} onChange={handleFormChange} className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
-                            <option value="BCE">BCE</option>
-                            <option value="CE">CE</option>
-                        </select>
-                    </div>
-                    <div className="flex flex-col gap-2 text-left">
-                        <label className="font-semibold text-gray-300" htmlFor="book_reference">Book Reference</label>
-                        <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book Reference" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                    </div>
-                    <div className="flex flex-col gap-2 text-left">
-                        <label className="font-semibold text-gray-300" htmlFor="tags">Tags</label>
-                        <input id="tags" name="tags" value={form.tags} onChange={handleFormChange} placeholder="Tags (comma separated)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                    </div>
-                    <div className="flex flex-col gap-2 text-left">
-                        <label className="font-semibold text-gray-300" htmlFor="description">Description</label>
-                        <textarea id="description" name="description" value={form.description} onChange={handleFormChange} placeholder="Description" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-h-[80px] resize-vertical" />
-                    </div>
-                    <button type="submit" className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 p-3 rounded-lg mt-2 font-bold text-white shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed" disabled={submitting}>{submitting ? "Adding..." : "Add Event"}</button>
-                    {error && <div className="text-red-400 mt-1 text-center">{error}</div>}
-                </form>
-            )}
+        <>
+            {/* Animated background SVG - now outside main content and truly a background */}
+            {/* <svg className="fixed top-0 left-0 w-full h-full pointer-events-none z-[-10]" style={{opacity:0.18}} aria-hidden="true">
+                <defs>
+                    <radialGradient id="bg-gradient" cx="50%" cy="50%" r="80%">
+                        <stop offset="0%" stopColor="#00c6ff" />
+                        <stop offset="100%" stopColor="#0072ff" />
+                    </radialGradient>
+                </defs>
+                <ellipse cx="60%" cy="30%" rx="600" ry="300" fill="url(#bg-gradient)" />
+                <ellipse cx="20%" cy="80%" rx="400" ry="200" fill="#ff512f" fillOpacity="0.3" />
+            </svg> */}
+            <div className="flex flex-col items-center justify-center min-h-screen text-white text-center relative overflow-x-hidden bg-transparent">
+                {/* Collapsible Add Event Form */}
+                {isAllowed && (
+                    <button
+                        className="mb-4 px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 font-bold text-white shadow-xl transition-all duration-300 glow z-10"
+                        onClick={() => setShowForm(v => !v)}
+                    >
+                        {showForm ? "Hide Add New Event" : "Add New Event"}
+                    </button>
+                )}
+                {showForm && isAllowed && (
+                    <form onSubmit={handleFormSubmit} className="glass p-8 rounded-2xl mb-8 w-full max-w-xl flex flex-col gap-4 shadow-2xl border border-blue-400 z-10 animate-fade-in-modal">
+                        <h2 className="text-2xl font-bold mb-2 text-blue-300">Add New Event</h2>
+                        <div className="flex flex-col gap-2 text-left">
+                            <label className="font-semibold text-gray-300" htmlFor="title">Title</label>
+                            <input id="title" name="title" value={form.title} onChange={handleFormChange} required placeholder="Title" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+                        </div>
+                        <div className="flex flex-col gap-2 text-left">
+                            <label className="font-semibold text-gray-300" htmlFor="year">Year</label>
+                            <input id="year" name="year" value={form.year} onChange={handleFormChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" maxLength={4} />
+                        </div>
+                        <div className="flex flex-col gap-2 text-left">
+                            <label className="font-semibold text-gray-300" htmlFor="date_type">Date Type</label>
+                            <select id="date_type" name="date_type" value={form.date_type} onChange={handleFormChange} className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+                                <option value="BCE">BCE</option>
+                                <option value="CE">CE</option>
+                            </select>
+                        </div>
+                        <div className="flex flex-col gap-2 text-left">
+                            <label className="font-semibold text-gray-300" htmlFor="book_reference">Book Reference</label>
+                            <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book Reference" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+                        </div>
+                        <div className="flex flex-col gap-2 text-left">
+                            <label className="font-semibold text-gray-300" htmlFor="tags">Tags</label>
+                            <input id="tags" name="tags" value={form.tags} onChange={handleFormChange} placeholder="Tags (comma separated)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+                        </div>
+                        <div className="flex flex-col gap-2 text-left">
+                            <label className="font-semibold text-gray-300" htmlFor="description">Description</label>
+                            <textarea id="description" name="description" value={form.description} onChange={handleFormChange} placeholder="Description" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-h-[80px] resize-vertical" />
+                        </div>
+                        <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-lg mt-2 font-bold text-white shadow-lg transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow" disabled={submitting}>{submitting ? "Adding..." : "Add Event"}</button>
+                        {error && <div className="text-red-400 mt-1 text-center">{error}</div>}
+                    </form>
+                )}
 
-            {/* Search Bar */}
-            <div className="mb-4 w-full flex justify-center">
-                <br/><br/>
-                <input
-                    type="text"
-                    placeholder="Search events..."
-                    className="p-2 w-64 rounded bg-gray-800 text-white text-center"
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
-
-            <svg ref={svgRef} className="bg-gray-800 rounded-lg mx-auto block"></svg>
-
-            {selectedEvent && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
-                    {/* Modal overlay */}
-                    <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setSelectedEvent(null)} />
-                    {/* Modal content */}
-                    <div className="relative bg-white text-gray-900 p-8 rounded-2xl shadow-2xl border border-blue-500 max-w-lg w-full z-60 flex flex-col items-center animate-fade-in-modal">
-                        <button
-                            className="absolute top-3 right-3 text-2xl text-gray-400 hover:text-gray-700 focus:outline-none"
-                            onClick={() => setSelectedEvent(null)}
-                            aria-label="Close modal"
-                        >
-                            &times;
-                        </button>
-                        {/* Edit mode toggle */}
-                        {editMode ? (
-                            <form onSubmit={handleEditSubmit} className="bg-gray-800/90 p-8 rounded-2xl mb-8 w-full max-w-xl flex flex-col gap-4 shadow-xl border border-gray-700">
-                                <h2 className="text-2xl font-bold mb-2 text-blue-300">Edit Event</h2>
-                                {/* Title */}
-                                <div className="flex flex-col gap-2 text-left">
-                                    <label className="font-semibold text-gray-300" htmlFor="edit-title">Title</label>
-                                    <input id="edit-title" name="title" value={editForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                                </div>
-                                {/* Year */}
-                                <div className="flex flex-col gap-2 text-left">
-                                    <label className="font-semibold text-gray-300" htmlFor="edit-year">Year</label>
-                                    <input id="edit-year" name="year" value={editForm.year} onChange={handleEditChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" maxLength={4} />
-                                </div>
-                                {/* Book Reference */}
-                                <div className="flex flex-col gap-2 text-left">
-                                    <label className="font-semibold text-gray-300" htmlFor="edit-book_reference">Book Reference</label>
-                                    <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book Reference" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                                </div>
-                                {/* Description */}
-                                <div className="flex flex-col gap-2 text-left">
-                                    <label className="font-semibold text-gray-300" htmlFor="edit-description">Description</label>
-                                    <textarea id="edit-description" name="description" value={editForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-h-[80px] resize-vertical" />
-                                </div>
-                                {/* Tags */}
-                                <div className="flex flex-col gap-2 text-left">
-                                    <label className="font-semibold text-gray-300" htmlFor="edit-tags">Tags</label>
-                                    <input id="edit-tags" name="tags" value={editForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                                </div>
-                                {/* Date Type */}
-                                <div className="flex flex-col gap-2 text-left">
-                                    <label className="font-semibold text-gray-300" htmlFor="edit-date_type">Date Type</label>
-                                    <select id="edit-date_type" name="date_type" value={editForm.date_type} onChange={handleEditChange} className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
-                                        <option value="BCE">BCE</option>
-                                        <option value="CE">CE</option>
-                                    </select>
-                                </div>
-                                <div className="flex gap-2 mt-2 justify-center">
-                                    <button type="submit" className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 p-3 rounded-lg font-bold text-white shadow-lg transition disabled:opacity-60 disabled:cursor-not-allowed">Save</button>
-                                    <button type="button" className="bg-gray-400 text-white px-4 py-2 rounded font-bold" onClick={() => setEditMode(false)}>Cancel</button>
-                                </div>
-                                {editError && <div className="text-red-400 mt-1 text-center">{editError}</div>}
-                            </form>
-                        ) : (
-                            <>
-                                {/* Title */}
-                                <h2 className="text-3xl font-bold mb-4 text-blue-700">{selectedEvent.title}</h2>
-                                {/* Year */}
-                                <p className="text-gray-500 mb-2 text-lg">Year: {new Date(selectedEvent.date).getFullYear()} {selectedEvent.date_type}</p>
-                                {/* Book Reference */}
-                                {selectedEvent.book_reference && (
-                                    <p className="mt-2 text-blue-800">Book: {selectedEvent.book_reference}</p>
-                                )}
-                                {/* Description */}
-                                <p className="text-gray-700 mb-4 whitespace-pre-line">{selectedEvent.description}</p>
-                                {/* Tags */}
-                                {selectedEvent.tags && selectedEvent.tags.length > 0 && (
-                                    <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                                        <span className="bg-blue-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic">
-                                            <span className="italic font-normal text-gray-700 mr-1">Tags: </span>{selectedEvent.tags.join(", ")}
-                                        </span>
-                                    </div>
-                                )}
-                                {isAllowed && (
-                                    <>
-                                        <button className="mt-6 bg-blue-600 text-white px-4 py-2 rounded" onClick={startEditEvent}>Edit</button>
-                                        <button className="mt-2 bg-red-600 text-white px-4 py-2 rounded" onClick={handleDeleteEvent}>Delete</button>
-                                    </>
-                                )}
-                            </>
-                        )}
-                    </div>
+                {/* Search Bar */}
+                <div className="mb-4 w-full flex justify-center z-10">
+                    <input
+                        type="text"
+                        placeholder="Search events..."
+                        className="p-3 w-72 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md"
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                    />
                 </div>
-            )}
-        </div>
+
+                <svg ref={svgRef} className="timeline-svg bg-gray-800/80 rounded-2xl mx-auto block shadow-2xl z-10 w-full max-w-4xl" style={{marginBottom: '2rem'}}></svg>
+
+                {selectedEvent && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center">
+                        {/* Modal overlay */}
+                        <div className="fixed inset-0 bg-gradient-to-br from-[#232526cc] via-[#00c6ff88] to-[#ff512fcc] blur-sm" onClick={() => setSelectedEvent(null)} />
+                        {/* Modal content */}
+                        <div className="relative glass text-gray-100 p-8 rounded-2xl shadow-2xl border border-blue-400 max-w-lg w-full z-60 flex flex-col items-center animate-fade-in-modal">
+                            <button
+                                className="absolute top-3 right-3 text-2xl text-blue-300 hover:text-pink-400 focus:outline-none"
+                                onClick={() => setSelectedEvent(null)}
+                                aria-label="Close modal"
+                            >
+                                &times;
+                            </button>
+                            {/* Edit mode toggle */}
+                            {editMode ? (
+                                <form onSubmit={handleEditSubmit} className="glass p-8 rounded-2xl mb-8 w-full max-w-xl flex flex-col gap-4 shadow-xl border border-blue-400">
+                                    <h2 className="text-2xl font-bold mb-2 text-blue-300">Edit Event</h2>
+                                    {/* Title */}
+                                    <div className="flex flex-col gap-2 text-left">
+                                        <label className="font-semibold text-gray-300" htmlFor="edit-title">Title</label>
+                                        <input id="edit-title" name="title" value={editForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+                                    </div>
+                                    {/* Year */}
+                                    <div className="flex flex-col gap-2 text-left">
+                                        <label className="font-semibold text-gray-300" htmlFor="edit-year">Year</label>
+                                        <input id="edit-year" name="year" value={editForm.year} onChange={handleEditChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" maxLength={4} />
+                                    </div>
+                                    {/* Book Reference */}
+                                    <div className="flex flex-col gap-2 text-left">
+                                        <label className="font-semibold text-gray-300" htmlFor="edit-book_reference">Book Reference</label>
+                                        <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book Reference" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+                                    </div>
+                                    {/* Description */}
+                                    <div className="flex flex-col gap-2 text-left">
+                                        <label className="font-semibold text-gray-300" htmlFor="edit-description">Description</label>
+                                        <textarea id="edit-description" name="description" value={editForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-h-[80px] resize-vertical" />
+                                    </div>
+                                    {/* Tags */}
+                                    <div className="flex flex-col gap-2 text-left">
+                                        <label className="font-semibold text-gray-300" htmlFor="edit-tags">Tags</label>
+                                        <input id="edit-tags" name="tags" value={editForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
+                                    </div>
+                                    {/* Date Type */}
+                                    <div className="flex flex-col gap-2 text-left">
+                                        <label className="font-semibold text-gray-300" htmlFor="edit-date_type">Date Type</label>
+                                        <select id="edit-date_type" name="date_type" value={editForm.date_type} onChange={handleEditChange} className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
+                                            <option value="BCE">BCE</option>
+                                            <option value="CE">CE</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-2 mt-2 justify-center">
+                                        <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-lg font-bold text-white shadow-lg transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow">Save</button>
+                                        <button type="button" className="bg-gray-400 text-white px-4 py-2 rounded font-bold" onClick={() => setEditMode(false)}>Cancel</button>
+                                    </div>
+                                    {editError && <div className="text-red-400 mt-1 text-center">{editError}</div>}
+                                </form>
+                            ) : (
+                                <>
+                                    {/* Title */}
+                                    <h2 className="text-3xl font-bold mb-4 text-blue-400 fancy-heading">{selectedEvent.title}</h2>
+                                    {/* Year */}
+                                    <p className="text-blue-200 mb-2 text-lg">Year: {new Date(selectedEvent.date).getFullYear()} {selectedEvent.date_type}</p>
+                                    {/* Book Reference */}
+                                    {selectedEvent.book_reference && (
+                                        <p className="mt-2 text-pink-300">Book: {selectedEvent.book_reference}</p>
+                                    )}
+                                    {/* Description */}
+                                    <p className="text-gray-200 mb-4 whitespace-pre-line">{selectedEvent.description}</p>
+                                    {/* Tags */}
+                                    {selectedEvent.tags && selectedEvent.tags.length > 0 && (
+                                        <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                                            <span className="bg-gradient-to-r from-blue-200 to-pink-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic shadow">
+                                                <span className="italic font-normal text-gray-700 mr-1">Tags: </span>{selectedEvent.tags.join(", ")}
+                                            </span>
+                                        </div>
+                                    )}
+                                    {isAllowed && (
+                                        <>
+                                            <button className="mt-6 bg-gradient-to-r from-blue-500 to-pink-500 text-white px-4 py-2 rounded glow font-bold shadow transition-all duration-300" onClick={startEditEvent}>Edit</button>
+                                            <button className="mt-2 bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded font-bold shadow hover:from-red-600 hover:to-pink-700 transition-all duration-300" onClick={handleDeleteEvent}>Delete</button>
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </>
     );
 };
 
