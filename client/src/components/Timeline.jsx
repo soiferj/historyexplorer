@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import supabase from "../supabase";
 import * as d3 from "d3";
 
-const Timeline = () => {
+const Timeline = ({ user }) => {
     const svgRef = useRef();
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [events, setEvents] = useState([]);
@@ -25,6 +25,21 @@ const Timeline = () => {
     const [editError, setEditError] = useState("");
 
     const apiUrl = process.env.REACT_APP_API_URL;
+
+    // Fetch allowed emails from Supabase
+    const [allowedEmails, setAllowedEmails] = useState([]);
+
+    useEffect(() => {
+        const fetchAllowedEmails = async () => {
+            const { data, error } = await supabase.from("allowed_emails").select("email");
+            console.log("Allowed Emails:", data);
+            console.log("Error:", error);
+            if (!error && data) {
+                setAllowedEmails(data.map(e => e.email));
+            }
+        };
+        fetchAllowedEmails();
+    }, []);
 
     useEffect(() => {
         const fetchEvents = async () => {
@@ -142,7 +157,10 @@ const Timeline = () => {
         try {
             const response = await fetch(`${apiUrl}/events`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(user && { Authorization: `Bearer ${user.access_token}` })
+                },
                 body: JSON.stringify({
                     ...form,
                     date: form.year ? `${form.year}-01-01` : undefined,
@@ -190,7 +208,10 @@ const Timeline = () => {
         try {
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(user && { Authorization: `Bearer ${user.access_token}` })
+                },
                 body: JSON.stringify({
                     ...editForm,
                     date: editForm.year ? `${editForm.year}-01-01` : undefined,
@@ -217,7 +238,10 @@ const Timeline = () => {
         if (!window.confirm("Are you sure you want to delete this event?")) return;
         try {
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
-                method: "DELETE"
+                method: "DELETE",
+                headers: {
+                    ...(user && { Authorization: `Bearer ${user.access_token}` })
+                }
             });
             if (!response.ok) throw new Error("Failed to delete event");
             setSelectedEvent(null);
@@ -233,17 +257,20 @@ const Timeline = () => {
     };
 
     // Center the entire page content
+    const isAllowed = user && allowedEmails.includes(user.email);
+
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white text-center">
-
             {/* Collapsible Add Event Form */}
-            <button
-                className="mb-4 px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-semibold text-white shadow transition"
-                onClick={() => setShowForm(v => !v)}
-            >
-                {showForm ? "Hide Add New Event" : "Add New Event"}
-            </button>
-            {showForm && (
+            {isAllowed && (
+                <button
+                    className="mb-4 px-6 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 font-semibold text-white shadow transition"
+                    onClick={() => setShowForm(v => !v)}
+                >
+                    {showForm ? "Hide Add New Event" : "Add New Event"}
+                </button>
+            )}
+            {showForm && isAllowed && (
                 <form onSubmit={handleFormSubmit} className="bg-gray-800/90 p-8 rounded-2xl mb-8 w-full max-w-xl flex flex-col gap-4 shadow-xl border border-gray-700">
                     <h2 className="text-2xl font-bold mb-2 text-blue-300">Add New Event</h2>
                     <div className="flex flex-col gap-2 text-left">
@@ -367,8 +394,12 @@ const Timeline = () => {
                                         </span>
                                     </div>
                                 )}
-                                <button className="mt-6 bg-blue-600 text-white px-4 py-2 rounded" onClick={startEditEvent}>Edit</button>
-                                <button className="mt-2 bg-red-600 text-white px-4 py-2 rounded" onClick={handleDeleteEvent}>Delete</button>
+                                {isAllowed && (
+                                    <>
+                                        <button className="mt-6 bg-blue-600 text-white px-4 py-2 rounded" onClick={startEditEvent}>Edit</button>
+                                        <button className="mt-2 bg-red-600 text-white px-4 py-2 rounded" onClick={handleDeleteEvent}>Delete</button>
+                                    </>
+                                )}
                             </>
                         )}
                     </div>

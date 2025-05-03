@@ -1,16 +1,4 @@
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const supabase = require("./db");
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-app.get("/", (req, res) => res.send("History Map API Running"));
-
-const eventsRouter = require("./routes/events");
-app.use("/events", eventsRouter);
+const supabase = require("../db");
 
 // Middleware to verify Supabase JWT and check allow-list
 async function verifyAllowedUser(req, res, next) {
@@ -41,7 +29,4 @@ async function verifyAllowedUser(req, res, next) {
     }
 }
 
-// Remove global app.use(verifyAllowedUser); -- only use as route middleware
-
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+module.exports = { verifyAllowedUser };

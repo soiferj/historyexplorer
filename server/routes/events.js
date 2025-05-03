@@ -1,9 +1,10 @@
 const express = require("express");
 const router = express.Router();
 const supabase = require("../db");
+const { verifyAllowedUser } = require("../middleware/auth");
 
 // Add an event
-router.post("/", async (req, res) => {
+router.post("/", verifyAllowedUser, async (req, res) => {
     const { title, description, book_reference, date, tags, date_type } = req.body;
     const { data, error } = await supabase
         .from("events")
@@ -22,7 +23,7 @@ router.get("/", async (req, res) => {
 });
 
 // Update an event
-router.put("/:id", async (req, res) => {
+router.put("/:id", verifyAllowedUser, async (req, res) => {
     const { id } = req.params;
     const { title, description, book_reference, date, tags, date_type } = req.body;
     const { data, error } = await supabase
@@ -35,7 +36,7 @@ router.put("/:id", async (req, res) => {
 });
 
 // Delete an event
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", verifyAllowedUser, async (req, res) => {
     const { id } = req.params;
     const { error } = await supabase
         .from("events")
