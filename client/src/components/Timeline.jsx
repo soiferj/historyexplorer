@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useState } from "react";
 import supabase from "../supabase";
 import * as d3 from "d3";
 
-const Timeline = ({ user }) => {
+const Timeline = ({ user, accessToken }) => {
     const svgRef = useRef();
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [events, setEvents] = useState([]);
@@ -44,7 +44,7 @@ const Timeline = ({ user }) => {
     useEffect(() => {
         const fetchEvents = async () => {
             const { data, error } = await supabase
-                .from("events") // Table name
+                .from("events")
                 .select("*")
                 .order("date", { ascending: true });
 
@@ -52,29 +52,27 @@ const Timeline = ({ user }) => {
                 console.error("Error fetching events:", error.message);
                 return;
             }
-
-            // Sort: BCE descending, CE ascending
-            const sorted = (data || []).slice().sort((a, b) => {
-                if (a.date_type === b.date_type) {
-                    // Parse year as integer for BCE and CE
-                    const aYear = a.date ? parseInt(a.date.split("-")[0], 10) : 0;
-                    const bYear = b.date ? parseInt(b.date.split("-")[0], 10) : 0;
-                    if (a.date_type === "BCE") {
-                        // Descending for BCE (e.g., -500, -400, -300)
-                        return bYear - aYear;
-                    } else {
-                        // Ascending for CE (e.g., 100, 200, 300)
-                        return aYear - bYear;
-                    }
-                }
-                // BCE before CE
-                return a.date_type === "BCE" ? -1 : 1;
-            });
-            setEvents(sorted);
+            setEvents(sortEvents(data));
         };
 
         fetchEvents();
     }, []);
+
+    // Helper to sort events: BCE descending, CE ascending
+    function sortEvents(events) {
+        return (events || []).slice().sort((a, b) => {
+            if (a.date_type === b.date_type) {
+                const aYear = a.date ? parseInt(a.date.split("-")[0], 10) : 0;
+                const bYear = b.date ? parseInt(b.date.split("-")[0], 10) : 0;
+                if (a.date_type === "BCE") {
+                    return bYear - aYear; // Descending for BCE
+                } else {
+                    return aYear - bYear; // Ascending for CE
+                }
+            }
+            return a.date_type === "BCE" ? -1 : 1;
+        });
+    }
 
     // D3 rendering effect, depends on events and searchTerm
     useEffect(() => {
@@ -159,7 +157,7 @@ const Timeline = ({ user }) => {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    ...(user && { Authorization: `Bearer ${user.access_token}` })
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                 },
                 body: JSON.stringify({
                     ...form,
@@ -175,7 +173,7 @@ const Timeline = ({ user }) => {
                 .from("events")
                 .select("*")
                 .order("date", { ascending: true });
-            if (!fetchError) setEvents(newEvents || []);
+            if (!fetchError) setEvents(sortEvents(newEvents));
         } catch (err) {
             setError(err.message);
         } finally {
@@ -210,7 +208,7 @@ const Timeline = ({ user }) => {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
-                    ...(user && { Authorization: `Bearer ${user.access_token}` })
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                 },
                 body: JSON.stringify({
                     ...editForm,
@@ -227,7 +225,7 @@ const Timeline = ({ user }) => {
                 .from("events")
                 .select("*")
                 .order("date", { ascending: true });
-            if (!fetchError) setEvents(newEvents || []);
+            if (!fetchError) setEvents(sortEvents(newEvents));
         } catch (err) {
             setEditError(err.message);
         }
@@ -240,7 +238,7 @@ const Timeline = ({ user }) => {
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "DELETE",
                 headers: {
-                    ...(user && { Authorization: `Bearer ${user.access_token}` })
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                 }
             });
             if (!response.ok) throw new Error("Failed to delete event");
@@ -250,7 +248,7 @@ const Timeline = ({ user }) => {
                 .from("events")
                 .select("*")
                 .order("date", { ascending: true });
-            if (!fetchError) setEvents(newEvents || []);
+            if (!fetchError) setEvents(sortEvents(newEvents));
         } catch (err) {
             alert(err.message);
         }

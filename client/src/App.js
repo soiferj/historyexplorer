@@ -3,16 +3,14 @@ import supabase from "./supabase";
 import Timeline from "./components/Timeline";
 
 function App() {
-    const [user, setUser] = useState(null);
-    
+    const [session, setSession] = useState(null);
+
     useEffect(() => {
-        // Check for existing session
-        const session = supabase.auth.getSession().then(({ data: { session } }) => {
-            setUser(session?.user || null);
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
         });
-        // Listen for auth changes
         const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user || null);
+            setSession(session);
         });
         return () => {
             listener?.subscription.unsubscribe();
@@ -33,16 +31,16 @@ function App() {
                 Historical Knowledge Explorer
             </h1>
             <div className="flex justify-end m-4">
-                {user ? (
+                {session?.user ? (
                     <>
-                        <span className="mr-4 text-gray-700">{user.email}</span>
+                        <span className="mr-4 text-gray-700">{session.user.email}</span>
                         <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded">Logout</button>
                     </>
                 ) : (
                     <button onClick={handleLogin} className="bg-blue-600 text-white px-4 py-2 rounded">Login with Google</button>
                 )}
             </div>
-            <Timeline user={user} />
+            <Timeline user={session?.user} accessToken={session?.access_token} />
         </div>
     );
 }
