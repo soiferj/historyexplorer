@@ -4,10 +4,10 @@ const supabase = require("../db");
 
 // Add an event
 router.post("/", async (req, res) => {
-    const { title, description, book_reference, date, tags } = req.body;
+    const { title, description, book_reference, date, tags, date_type } = req.body;
     const { data, error } = await supabase
         .from("events")
-        .insert([{ title, description, book_reference, date, tags }]);
+        .insert([{ title, description, book_reference, date, tags, date_type }]);
 
     if (error) return res.status(400).json({ error: error.message });
     res.json(data);
