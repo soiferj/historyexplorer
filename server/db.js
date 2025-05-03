@@ -1,8 +1,8 @@
-const neo4j = require("neo4j-driver");
+const { createClient } = require('@supabase/supabase-js');
 
-const driver = neo4j.driver(
-    process.env.NEO4J_URI,
-    neo4j.auth.basic(process.env.NEO4J_USER, process.env.NEO4J_PASS)
+const supabase = createClient(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_KEY
 );
 
-module.exports = driver;
+module.exports = supabase;

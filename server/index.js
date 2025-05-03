@@ -8,5 +8,8 @@ app.use(express.json());
 
 app.get("/", (req, res) => res.send("History Map API Running"));
 
+const eventsRouter = require("./routes/events");
+app.use("/events", eventsRouter);
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
