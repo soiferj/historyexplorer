@@ -142,6 +142,12 @@ const Timeline = ({ user, accessToken }) => {
             .style("font-size", "16px");
     }, [events, searchTerm]);
 
+    // Helper to pad year to 4 digits
+    function padYear(year) {
+        if (!year) return "0001";
+        return year.toString().padStart(4, "0");
+    }
+
     // Add event handler
     const handleFormChange = (e) => {
         const { name, value } = e.target;
@@ -153,6 +159,7 @@ const Timeline = ({ user, accessToken }) => {
         setSubmitting(true);
         setError("");
         try {
+            const paddedYear = padYear(form.year);
             const response = await fetch(`${apiUrl}/events`, {
                 method: "POST",
                 headers: {
@@ -161,7 +168,7 @@ const Timeline = ({ user, accessToken }) => {
                 },
                 body: JSON.stringify({
                     ...form,
-                    date: form.year ? `${form.year}-01-01` : undefined,
+                    date: paddedYear ? `${paddedYear}-01-01` : undefined,
                     tags: form.tags.split(",").map(t => t.trim()).filter(Boolean)
                 })
             });
@@ -204,6 +211,7 @@ const Timeline = ({ user, accessToken }) => {
         e.preventDefault();
         setEditError("");
         try {
+            const paddedYear = padYear(editForm.year);
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "PUT",
                 headers: {
@@ -212,7 +220,7 @@ const Timeline = ({ user, accessToken }) => {
                 },
                 body: JSON.stringify({
                     ...editForm,
-                    date: editForm.year ? `${editForm.year}-01-01` : undefined,
+                    date: paddedYear ? `${paddedYear}-01-01` : undefined,
                     tags: editForm.tags.split(",").map(t => t.trim()).filter(Boolean),
                 })
             });
