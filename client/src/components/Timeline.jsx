@@ -74,16 +74,45 @@ const Timeline = ({ user, accessToken }) => {
         });
     }
 
-    // D3 rendering effect, depends on events and searchTerm
+    // Date filter state
+    const [dateFilter, setDateFilter] = useState({
+        startYear: '',
+        startEra: 'BCE',
+        endYear: '',
+        endEra: 'CE'
+    });
+
+    // Helper to convert year/era to comparable number
+    function yearEraToComparable(year, era) {
+        if (!year) return null;
+        const y = parseInt(year, 10);
+        if (isNaN(y)) return null;
+        return era === 'BCE' ? -y : y;
+    }
+
+    // D3 rendering effect, depends on events, searchTerm, and dateFilter
     useEffect(() => {
         if (!events || events.length === 0) return;
 
-        const filteredEvents = events.filter(event =>
+        let filteredEvents = events.filter(event =>
             event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             event.book_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
             event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase() === searchTerm.toLowerCase()))
         );
+
+        // Date range filter
+        const startComparable = yearEraToComparable(dateFilter.startYear, dateFilter.startEra);
+        const endComparable = yearEraToComparable(dateFilter.endYear, dateFilter.endEra);
+        if (startComparable !== null || endComparable !== null) {
+            filteredEvents = filteredEvents.filter(event => {
+                const eventYear = event.date ? parseInt(event.date.split("-")[0], 10) : null;
+                const eventComparable = event.date_type === 'BCE' ? -eventYear : eventYear;
+                if (startComparable !== null && eventComparable < startComparable) return false;
+                if (endComparable !== null && eventComparable > endComparable) return false;
+                return true;
+            });
+        }
 
         // Responsive SVG width
         const svgWidth = Math.min(window.innerWidth - 40, 900); // up to 900px, with margin
@@ -171,7 +200,7 @@ const Timeline = ({ user, accessToken }) => {
             .attr("dominant-baseline", "middle")
             .attr("style", `max-width: ${maxTextWidth}px; overflow: visible;`)
             .text(d => truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
-    }, [events, searchTerm]);
+    }, [events, searchTerm, dateFilter]);
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -312,12 +341,16 @@ const Timeline = ({ user, accessToken }) => {
             <div className="flex flex-col items-center justify-center min-h-screen text-white text-center relative overflow-x-hidden bg-transparent">
                 {/* Collapsible Add Event Form */}
                 {isAllowed && (
-                    <button
-                        className="mb-4 px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 font-bold text-white shadow-xl transition-all duration-300 glow z-10"
-                        onClick={() => setShowForm(v => !v)}
-                    >
-                        {showForm ? "Hide Add New Event" : "Add New Event"}
-                    </button>
+                    <>
+                        {/* Space between login and add new event */}
+                        <div style={{ height: '1.5rem' }} />
+                        <button
+                            className="mb-4 px-8 py-3 rounded-xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 font-bold text-white shadow-xl transition-all duration-300 glow z-10"
+                            onClick={() => setShowForm(v => !v)}
+                        >
+                            {showForm ? "Hide Add New Event" : "Add New Event"}
+                        </button>
+                    </>
                 )}
                 {showForm && isAllowed && (
                     <form onSubmit={handleFormSubmit} className="glass p-8 rounded-2xl mb-8 w-full max-w-xl flex flex-col gap-4 shadow-2xl border border-blue-400 z-10 animate-fade-in-modal">
@@ -354,6 +387,9 @@ const Timeline = ({ user, accessToken }) => {
                     </form>
                 )}
 
+                {/* Space between add new event and search */}
+                <div style={{ height: '1.5rem' }} />
+
                 {/* Search Bar */}
                 <div className="mb-4 w-full flex justify-center z-10">
                     <input
@@ -362,6 +398,60 @@ const Timeline = ({ user, accessToken }) => {
                         className="p-3 w-72 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md"
                         onChange={(e) => setSearchTerm(e.target.value)}
                     />
+                </div>
+
+                {/* Add space between search and filter */}
+                <div style={{ height: '1.5rem' }} />
+
+                {/* Date Range Filter */}
+                <div className="mb-4 w-full flex flex-wrap justify-center gap-4 z-10">
+                    <div className="flex items-center gap-2">
+                        <label className="text-blue-200 font-semibold">From</label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="9999"
+                            value={dateFilter.startYear}
+                            onChange={e => setDateFilter(f => ({ ...f, startYear: e.target.value }))}
+                            placeholder="Year"
+                            className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
+                        />
+                        <select
+                            value={dateFilter.startEra}
+                            onChange={e => setDateFilter(f => ({ ...f, startEra: e.target.value }))}
+                            className="p-2 rounded bg-gray-800 text-white border border-blue-400"
+                        >
+                            <option value="BCE">BCE</option>
+                            <option value="CE">CE</option>
+                        </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <label className="text-blue-200 font-semibold">To</label>
+                        <input
+                            type="number"
+                            min="1"
+                            max="9999"
+                            value={dateFilter.endYear}
+                            onChange={e => setDateFilter(f => ({ ...f, endYear: e.target.value }))}
+                            placeholder="Year"
+                            className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
+                        />
+                        <select
+                            value={dateFilter.endEra}
+                            onChange={e => setDateFilter(f => ({ ...f, endEra: e.target.value }))}
+                            className="p-2 rounded bg-gray-800 text-white border border-blue-400"
+                        >
+                            <option value="BCE">BCE</option>
+                            <option value="CE">CE</option>
+                        </select>
+                    </div>
+                    <button
+                        className="ml-2 px-4 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition"
+                        onClick={() => setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' })}
+                        type="button"
+                    >
+                        Clear
+                    </button>
                 </div>
 
                 <svg ref={svgRef} className="timeline-svg bg-gray-800/80 rounded-2xl mx-auto block shadow-2xl z-10 w-full max-w-4xl" style={{marginBottom: '2rem'}}></svg>
