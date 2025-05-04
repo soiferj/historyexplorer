@@ -31,15 +31,18 @@ const Timeline = ({ user, accessToken }) => {
     useEffect(() => {
         const fetchAllowedEmails = async () => {
             try {
+                console.log('Fetching allowed emails from', `${apiUrl}/allowed-emails`);
                 const response = await fetch(`${apiUrl}/allowed-emails`, {
                     headers: {
                         ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                     }
                 });
+                console.log('Allowed emails response:', response);
                 if (!response.ok) throw new Error("Failed to fetch allowed emails");
                 const data = await response.json();
                 setAllowedEmails(data.map(e => e.email));
             } catch (err) {
+                console.error('Error fetching allowed emails:', err);
                 setAllowedEmails([]);
             }
         };
@@ -49,11 +52,14 @@ const Timeline = ({ user, accessToken }) => {
     useEffect(() => {
         const fetchEvents = async () => {
             try {
+                console.log('Fetching events from', `${apiUrl}/events`);
                 const response = await fetch(`${apiUrl}/events`);
+                console.log('Events response:', response);
                 if (!response.ok) throw new Error("Failed to fetch events");
                 const data = await response.json();
                 setEvents(sortEvents(data));
             } catch (err) {
+                console.error('Error fetching events:', err);
                 setEvents([]);
             }
         };
@@ -240,6 +246,7 @@ const Timeline = ({ user, accessToken }) => {
         setError("");
         try {
             const paddedYear = padYear(form.year);
+            console.log('Submitting new event:', { ...form, date: paddedYear ? `${paddedYear}-01-01` : undefined });
             const response = await fetch(`${apiUrl}/events`, {
                 method: "POST",
                 headers: {
@@ -252,6 +259,7 @@ const Timeline = ({ user, accessToken }) => {
                     tags: form.tags.split(",").map(t => t.trim()).filter(Boolean)
                 })
             });
+            console.log('Add event response:', response);
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to add event");
             setForm({ title: "", description: "", book_reference: "", year: "", tags: "", date_type: "CE" });
@@ -260,6 +268,7 @@ const Timeline = ({ user, accessToken }) => {
             const newEvents = await eventsRes.json();
             setEvents(sortEvents(newEvents));
         } catch (err) {
+            console.error('Error adding event:', err);
             setError(err.message);
         } finally {
             setSubmitting(false);
@@ -290,6 +299,7 @@ const Timeline = ({ user, accessToken }) => {
         setEditError("");
         try {
             const paddedYear = padYear(editForm.year);
+            console.log('Submitting event edit:', { ...editForm, date: paddedYear ? `${paddedYear}-01-01` : undefined });
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "PUT",
                 headers: {
@@ -302,6 +312,7 @@ const Timeline = ({ user, accessToken }) => {
                     tags: editForm.tags.split(",").map(t => t.trim()).filter(Boolean),
                 })
             });
+            console.log('Edit event response:', response);
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to update event");
             setEditMode(false);
@@ -311,6 +322,7 @@ const Timeline = ({ user, accessToken }) => {
             const newEvents = await eventsRes.json();
             setEvents(sortEvents(newEvents));
         } catch (err) {
+            console.error('Error editing event:', err);
             setEditError(err.message);
         }
     };
@@ -319,12 +331,14 @@ const Timeline = ({ user, accessToken }) => {
         if (!selectedEvent) return;
         if (!window.confirm("Are you sure you want to delete this event?")) return;
         try {
+            console.log('Deleting event:', selectedEvent.id);
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "DELETE",
                 headers: {
                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                 }
             });
+            console.log('Delete event response:', response);
             if (!response.ok) throw new Error("Failed to delete event");
             setSelectedEvent(null);
             // Refetch events
@@ -332,6 +346,7 @@ const Timeline = ({ user, accessToken }) => {
             const newEvents = await eventsRes.json();
             setEvents(sortEvents(newEvents));
         } catch (err) {
+            console.error('Error deleting event:', err);
             alert(err.message);
         }
     };
