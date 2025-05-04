@@ -27,22 +27,28 @@ function App() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#0f2027] via-[#2c5364] to-[#232526] flex flex-col items-center justify-center relative overflow-x-hidden">
+        <div className="min-h-screen bg-gradient-to-br from-[#0f2027] via-[#2c5364] to-[#232526] flex flex-col relative overflow-x-hidden">
             <style>{`
                 .fancy-heading { font-family: 'Orbitron', 'Segoe UI', Arial, sans-serif; letter-spacing: 2px; text-shadow: 0 2px 16px #00c6ff99, 0 1px 0 #232526; }
             `}</style>
-            <h1 className="fancy-heading text-5xl font-extrabold mt-8 mb-2 z-10 text-center w-full">Historical Knowledge Explorer</h1>
-            <div className="flex flex-col items-center w-full max-w-5xl px-8 mb-4 z-10 min-h-0">
-                {session?.user ? (
-                    <span className="mb-2 text-blue-200 font-semibold drop-shadow flex items-center justify-center w-full text-center">{session.user.email}</span>
-                ) : null}
-                {session?.user ? (
-                    <button onClick={handleLogout} className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-5 py-2 rounded-xl font-bold shadow-lg transition-all duration-300 glow mx-auto">Logout</button>
-                ) : (
-                    <button onClick={handleLogin} className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-white px-5 py-2 rounded-xl font-bold shadow-lg transition-all duration-300 glow mx-auto">Login with Google</button>
-                )}
+            {/* Header with login/logout at top right */}
+            <div className="w-full flex items-center justify-between px-8 pt-4 z-20">
+                <h1 className="fancy-heading text-3xl font-extrabold text-blue-200 text-left">Historical Knowledge Explorer</h1>
+                <div className="flex items-center gap-4">
+                    {session?.user && (
+                        <span className="text-blue-200 font-semibold drop-shadow text-sm">{session.user.email}</span>
+                    )}
+                    {session?.user ? (
+                        <button onClick={handleLogout} className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg transition-all duration-300 glow">Logout</button>
+                    ) : (
+                        <button onClick={handleLogin} className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg transition-all duration-300 glow">Login with Google</button>
+                    )}
+                </div>
             </div>
-            <Timeline user={session?.user} accessToken={session?.access_token} />
+            {/* Main content centered below header */}
+            <div className="flex flex-col items-center w-full max-w-5xl px-8 mx-auto mt-8 mb-4 z-10 min-h-0">
+                <Timeline user={session?.user} accessToken={session?.access_token} />
+            </div>
         </div>
     );
 }

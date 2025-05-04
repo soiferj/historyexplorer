@@ -19,6 +19,9 @@ app.get("/", (req, res) => res.send("History Map API Running"));
 const eventsRouter = require("./routes/events");
 app.use("/events", eventsRouter);
 
+const allowedEmailsRouter = require("./routes/allowedEmails");
+app.use("/allowed-emails", allowedEmailsRouter);
+
 // Middleware to verify Supabase JWT and check allow-list
 async function verifyAllowedUser(req, res, next) {
     try {

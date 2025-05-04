@@ -357,52 +357,65 @@ const Timeline = ({ user, accessToken }) => {
     return (
         <>
             <div className="flex flex-col items-center justify-center min-h-screen text-white text-center relative overflow-x-hidden bg-transparent px-2">
-                {/* Collapsible Add Event Form */}
+                {/* Add Event Button (smaller, modal trigger) */}
                 {isAllowed && (
                     <>
-                        {/* Space between login and add new event */}
-                        <div style={{ height: '1.5rem' }} />
                         <button
-                            className="mb-4 px-10 py-4 rounded-2xl bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 font-bold text-white shadow-2xl transition-all duration-300 glow z-10 text-lg tracking-wide border-2 border-white/20"
-                            onClick={() => setShowForm(v => !v)}
+                            className="mb-2 px-4 py-2 rounded bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 font-bold text-white shadow transition-all duration-200 glow z-10 text-base border border-white/20"
+                            onClick={() => setShowForm(true)}
                         >
-                            {showForm ? "Hide Add New Event" : "Add New Event"}
+                            Add New Event
                         </button>
                     </>
                 )}
+                {/* Add Event Modal */}
                 {showForm && isAllowed && (
-                    <form onSubmit={handleFormSubmit} className="glass p-10 rounded-3xl mb-10 w-full max-w-2xl flex flex-col gap-6 shadow-2xl border-2 border-blue-400 z-10 animate-fade-in-modal items-center mx-auto bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg">
-                        <h2 className="text-3xl font-extrabold mb-4 text-blue-300 text-center">Add New Event</h2>
-                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                            <label className="font-semibold text-gray-300" htmlFor="title">Title</label>
-                            <input id="title" name="title" value={form.title} onChange={handleFormChange} required placeholder="Title" className="p-4 rounded-xl bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-lg" />
+                    <div className="fixed inset-0 z-50 flex items-center justify-center">
+                        {/* Modal overlay */}
+                        <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowForm(false)} />
+                        {/* Modal content */}
+                        <div className="relative glass p-8 rounded-2xl shadow-2xl border border-blue-400 max-w-lg w-full z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg">
+                            <button
+                                className="absolute top-3 right-3 text-2xl text-blue-300 hover:text-pink-400 focus:outline-none"
+                                onClick={() => setShowForm(false)}
+                                aria-label="Close modal"
+                            >
+                                &times;
+                            </button>
+                            <form onSubmit={handleFormSubmit} className="w-full flex flex-col gap-6 items-center">
+                                <h2 className="text-2xl font-bold mb-2 text-blue-300 text-center">Add New Event</h2>
+                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                    <label className="font-semibold text-gray-300" htmlFor="title">Title</label>
+                                    <input id="title" name="title" value={form.title} onChange={handleFormChange} required placeholder="Title" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-base" />
+                                </div>
+                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                    <label className="font-semibold text-gray-300" htmlFor="year">Year</label>
+                                    <input id="year" name="year" value={form.year} onChange={handleFormChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-base" maxLength={4} />
+                                </div>
+                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                    <label className="font-semibold text-gray-300" htmlFor="date_type">Date Type</label>
+                                    <select id="date_type" name="date_type" value={form.date_type} onChange={handleFormChange} className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-base">
+                                        <option value="BCE">BCE</option>
+                                        <option value="CE">CE</option>
+                                    </select>
+                                </div>
+                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                    <label className="font-semibold text-gray-300" htmlFor="book_reference">Book Reference</label>
+                                    <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book Reference" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-base" />
+                                </div>
+                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                    <label className="font-semibold text-gray-300" htmlFor="tags">Tags</label>
+                                    <input id="tags" name="tags" value={form.tags} onChange={handleFormChange} placeholder="Tags (comma separated)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-base" />
+                                </div>
+                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                    <label className="font-semibold text-gray-300" htmlFor="description">Description</label>
+                                    <textarea id="description" name="description" value={form.description} onChange={handleFormChange} placeholder="Description" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-h-[80px] resize-vertical text-base" />
+                                </div>
+                                <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-lg mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto">{submitting ? "Adding..." : "Add Event"}</button>
+                                {error && <div className="text-red-400 mt-1 text-center w-full max-w-md mx-auto">{error}</div>}
+                            </form>
                         </div>
-                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                            <label className="font-semibold text-gray-300" htmlFor="year">Year</label>
-                            <input id="year" name="year" value={form.year} onChange={handleFormChange} required placeholder="Year (e.g. 1776)" className="p-4 rounded-xl bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-lg" maxLength={4} />
-                        </div>
-                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                            <label className="font-semibold text-gray-300" htmlFor="date_type">Date Type</label>
-                            <select id="date_type" name="date_type" value={form.date_type} onChange={handleFormChange} className="p-4 rounded-xl bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-lg">
-                                <option value="BCE">BCE</option>
-                                <option value="CE">CE</option>
-                            </select>
-                        </div>
-                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                            <label className="font-semibold text-gray-300" htmlFor="book_reference">Book Reference</label>
-                            <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book Reference" className="p-4 rounded-xl bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-lg" />
-                        </div>
-                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                            <label className="font-semibold text-gray-300" htmlFor="tags">Tags</label>
-                            <input id="tags" name="tags" value={form.tags} onChange={handleFormChange} placeholder="Tags (comma separated)" className="p-4 rounded-xl bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-lg" />
-                        </div>
-                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                            <label className="font-semibold text-gray-300" htmlFor="description">Description</label>
-                            <textarea id="description" name="description" value={form.description} onChange={handleFormChange} placeholder="Description" className="p-4 rounded-xl bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-h-[80px] resize-vertical text-lg" />
-                        </div>
-                        <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-4 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-lg w-full max-w-md mx-auto">{submitting ? "Adding..." : "Add Event"}</button>
-                        {error && <div className="text-red-400 mt-1 text-center w-full max-w-md mx-auto">{error}</div>}
-                    </form>
+                    </div>
                 )}
 
                 {/* Space between add new event and search */}
@@ -473,7 +486,7 @@ const Timeline = ({ user, accessToken }) => {
                 </div>
 
                 {/* Scrollable timeline container */}
-                <div style={{ maxHeight: '340px', overflowY: 'auto', marginBottom: '2rem' }} className="w-full max-w-4xl mx-auto rounded-2xl shadow-2xl bg-gray-800/80">
+                <div style={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '2rem' }} className="w-full max-w-4xl mx-auto rounded-2xl shadow-2xl bg-gray-800/80">
                     <svg ref={svgRef} className="timeline-svg w-full" />
                 </div>
 
