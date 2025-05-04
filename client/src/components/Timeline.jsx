@@ -400,11 +400,19 @@ const Timeline = ({ user, accessToken }) => {
                 )}
                 {/* Add Event Modal */}
                 {showForm && isAllowed && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start' }}>
                         {/* Modal overlay */}
                         <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowForm(false)} />
                         {/* Modal content */}
-                        <div className="relative glass p-8 rounded-2xl shadow-2xl border border-blue-400 max-w-lg w-full z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg">
+                        <div
+                            className="relative glass p-8 rounded-2xl shadow-2xl border border-blue-400 w-full max-w-lg z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg"
+                            style={{
+                                maxHeight: '90vh',
+                                overflowY: 'auto',
+                                margin: '4rem 1rem 1rem 1rem',
+                                boxSizing: 'border-box',
+                            }}
+                        >
                             <button
                                 className="absolute top-3 right-3 text-2xl text-blue-300 hover:text-pink-400 focus:outline-none"
                                 onClick={() => setShowForm(false)}
@@ -524,11 +532,19 @@ const Timeline = ({ user, accessToken }) => {
                 </div>
 
                 {selectedEvent && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start' }}>
                         {/* Modal overlay */}
                         <div className="fixed inset-0 bg-gradient-to-br from-[#232526cc] via-[#00c6ff88] to-[#ff512fcc] blur-sm" onClick={() => setSelectedEvent(null)} />
                         {/* Modal content */}
-                        <div className="relative glass text-gray-100 p-8 rounded-2xl shadow-2xl border border-blue-400 max-w-lg w-full z-60 flex flex-col items-center animate-fade-in-modal">
+                        <div
+                            className="relative glass text-gray-100 p-8 rounded-2xl shadow-2xl border border-blue-400 w-full max-w-lg z-60 flex flex-col items-center animate-fade-in-modal"
+                            style={{
+                                maxHeight: '90vh',
+                                overflowY: 'auto',
+                                margin: '4rem 1rem 1rem 1rem',
+                                boxSizing: 'border-box',
+                            }}
+                        >
                             <button
                                 className="absolute top-3 right-3 text-2xl text-blue-300 hover:text-pink-400 focus:outline-none"
                                 onClick={() => setSelectedEvent(null)}
