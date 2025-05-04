@@ -34,7 +34,7 @@ function App() {
             {/* Header with login/logout at top right */}
             <div className="w-full flex items-center justify-between px-8 pt-4 z-20">
                 <h1 className="fancy-heading text-3xl font-extrabold text-blue-200 text-left">Historical Knowledge Explorer</h1>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
                     {session?.user && (
                         <span className="text-blue-200 font-semibold drop-shadow text-sm">{session.user.email}</span>
                     )}

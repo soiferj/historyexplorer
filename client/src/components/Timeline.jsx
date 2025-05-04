@@ -292,6 +292,7 @@ const Timeline = ({ user, accessToken }) => {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to add event");
             setForm({ title: "", description: "", book_reference: "", year: "", tags: "", date_type: "CE" });
+            setShowForm(false); // Close the modal after successful creation
             // Refetch events
             const eventsRes = await fetch(`${apiUrl}/events`);
             const newEvents = await eventsRes.json();
