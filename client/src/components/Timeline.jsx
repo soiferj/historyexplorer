@@ -128,12 +128,13 @@ const Timeline = ({ user, accessToken }) => {
             return;
         }
 
-        // Responsive SVG width
-        const svgWidth = Math.min(window.innerWidth - 40, 900); // up to 900px, with margin
-        const svgHeight = Math.max(filteredEvents.length * 100, 100);
-        const timelineX = 200; // move timeline left for more text space
-        const textX = timelineX + 40;
-        const maxTextWidth = svgWidth - textX - 40;
+        // Responsive SVG width and height
+        const isMobile = window.innerWidth < 640;
+        const svgWidth = isMobile ? window.innerWidth - 16 : Math.min(window.innerWidth - 40, 900);
+        const svgHeight = Math.max(filteredEvents.length * (isMobile ? 80 : 100), 100);
+        const timelineX = isMobile ? 60 : 200;
+        const textX = timelineX + (isMobile ? 32 : 40);
+        const maxTextWidth = svgWidth - textX - 16;
 
         const svg = d3.select(svgRef.current);
         svg.selectAll("*").remove(); // Clear previous render
@@ -145,7 +146,7 @@ const Timeline = ({ user, accessToken }) => {
 
         const yScale = d3.scaleLinear()
             .domain([0, filteredEvents.length - 1])
-            .range([50, filteredEvents.length * 100 - 50]);
+            .range([isMobile ? 40 : 50, filteredEvents.length * (isMobile ? 80 : 100) - (isMobile ? 40 : 50)]);
 
         const links = filteredEvents.slice(1).map((event, index) => ({
             source: filteredEvents[index],
@@ -161,7 +162,7 @@ const Timeline = ({ user, accessToken }) => {
             .attr("x2", timelineX)
             .attr("y2", d => yScale(filteredEvents.indexOf(d.target)))
             .attr("stroke", "#ccc")
-            .attr("stroke-width", 2)
+            .attr("stroke-width", isMobile ? 3 : 2)
             .style("opacity", 0)
             .transition()
             .duration(500)
@@ -173,20 +174,24 @@ const Timeline = ({ user, accessToken }) => {
             .append("circle")
             .attr("cx", timelineX)
             .attr("cy", (d, i) => yScale(i))
-            .attr("r", 14)
+            .attr("r", isMobile ? 22 : 14)
             .attr("fill", "#3B82F6")
             .style("cursor", "pointer")
             .on("mouseover", function (event, d) {
-                d3.select(this)
-                  .transition()
-                  .duration(150)
-                  .attr("r", 22);
+                if (!isMobile) {
+                  d3.select(this)
+                    .transition()
+                    .duration(150)
+                    .attr("r", 22);
+                }
             })
             .on("mouseout", function (event, d) {
-                d3.select(this)
-                  .transition()
-                  .duration(150)
-                  .attr("r", 14);
+                if (!isMobile) {
+                  d3.select(this)
+                    .transition()
+                    .duration(150)
+                    .attr("r", 14);
+                }
             })
             .on("click", (event, d) => setSelectedEvent(d))
             .style("opacity", 0)
@@ -196,7 +201,6 @@ const Timeline = ({ user, accessToken }) => {
 
         // Helper for truncating text with ellipsis
         function truncateText(text, maxWidth, fontSize = 16, fontFamily = 'Orbitron, Segoe UI, Arial, sans-serif') {
-            // Create a temporary SVG text element to measure width
             const tempSvg = d3.select(document.body).append("svg").attr("style", "position:absolute;left:-9999px;top:-9999px;");
             const tempText = tempSvg.append("text")
                 .attr("font-size", fontSize)
@@ -213,19 +217,44 @@ const Timeline = ({ user, accessToken }) => {
             return width > maxWidth ? truncated + '…' : truncated;
         }
 
-        svg.selectAll("text")
+        // Draw event text (date and title)
+        svg.selectAll("g.event-label")
             .data(filteredEvents)
             .enter()
-            .append("text")
-            .attr("x", textX)
-            .attr("y", (d, i) => yScale(i) + 5)
-            .attr("fill", "white")
-            .attr("font-size", 16)
-            .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
-            .attr("text-anchor", "start")
-            .attr("dominant-baseline", "middle")
-            .attr("style", `max-width: ${maxTextWidth}px; overflow: visible;`)
-            .text(d => truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
+            .append("g")
+            .attr("class", "event-label")
+            .attr("transform", (d, i) => `translate(${textX},${yScale(i)})`)
+            .each(function (d) {
+                const g = d3.select(this);
+                if (isMobile) {
+                    g.append("text")
+                        .attr("y", -10)
+                        .attr("fill", "#93c5fd")
+                        .attr("font-size", 16)
+                        .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                        .attr("text-anchor", "start")
+                        .attr("dominant-baseline", "middle")
+                        .text(`${new Date(d.date).getFullYear()} ${d.date_type}`);
+                    g.append("text")
+                        .attr("y", 14)
+                        .attr("fill", "white")
+                        .attr("font-size", 18)
+                        .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                        .attr("font-weight", "bold")
+                        .attr("text-anchor", "start")
+                        .attr("dominant-baseline", "middle")
+                        .text(truncateText(d.title, maxTextWidth, 18));
+                } else {
+                    g.append("text")
+                        .attr("y", 5)
+                        .attr("fill", "white")
+                        .attr("font-size", 16)
+                        .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                        .attr("text-anchor", "start")
+                        .attr("dominant-baseline", "middle")
+                        .text(truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
+                }
+            });
     }, [filteredEvents]);
 
     // Helper to pad year to 4 digits
@@ -486,8 +515,11 @@ const Timeline = ({ user, accessToken }) => {
                 </div>
 
                 {/* Scrollable timeline container */}
-                <div style={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '2rem' }} className="w-full max-w-4xl mx-auto rounded-2xl shadow-2xl bg-gray-800/80">
-                    <svg ref={svgRef} className="timeline-svg w-full" />
+                <div
+                    style={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '2rem' }}
+                    className="w-full max-w-4xl mx-auto rounded-2xl shadow-2xl bg-gray-800/80 overflow-x-auto sm:overflow-x-visible"
+                >
+                    <svg ref={svgRef} className="timeline-svg w-full min-w-[340px] sm:min-w-0" />
                 </div>
 
                 {selectedEvent && (
