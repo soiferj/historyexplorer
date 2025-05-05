@@ -27,43 +27,70 @@ const Timeline = ({ user, accessToken }) => {
 
     // Fetch allowed emails from the server
     const [allowedEmails, setAllowedEmails] = useState([]);
+    const [allowedEmailsLoading, setAllowedEmailsLoading] = useState(true);
 
     useEffect(() => {
+        let isMounted = true;
+        let retryTimeout;
         const fetchAllowedEmails = async () => {
+            setAllowedEmailsLoading(true);
             try {
-                console.log('Fetching allowed emails from', `${apiUrl}/allowed-emails`);
                 const response = await fetch(`${apiUrl}/allowed-emails`, {
                     headers: {
                         ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                     }
                 });
-                console.log('Allowed emails response:', response);
                 if (!response.ok) throw new Error("Failed to fetch allowed emails");
                 const data = await response.json();
-                setAllowedEmails(data.map(e => e.email));
+                if (isMounted) {
+                    setAllowedEmails(data.map(e => e.email));
+                    setAllowedEmailsLoading(false);
+                }
             } catch (err) {
-                console.error('Error fetching allowed emails:', err);
-                setAllowedEmails([]);
+                if (isMounted) {
+                    setAllowedEmails([]);
+                    setAllowedEmailsLoading(true); // keep loading
+                    retryTimeout = setTimeout(fetchAllowedEmails, 5000);
+                }
             }
         };
         fetchAllowedEmails();
+        return () => {
+            isMounted = false;
+            if (retryTimeout) clearTimeout(retryTimeout);
+        };
     }, [apiUrl, accessToken]);
 
+    const [eventsLoading, setEventsLoading] = useState(true);
+    const [eventsError, setEventsError] = useState(null);
     useEffect(() => {
+        let isMounted = true;
+        let retryTimeout;
         const fetchEvents = async () => {
+            setEventsLoading(true);
+            setEventsError(null);
             try {
-                console.log('Fetching events from', `${apiUrl}/events`);
                 const response = await fetch(`${apiUrl}/events`);
-                console.log('Events response:', response);
                 if (!response.ok) throw new Error("Failed to fetch events");
                 const data = await response.json();
-                setEvents(sortEvents(data));
+                if (isMounted) {
+                    setEvents(sortEvents(data));
+                    setEventsLoading(false);
+                }
             } catch (err) {
-                console.error('Error fetching events:', err);
-                setEvents([]);
+                if (isMounted) {
+                    setEvents([]);
+                    setEventsError(err.message);
+                    setEventsLoading(true); // keep loading
+                    retryTimeout = setTimeout(fetchEvents, 5000);
+                }
             }
         };
         fetchEvents();
+        return () => {
+            isMounted = false;
+            if (retryTimeout) clearTimeout(retryTimeout);
+        };
     }, [apiUrl]);
 
     // Helper to sort events: BCE descending, CE ascending
@@ -496,7 +523,7 @@ const Timeline = ({ user, accessToken }) => {
     };
 
     // Center the entire page content
-    const isAllowed = user && allowedEmails.includes(user.email);
+    const isAllowed = user && allowedEmails.map(e => e.toLowerCase()).includes(user.email.toLowerCase());
     // State for filter modal
     const [showFilters, setShowFilters] = useState(false);
     // Add a ref for the scrollable timeline container
@@ -514,6 +541,22 @@ const Timeline = ({ user, accessToken }) => {
     return (
         <>
             <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
+                {/* Loading overlay for events or allowed emails */}
+                {(eventsLoading || allowedEmailsLoading) && (
+                    <div className="absolute inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
+                        <div className="glass p-8 rounded-2xl shadow-xl border border-blue-400 animate-pulse text-lg font-bold text-blue-200">
+                            Loading timeline...
+                        </div>
+                    </div>
+                )}
+                {/* Error message if both fail (optional) */}
+                {(!eventsLoading && eventsError) && (
+                    <div className="absolute inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
+                        <div className="glass p-8 rounded-2xl shadow-xl border border-pink-400 text-lg font-bold text-pink-200">
+                            {eventsError}<br/>Retrying...
+                        </div>
+                    </div>
+                )}
                 {/* Add Event and Filters Button (in a single row) */}
                 <div className="w-full flex justify-center z-10 mb-4 gap-3 flex-row items-center">
                     {isAllowed && (
