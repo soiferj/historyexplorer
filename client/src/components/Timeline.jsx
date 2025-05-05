@@ -513,7 +513,7 @@ const Timeline = ({ user, accessToken }) => {
 
     return (
         <>
-            <div className="flex flex-col items-center justify-center min-h-screen text-white text-center relative overflow-x-hidden bg-transparent px-2">
+            <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
                 {/* Add Event and Filters Button (in a single row) */}
                 <div className="w-full flex justify-center z-10 mb-4 gap-3 flex-row items-center">
                     {isAllowed && (
