@@ -260,7 +260,7 @@ const Timeline = ({ user, accessToken }) => {
 
         const yScale = d3.scaleLinear()
             .domain([0, renderData.length - 1])
-            .range([isMobile ? 10 : 50, renderData.length * (isMobile ? 80 : 100) - (isMobile ? 40 : 50)]);
+            .range([isMobile ? 40 : 50, renderData.length * (isMobile ? 80 : 100) - (isMobile ? 40 : 50)]);
 
         if (zoomedOut) {
             // Grouped by century: draw one node per century
