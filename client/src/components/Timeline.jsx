@@ -150,38 +150,79 @@ const Timeline = ({ user, accessToken }) => {
 
     // Add zoom state
     const [zoomedOut, setZoomedOut] = useState(false);
+    // Grouping state: 'none', 'tag', 'book'
+    const [groupMode, setGroupMode] = useState('none');
+    // Selected tag or book reference for filtering
+    const [selectedTag, setSelectedTag] = useState(null);
+    const [selectedBook, setSelectedBook] = useState(null);
 
-    // Helper to get ordinal suffix for century
-    function getCenturyLabel(century, era) {
-        let suffix = 'th';
-        if (century === 1) suffix = 'st';
-        else if (century === 2) suffix = 'nd';
-        else if (century === 3) suffix = 'rd';
-        return `${century}${suffix} century ${era}`;
+    // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically
+    function getAllTags(events) {
+        const tagCount = {};
+        (events || []).forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => {
+            tagCount[tag] = (tagCount[tag] || 0) + 1;
+        }));
+        return Object.entries(tagCount)
+            .filter(([tag, count]) => count > 2)
+            .map(([tag]) => tag)
+            .sort((a, b) => a.localeCompare(b));
+    }
+    // Helper to get all unique book references from filteredEvents, sorted alphabetically
+    function getAllBooks(events) {
+        const bookSet = new Set();
+        (events || []).forEach(ev => ev.book_reference && bookSet.add(ev.book_reference));
+        return Array.from(bookSet).sort((a, b) => a.localeCompare(b));
     }
 
     // Group events by century
     function groupEventsByCentury(events) {
+        if (!events || events.length === 0) return [];
         const groups = {};
         events.forEach(event => {
-            if (!event.date) return;
+            if (!event.date || !event.date_type) return;
             const year = parseInt(event.date.split("-")[0], 10);
-            if (isNaN(year)) return;
-            let century, label, era = event.date_type;
-            if (era === 'BCE') {
-                century = Math.ceil(year / 100);
+            let century;
+            if (event.date_type === "BCE") {
+                century = `${Math.ceil(year / 100)}th Century BCE`;
             } else {
-                century = Math.ceil(year / 100);
+                century = `${Math.ceil(year / 100)}th Century CE`;
             }
-            label = getCenturyLabel(century, era);
-            if (!groups[label]) groups[label] = { label, events: [], date_type: era, sortKey: era === 'BCE' ? -century : century, century, era };
-            groups[label].events.push(event);
+            if (!groups[century]) groups[century] = { label: century, events: [] };
+            groups[century].events.push(event);
         });
-        return Object.values(groups).sort((a, b) => a.sortKey - b.sortKey);
+        // Sort centuries: BCE descending, then CE ascending
+        return Object.values(groups).sort((a, b) => {
+            const aIsBCE = a.label.includes('BCE');
+            const bIsBCE = b.label.includes('BCE');
+            const aNum = parseInt(a.label);
+            const bNum = parseInt(b.label);
+            if (aIsBCE && bIsBCE) return bNum - aNum;
+            if (!aIsBCE && !bIsBCE) return aNum - bNum;
+            return aIsBCE ? -1 : 1;
+        });
     }
 
-    // Use grouped or flat data for rendering
-    const renderData = zoomedOut ? groupEventsByCentury(filteredEvents) : filteredEvents;
+    // Use grouped or flat data for rendering, and filter by selected tag/book if set
+    let renderData;
+    if (zoomedOut) {
+        if (groupMode === 'tag' && selectedTag) {
+            // Only group the events with the selected tag by century
+            renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(selectedTag)));
+        } else if (groupMode === 'book' && selectedBook) {
+            // Only group the events with the selected book by century
+            renderData = groupEventsByCentury(filteredEvents.filter(ev => ev.book_reference === selectedBook));
+        } else {
+            renderData = groupEventsByCentury(filteredEvents);
+        }
+    } else {
+        if (groupMode === 'tag' && selectedTag) {
+            renderData = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(selectedTag));
+        } else if (groupMode === 'book' && selectedBook) {
+            renderData = filteredEvents.filter(ev => ev.book_reference === selectedBook);
+        } else {
+            renderData = filteredEvents;
+        }
+    }
 
     // D3 rendering effect, depends on filteredEvents
     useEffect(() => {
@@ -583,7 +624,7 @@ const Timeline = ({ user, accessToken }) => {
                     </div>
                 )}
                 {/* Add Event and Filters Button (in a single row) */}
-                <div className="w-full flex justify-center z-10 mb-4 gap-3 flex-row items-center">
+                <div className="w-full flex flex-wrap justify-center z-10 mb-4 gap-3 flex-row items-center">
                     {isAllowed && (
                         <button
                             className="px-2 py-1 text-sm sm:px-4 sm:py-2 sm:text-base rounded bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 font-bold text-white shadow transition-all duration-200 glow border border-white/20"
@@ -602,10 +643,29 @@ const Timeline = ({ user, accessToken }) => {
                         </svg>
                         Filters
                     </button>
+                    {/* Grouping mode selector */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-blue-200 font-semibold text-xs sm:text-sm">Group by:</label>
+                        <select
+                            value={groupMode}
+                            onChange={e => {
+                                setGroupMode(e.target.value);
+                                setSelectedTag(null);
+                                setSelectedBook(null);
+                                setZoomedOut(false);
+                            }}
+                            className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm"
+                        >
+                            <option value="none">None</option>
+                            <option value="tag">Tag</option>
+                            <option value="book">Book</option>
+                        </select>
+                    </div>
+                    {/* Always show zoom button */}
                     <button
                         className={`flex items-center gap-1 px-2 py-1 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base rounded ${zoomedOut ? 'bg-blue-700' : 'bg-gray-800/80'} text-white border border-blue-400 hover:bg-blue-600 transition shadow-md`}
                         onClick={() => setZoomedOut(z => !z)}
-                        aria-label={zoomedOut ? 'Zoom in to events' : 'Zoom out to centuries'}
+                        aria-label={zoomedOut ? 'Zoom in to events' : 'Zoom out to groups'}
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
@@ -613,6 +673,45 @@ const Timeline = ({ user, accessToken }) => {
                         {zoomedOut ? 'Zoom In' : 'Zoom Out'}
                     </button>
                 </div>
+                {/* Tag or Book Reference group selection UI */}
+                {groupMode === 'tag' && !selectedTag && (
+                    <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
+                        {getAllTags(filteredEvents).map(tag => (
+                            <button
+                                key={tag}
+                                className="px-3 py-1 rounded-full bg-blue-700 text-white text-xs font-semibold shadow hover:bg-pink-500 transition"
+                                onClick={() => setSelectedTag(tag)}
+                            >
+                                {tag}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                {groupMode === 'tag' && selectedTag && (
+                    <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
+                        <span className="px-3 py-1 rounded-full bg-pink-500 text-white text-xs font-semibold shadow">Tag: {selectedTag}</span>
+                        <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedTag(null)}>Clear</button>
+                    </div>
+                )}
+                {groupMode === 'book' && !selectedBook && (
+                    <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
+                        {getAllBooks(filteredEvents).map(book => (
+                            <button
+                                key={book}
+                                className="px-3 py-1 rounded-full bg-blue-700 text-white text-xs font-semibold shadow hover:bg-pink-500 transition"
+                                onClick={() => setSelectedBook(book)}
+                            >
+                                {book}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                {groupMode === 'book' && selectedBook && (
+                    <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
+                        <span className="px-3 py-1 rounded-full bg-pink-500 text-white text-xs font-semibold shadow">Book: {selectedBook}</span>
+                        <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedBook(null)}>Clear</button>
+                    </div>
+                )}
 
                 {/* Add Event Modal */}
                 {showForm && isAllowed && (
@@ -660,8 +759,8 @@ const Timeline = ({ user, accessToken }) => {
                                         </div>
                                     </div>
                                     <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                        <label className="font-semibold text-blue-200" htmlFor="book_reference">Book Reference</label>
-                                        <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book Reference" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                        <label className="font-semibold text-blue-200" htmlFor="book_reference">Book</label>
+                                        <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                     </div>
                                     <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto tracking-wide">
                                         {submitting ? "Adding..." : "Add Event"}
@@ -821,8 +920,8 @@ const Timeline = ({ user, accessToken }) => {
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book Reference</label>
-                                                <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book Reference" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book</label>
+                                                <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                 <label className="font-semibold text-blue-200" htmlFor="edit-description">Description</label>
