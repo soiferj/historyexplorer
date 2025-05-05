@@ -175,20 +175,31 @@ const Timeline = ({ user, accessToken }) => {
     }
 
     // Group events by century
+    function ordinalSuffix(n) {
+        if (n % 100 >= 11 && n % 100 <= 13) return n + 'th';
+        switch (n % 10) {
+            case 1: return n + 'st';
+            case 2: return n + 'nd';
+            case 3: return n + 'rd';
+            default: return n + 'th';
+        }
+    }
     function groupEventsByCentury(events) {
         if (!events || events.length === 0) return [];
         const groups = {};
         events.forEach(event => {
             if (!event.date || !event.date_type) return;
             const year = parseInt(event.date.split("-")[0], 10);
-            let century;
+            const centuryNum = Math.ceil(year / 100);
+            const centuryLabel = ordinalSuffix(centuryNum);
+            let label;
             if (event.date_type === "BCE") {
-                century = `${Math.ceil(year / 100)}th Century BCE`;
+                label = `${centuryLabel} Century BCE`;
             } else {
-                century = `${Math.ceil(year / 100)}th Century CE`;
+                label = `${centuryLabel} Century CE`;
             }
-            if (!groups[century]) groups[century] = { label: century, events: [] };
-            groups[century].events.push(event);
+            if (!groups[label]) groups[label] = { label, events: [] };
+            groups[label].events.push(event);
         });
         // Sort centuries: BCE descending, then CE ascending
         return Object.values(groups).sort((a, b) => {
