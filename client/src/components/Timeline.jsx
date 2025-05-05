@@ -383,6 +383,8 @@ const Timeline = ({ user, accessToken }) => {
 
     // Center the entire page content
     const isAllowed = user && allowedEmails.includes(user.email);
+    // State for filter modal
+    const [showFilters, setShowFilters] = useState(false);
 
     return (
         <>
@@ -400,7 +402,7 @@ const Timeline = ({ user, accessToken }) => {
                 )}
                 {/* Add Event Modal */}
                 {showForm && isAllowed && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start' }}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '4rem' }}>
                         {/* Modal overlay */}
                         <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowForm(false)} />
                         {/* Modal content */}
@@ -456,72 +458,107 @@ const Timeline = ({ user, accessToken }) => {
                     </div>
                 )}
 
-                {/* Space between add new event and search */}
-                <div style={{ height: '1.5rem' }} />
-
-                {/* Search Bar */}
+                {/* Filters Button */}
                 <div className="mb-4 w-full flex justify-center z-10">
-                    <input
-                        type="text"
-                        placeholder="Search events..."
-                        className="p-3 w-72 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md"
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
-
-                {/* Add space between search and filter */}
-                <div style={{ height: '1.5rem' }} />
-
-                {/* Date Range Filter */}
-                <div className="mb-4 w-full flex flex-wrap justify-center gap-4 z-10">
-                    <div className="flex items-center gap-2">
-                        <label className="text-blue-200 font-semibold">From</label>
-                        <input
-                            type="number"
-                            min="1"
-                            max="9999"
-                            value={dateFilter.startYear}
-                            onChange={e => setDateFilter(f => ({ ...f, startYear: e.target.value }))}
-                            placeholder="Year"
-                            className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
-                        />
-                        <select
-                            value={dateFilter.startEra}
-                            onChange={e => setDateFilter(f => ({ ...f, startEra: e.target.value }))}
-                            className="p-2 rounded bg-gray-800 text-white border border-blue-400"
-                        >
-                            <option value="BCE">BCE</option>
-                            <option value="CE">CE</option>
-                        </select>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <label className="text-blue-200 font-semibold">To</label>
-                        <input
-                            type="number"
-                            min="1"
-                            max="9999"
-                            value={dateFilter.endYear}
-                            onChange={e => setDateFilter(f => ({ ...f, endYear: e.target.value }))}
-                            placeholder="Year"
-                            className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
-                        />
-                        <select
-                            value={dateFilter.endEra}
-                            onChange={e => setDateFilter(f => ({ ...f, endEra: e.target.value }))}
-                            className="p-2 rounded bg-gray-800 text-white border border-blue-400"
-                        >
-                            <option value="BCE">BCE</option>
-                            <option value="CE">CE</option>
-                        </select>
-                    </div>
                     <button
-                        className="ml-2 px-4 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition"
-                        onClick={() => setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' })}
-                        type="button"
+                        className="flex items-center gap-2 px-4 py-2 rounded bg-gray-800/80 text-white border border-blue-400 hover:bg-blue-600 transition shadow-md"
+                        onClick={() => setShowFilters(true)}
+                        aria-label="Show filters"
                     >
-                        Clear
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18m-16.5 6.75h15m-13.5 6.75h12" />
+                        </svg>
+                        Filters
                     </button>
                 </div>
+
+                {/* Filters Modal/Popover */}
+                {showFilters && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '4rem' }}>
+                        {/* Modal overlay */}
+                        <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowFilters(false)} />
+                        {/* Modal content */}
+                        <div
+                            className="relative glass p-8 rounded-2xl shadow-2xl border border-blue-400 w-full max-w-md z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg"
+                            style={{
+                                maxHeight: '90vh',
+                                overflowY: 'auto',
+                                margin: '4rem 1rem 1rem 1rem',
+                                boxSizing: 'border-box',
+                            }}
+                        >
+                            <button
+                                className="absolute top-3 right-3 text-2xl text-blue-300 hover:text-pink-400 focus:outline-none"
+                                onClick={() => setShowFilters(false)}
+                                aria-label="Close filters"
+                            >
+                                &times;
+                            </button>
+                            <h2 className="text-xl font-bold mb-4 text-blue-300">Filters</h2>
+                            {/* Search Bar */}
+                            <input
+                                type="text"
+                                placeholder="Search events..."
+                                className="mb-4 p-3 w-64 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            {/* Date Range Filter */}
+                            <div className="mb-4 w-full flex flex-col items-center">
+                                <h3 className="text-lg font-semibold text-blue-200 mb-2">Date Filter</h3>
+                                <div className="flex flex-wrap justify-center gap-4 z-10">
+                                    <div className="flex items-center gap-2">
+                                        <label className="text-blue-200 font-semibold">From</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="9999"
+                                            value={dateFilter.startYear}
+                                            onChange={e => setDateFilter(f => ({ ...f, startYear: e.target.value }))}
+                                            placeholder="Year"
+                                            className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
+                                        />
+                                        <select
+                                            value={dateFilter.startEra}
+                                            onChange={e => setDateFilter(f => ({ ...f, startEra: e.target.value }))}
+                                            className="p-2 rounded bg-gray-800 text-white border border-blue-400"
+                                        >
+                                            <option value="BCE">BCE</option>
+                                            <option value="CE">CE</option>
+                                        </select>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <label className="text-blue-200 font-semibold">To</label>
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            max="9999"
+                                            value={dateFilter.endYear}
+                                            onChange={e => setDateFilter(f => ({ ...f, endYear: e.target.value }))}
+                                            placeholder="Year"
+                                            className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
+                                        />
+                                        <select
+                                            value={dateFilter.endEra}
+                                            onChange={e => setDateFilter(f => ({ ...f, endEra: e.target.value }))}
+                                            className="p-2 rounded bg-gray-800 text-white border border-blue-400"
+                                        >
+                                            <option value="BCE">BCE</option>
+                                            <option value="CE">CE</option>
+                                        </select>
+                                    </div>
+                                    <button
+                                        className="ml-2 px-4 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition"
+                                        onClick={() => setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' })}
+                                        type="button"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Scrollable timeline container */}
                 <div
@@ -532,7 +569,7 @@ const Timeline = ({ user, accessToken }) => {
                 </div>
 
                 {selectedEvent && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start' }}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '4rem' }}>
                         {/* Modal overlay */}
                         <div className="fixed inset-0 bg-gradient-to-br from-[#232526cc] via-[#00c6ff88] to-[#ff512fcc] blur-sm" onClick={() => setSelectedEvent(null)} />
                         {/* Modal content */}
