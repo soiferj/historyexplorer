@@ -148,8 +148,8 @@ const Timeline = ({ user, accessToken }) => {
         return filtered;
     })();
 
-    // Add zoom state
-    const [zoomedOut, setZoomedOut] = useState(false);
+    // Add zoom state (now 3 levels: 0=event, 1=century, 2=millennium)
+    const [zoomLevel, setZoomLevel] = useState(0); // 0: event, 1: century, 2: millennium
     // Grouping state: 'none', 'tag', 'book'
     const [groupMode, setGroupMode] = useState('none');
     // Selected tag or book reference for filtering
@@ -212,20 +212,59 @@ const Timeline = ({ user, accessToken }) => {
             return aIsBCE ? -1 : 1;
         });
     }
+    // Group events by millennium
+    function groupEventsByMillennium(events) {
+        if (!events || events.length === 0) return [];
+        const groups = {};
+        events.forEach(event => {
+            if (!event.date || !event.date_type) return;
+            const year = parseInt(event.date.split("-")[0], 10);
+            const millenniumNum = Math.ceil(year / 1000);
+            // Use ordinalSuffix for millennium
+            const millenniumLabel = ordinalSuffix(millenniumNum);
+            let label;
+            if (event.date_type === "BCE") {
+                label = `${millenniumLabel} Millennium BCE`;
+            } else {
+                label = `${millenniumLabel} Millennium CE`;
+            }
+            if (!groups[label]) groups[label] = { label, events: [] };
+            groups[label].events.push(event);
+        });
+        // Sort millennia: BCE descending, then CE ascending
+        return Object.values(groups).sort((a, b) => {
+            const aIsBCE = a.label.includes('BCE');
+            const bIsBCE = b.label.includes('BCE');
+            const aNum = parseInt(a.label);
+            const bNum = parseInt(b.label);
+            if (aIsBCE && bIsBCE) return bNum - aNum;
+            if (!aIsBCE && !bIsBCE) return aNum - bNum;
+            return aIsBCE ? -1 : 1;
+        });
+    }
 
     // Use grouped or flat data for rendering, and filter by selected tag/book if set
     let renderData;
-    if (zoomedOut) {
+    if (zoomLevel === 2) {
+        // Millennium grouping
         if (groupMode === 'tag' && selectedTag) {
-            // Only group the events with the selected tag by century
+            renderData = groupEventsByMillennium(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(selectedTag)));
+        } else if (groupMode === 'book' && selectedBook) {
+            renderData = groupEventsByMillennium(filteredEvents.filter(ev => ev.book_reference === selectedBook));
+        } else {
+            renderData = groupEventsByMillennium(filteredEvents);
+        }
+    } else if (zoomLevel === 1) {
+        // Century grouping
+        if (groupMode === 'tag' && selectedTag) {
             renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(selectedTag)));
         } else if (groupMode === 'book' && selectedBook) {
-            // Only group the events with the selected book by century
             renderData = groupEventsByCentury(filteredEvents.filter(ev => ev.book_reference === selectedBook));
         } else {
             renderData = groupEventsByCentury(filteredEvents);
         }
     } else {
+        // Per-event
         if (groupMode === 'tag' && selectedTag) {
             renderData = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(selectedTag));
         } else if (groupMode === 'book' && selectedBook) {
@@ -262,8 +301,84 @@ const Timeline = ({ user, accessToken }) => {
             .domain([0, renderData.length - 1])
             .range([isMobile ? 40 : 50, renderData.length * (isMobile ? 80 : 100) - (isMobile ? 40 : 50)]);
 
-        if (zoomedOut) {
-            // Grouped by century: draw one node per century
+        if (zoomLevel === 2) {
+            // Millennium grouping
+            const links = renderData.slice(1).map((group, index) => ({
+                source: renderData[index],
+                target: group
+            }));
+            svg.selectAll("line")
+                .data(links)
+                .enter()
+                .append("line")
+                .attr("x1", timelineX)
+                .attr("y1", d => yScale(renderData.indexOf(d.source)))
+                .attr("x2", timelineX)
+                .attr("y2", d => yScale(renderData.indexOf(d.target)))
+                .attr("stroke", "#ccc")
+                .attr("stroke-width", isMobile ? 3 : 2)
+                .style("opacity", 0)
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+            svg.selectAll("circle")
+                .data(renderData)
+                .enter()
+                .append("circle")
+                .attr("cx", timelineX)
+                .attr("cy", (d, i) => yScale(i))
+                .attr("r", isMobile ? 18 : 24)
+                .attr("fill", "#f472b6")
+                .style("cursor", "pointer")
+                .on("click", (event, d) => {
+                    setZoomLevel(1);
+                    // Scroll to the first century of this millennium after zoom in
+                    setTimeout(() => {
+                        if (!timelineContainerRef.current) return;
+                        // Find the index of the first event of this millennium in filteredEvents
+                        const firstEvent = d.events[0];
+                        const idx = filteredEvents.findIndex(ev => ev === firstEvent);
+                        if (idx >= 0) {
+                            const itemHeight = isMobile ? 80 : 100;
+                            timelineContainerRef.current.scrollTo({
+                                top: Math.max(0, (itemHeight * idx) - 40),
+                                behavior: 'smooth'
+                            });
+                        }
+                    }, 100);
+                })
+                .style("opacity", 0)
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+            svg.selectAll("g.millennium-label")
+                .data(renderData)
+                .enter()
+                .append("g")
+                .attr("class", "millennium-label")
+                .attr("transform", (d, i) => `translate(${textX},${yScale(i)})`)
+                .each(function (d) {
+                    const g = d3.select(this);
+                    g.append("text")
+                        .attr("y", -8)
+                        .attr("fill", "#f472b6")
+                        .attr("font-size", 24)
+                        .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                        .attr("font-weight", "bold")
+                        .attr("text-anchor", "start")
+                        .attr("dominant-baseline", "middle")
+                        .text(d.label);
+                    g.append("text")
+                        .attr("y", 20)
+                        .attr("fill", "#93c5fd")
+                        .attr("font-size", 16)
+                        .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                        .attr("text-anchor", "start")
+                        .attr("dominant-baseline", "middle")
+                        .text(`${d.events.length} event${d.events.length !== 1 ? 's' : ''}`);
+                });
+        } else if (zoomLevel === 1) {
+            // Century grouping
             const links = renderData.slice(1).map((group, index) => ({
                 source: renderData[index],
                 target: group
@@ -292,11 +407,9 @@ const Timeline = ({ user, accessToken }) => {
                 .attr("fill", "#6366f1")
                 .style("cursor", "pointer")
                 .on("click", (event, d) => {
-                    setZoomedOut(false);
-                    // Scroll to the first event of this century after zoom in
+                    setZoomLevel(0);
                     setTimeout(() => {
                         if (!timelineContainerRef.current) return;
-                        // Find the index of the first event of this century in filteredEvents
                         const firstEvent = d.events[0];
                         const idx = filteredEvents.findIndex(ev => ev === firstEvent);
                         if (idx >= 0) {
@@ -473,7 +586,7 @@ const Timeline = ({ user, accessToken }) => {
                     }
                 });
         }
-    }, [renderData, zoomedOut, filteredEvents]);
+    }, [renderData, zoomLevel, filteredEvents]);
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -654,6 +767,22 @@ const Timeline = ({ user, accessToken }) => {
                         </svg>
                         Filters
                     </button>
+                    {/* Zoom controls moved to the left of group by */}
+                    <div className="flex items-center gap-2">
+                        <label className="text-blue-200 font-semibold text-xs sm:text-sm">Zoom:</label>
+                        <button
+                            className={`px-2 py-1 rounded ${zoomLevel === 0 ? 'bg-gray-700 cursor-not-allowed opacity-60' : (zoomLevel === 0 ? 'bg-gray-700' : 'bg-gray-800/80')} text-white border border-gray-400 hover:bg-gray-900 transition text-xs sm:text-sm`}
+                            onClick={() => zoomLevel > 0 && setZoomLevel(zoomLevel - 1)}
+                            aria-label="Zoom in"
+                            disabled={zoomLevel === 0}
+                        >-</button>
+                        <button
+                            className={`px-2 py-1 rounded ${zoomLevel === 2 ? 'bg-gray-700 cursor-not-allowed opacity-60' : (zoomLevel === 2 ? 'bg-gray-700' : 'bg-gray-800/80')} text-white border border-gray-400 hover:bg-gray-900 transition text-xs sm:text-sm`}
+                            onClick={() => zoomLevel < 2 && setZoomLevel(zoomLevel + 1)}
+                            aria-label="Zoom out"
+                            disabled={zoomLevel === 2}
+                        >+</button>
+                    </div>
                     {/* Grouping mode selector */}
                     <div className="flex items-center gap-2">
                         <label className="text-blue-200 font-semibold text-xs sm:text-sm">Group by:</label>
@@ -663,7 +792,7 @@ const Timeline = ({ user, accessToken }) => {
                                 setGroupMode(e.target.value);
                                 setSelectedTag(null);
                                 setSelectedBook(null);
-                                setZoomedOut(false);
+                                setZoomLevel(0);
                             }}
                             className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm"
                         >
@@ -672,17 +801,6 @@ const Timeline = ({ user, accessToken }) => {
                             <option value="book">Book</option>
                         </select>
                     </div>
-                    {/* Always show zoom button */}
-                    <button
-                        className={`flex items-center gap-1 px-2 py-1 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base rounded ${zoomedOut ? 'bg-blue-700' : 'bg-gray-800/80'} text-white border border-blue-400 hover:bg-blue-600 transition shadow-md`}
-                        onClick={() => setZoomedOut(z => !z)}
-                        aria-label={zoomedOut ? 'Zoom in to events' : 'Zoom out to groups'}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
-                        </svg>
-                        {zoomedOut ? 'Zoom In' : 'Zoom Out'}
-                    </button>
                 </div>
                 {/* Tag or Book Reference group selection UI */}
                 {groupMode === 'tag' && !selectedTag && (
