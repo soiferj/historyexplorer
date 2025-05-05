@@ -39,7 +39,7 @@ function App() {
                         <span className="text-blue-200 font-semibold drop-shadow text-sm">{session.user.email}</span>
                     )}
                     {session?.user ? (
-                        <button onClick={handleLogout} className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg transition-all duration-300 glow">Logout</button>
+                        <button onClick={handleLogout} className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-xl font-semibold shadow transition-all duration-200 border border-gray-600/60">Logout</button>
                     ) : (
                         <button onClick={handleLogin} className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-white px-4 py-2 rounded-xl font-bold shadow-lg transition-all duration-300 glow">Login with Google</button>
                     )}

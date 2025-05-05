@@ -45,3 +45,67 @@ code {
   box-shadow: 0 0 4px 1px #00c6ff55, 0 0 8px 2px #ff512f33;
   filter: drop-shadow(0 0 4px #00c6ff55) drop-shadow(0 0 8px #ff512f33);
 }
+
+/* Modern slim scrollbar for modals and glass containers */
+.glass, .glass * {
+  scrollbar-width: thin;
+  scrollbar-color: #4f8cff55 #23252600;
+}
+.glass::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+.glass::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #4f8cff88 0%, #ff6a6a88 100%);
+  border-radius: 8px;
+  min-height: 40px;
+}
+.glass::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #4f8cffcc 0%, #ff6a6acc 100%);
+}
+.glass::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Modern slim scrollbar for timeline container */
+.timeline-svg, .timeline-svg * {
+  scrollbar-width: thin;
+  scrollbar-color: #4f8cff55 #23252600;
+}
+.timeline-svg::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+  background: transparent;
+}
+.timeline-svg::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #4f8cff88 0%, #ff6a6a88 100%);
+  border-radius: 8px;
+  min-height: 40px;
+}
+.timeline-svg::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #4f8cffcc 0%, #ff6a6acc 100%);
+}
+.timeline-svg::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Modern slim scrollbar for timeline scroll container (rounded) */
+.timeline-scroll, .timeline-scroll * {
+  scrollbar-width: thin;
+  scrollbar-color: #4f8cff55 #23252600;
+}
+.timeline-scroll::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+.timeline-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #4f8cff88 0%, #ff6a6a88 100%);
+  border-radius: 1.5rem;
+  min-height: 40px;
+}
+.timeline-scroll::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #4f8cffcc 0%, #ff6a6acc 100%);
+}
+.timeline-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
