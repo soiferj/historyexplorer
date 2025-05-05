@@ -375,15 +375,40 @@ const Timeline = ({ user, accessToken }) => {
                             .attr("text-anchor", "start")
                             .attr("dominant-baseline", "middle")
                             .text(`${new Date(d.date).getFullYear()} ${d.date_type}`);
-                        g.append("text")
-                            .attr("y", 14)
-                            .attr("fill", "white")
-                            .attr("font-size", 18)
-                            .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
-                            .attr("font-weight", "bold")
-                            .attr("text-anchor", "start")
-                            .attr("dominant-baseline", "middle")
-                            .text(truncateText(d.title, maxTextWidth, 18));
+                        // Wrap title text for mobile
+                        const title = d.title;
+                        const words = title.split(' ');
+                        const lines = [];
+                        let currentLine = words[0] || '';
+                        for (let i = 1; i < words.length; i++) {
+                            const testLine = currentLine + ' ' + words[i];
+                            // Use a temp SVG text to measure width
+                            const tempSvg = d3.select(document.body).append("svg").attr("style", "position:absolute;left:-9999px;top:-9999px;");
+                            const tempText = tempSvg.append("text")
+                                .attr("font-size", 18)
+                                .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                                .text(testLine);
+                            const width = tempText.node().getComputedTextLength();
+                            tempSvg.remove();
+                            if (width > maxTextWidth) {
+                                lines.push(currentLine);
+                                currentLine = words[i];
+                            } else {
+                                currentLine = testLine;
+                            }
+                        }
+                        lines.push(currentLine);
+                        lines.forEach((line, idx) => {
+                            g.append("text")
+                                .attr("y", 14 + idx * 20)
+                                .attr("fill", "white")
+                                .attr("font-size", 18)
+                                .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                                .attr("font-weight", "bold")
+                                .attr("text-anchor", "start")
+                                .attr("dominant-baseline", "middle")
+                                .text(line);
+                        });
                     } else {
                         g.append("text")
                             .attr("y", 5)
