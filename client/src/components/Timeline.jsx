@@ -209,7 +209,7 @@ const Timeline = ({ user, accessToken }) => {
                 .append("circle")
                 .attr("cx", timelineX)
                 .attr("cy", (d, i) => yScale(i))
-                .attr("r", isMobile ? 26 : 18)
+                .attr("r", isMobile ? 14 : 18)
                 .attr("fill", "#6366f1")
                 .style("cursor", "pointer")
                 .on("click", (event, d) => {
@@ -287,7 +287,7 @@ const Timeline = ({ user, accessToken }) => {
                 .append("circle")
                 .attr("cx", timelineX)
                 .attr("cy", (d, i) => yScale(i))
-                .attr("r", isMobile ? 22 : 14)
+                .attr("r", isMobile ? 10 : 14)
                 .attr("fill", "#3B82F6")
                 .style("cursor", "pointer")
                 .on("mouseover", function (event, d) {
