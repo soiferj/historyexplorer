@@ -548,7 +548,7 @@ const Timeline = ({ user, accessToken }) => {
 
                 {/* Add Event Modal */}
                 {showForm && isAllowed && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '4rem' }}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
                         {/* Modal overlay */}
                         <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => setShowForm(false)} />
                         {/* Modal content */}
@@ -606,7 +606,7 @@ const Timeline = ({ user, accessToken }) => {
 
                 {/* Filters Modal/Popover */}
                 {showFilters && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '4rem' }}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
                         {/* Modal overlay */}
                         <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowFilters(false)} />
                         {/* Modal content */}
@@ -706,7 +706,7 @@ const Timeline = ({ user, accessToken }) => {
                 </div>
 
                 {selectedEvent && (
-                    <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ marginTop: '1.5rem' }}>
+                    <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ marginTop: '6rem' }}>
                         {/* Modal overlay */}
                         <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => { setSelectedEvent(null); setEditMode(false); }} />
                         {/* Modal content */}
