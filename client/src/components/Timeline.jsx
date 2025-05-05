@@ -843,7 +843,7 @@ const Timeline = ({ user, accessToken }) => {
                                         {/* Title */}
                                         <h2 className="text-3xl font-bold text-blue-400 fancy-heading">{selectedEvent.title}</h2>
                                         {/* Year */}
-                                        <p className="text-blue-200 mb-2 text-lg">Year: {new Date(selectedEvent.date).getFullYear()} {selectedEvent.date_type}</p>
+                                        <p className="text-blue-200 mb-2 text-lg">{new Date(selectedEvent.date).getFullYear()} {selectedEvent.date_type}</p>
                                         {/* Book Reference */}
                                         {selectedEvent.book_reference && (
                                             <p className="mt-2 text-pink-300">Book: {selectedEvent.book_reference}</p>
