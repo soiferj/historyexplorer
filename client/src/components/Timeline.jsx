@@ -121,9 +121,44 @@ const Timeline = ({ user, accessToken }) => {
         return filtered;
     })();
 
+    // Add zoom state
+    const [zoomedOut, setZoomedOut] = useState(false);
+
+    // Helper to get ordinal suffix for century
+    function getCenturyLabel(century, era) {
+        let suffix = 'th';
+        if (century === 1) suffix = 'st';
+        else if (century === 2) suffix = 'nd';
+        else if (century === 3) suffix = 'rd';
+        return `${century}${suffix} century ${era}`;
+    }
+
+    // Group events by century
+    function groupEventsByCentury(events) {
+        const groups = {};
+        events.forEach(event => {
+            if (!event.date) return;
+            const year = parseInt(event.date.split("-")[0], 10);
+            if (isNaN(year)) return;
+            let century, label, era = event.date_type;
+            if (era === 'BCE') {
+                century = Math.ceil(year / 100);
+            } else {
+                century = Math.ceil(year / 100);
+            }
+            label = getCenturyLabel(century, era);
+            if (!groups[label]) groups[label] = { label, events: [], date_type: era, sortKey: era === 'BCE' ? -century : century, century, era };
+            groups[label].events.push(event);
+        });
+        return Object.values(groups).sort((a, b) => a.sortKey - b.sortKey);
+    }
+
+    // Use grouped or flat data for rendering
+    const renderData = zoomedOut ? groupEventsByCentury(filteredEvents) : filteredEvents;
+
     // D3 rendering effect, depends on filteredEvents
     useEffect(() => {
-        if (!filteredEvents || filteredEvents.length === 0) {
+        if (!renderData || renderData.length === 0) {
             d3.select(svgRef.current).selectAll("*").remove();
             return;
         }
@@ -131,7 +166,7 @@ const Timeline = ({ user, accessToken }) => {
         // Responsive SVG width and height
         const isMobile = window.innerWidth < 640;
         const svgWidth = isMobile ? window.innerWidth - 16 : Math.min(window.innerWidth - 40, 900);
-        const svgHeight = Math.max(filteredEvents.length * (isMobile ? 80 : 100), 100);
+        const svgHeight = Math.max(renderData.length * (isMobile ? 80 : 100), 100);
         const timelineX = isMobile ? 60 : 200;
         const textX = timelineX + (isMobile ? 32 : 40);
         const maxTextWidth = svgWidth - textX - 16;
@@ -142,120 +177,199 @@ const Timeline = ({ user, accessToken }) => {
             .attr("height", svgHeight)
             .attr("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
 
-        if (filteredEvents.length === 0) return;
+        if (renderData.length === 0) return;
 
         const yScale = d3.scaleLinear()
-            .domain([0, filteredEvents.length - 1])
-            .range([isMobile ? 40 : 50, filteredEvents.length * (isMobile ? 80 : 100) - (isMobile ? 40 : 50)]);
+            .domain([0, renderData.length - 1])
+            .range([isMobile ? 40 : 50, renderData.length * (isMobile ? 80 : 100) - (isMobile ? 40 : 50)]);
 
-        const links = filteredEvents.slice(1).map((event, index) => ({
-            source: filteredEvents[index],
-            target: event
-        }));
-
-        svg.selectAll("line")
-            .data(links)
-            .enter()
-            .append("line")
-            .attr("x1", timelineX)
-            .attr("y1", d => yScale(filteredEvents.indexOf(d.source)))
-            .attr("x2", timelineX)
-            .attr("y2", d => yScale(filteredEvents.indexOf(d.target)))
-            .attr("stroke", "#ccc")
-            .attr("stroke-width", isMobile ? 3 : 2)
-            .style("opacity", 0)
-            .transition()
-            .duration(500)
-            .style("opacity", 1);
-
-        svg.selectAll("circle")
-            .data(filteredEvents)
-            .enter()
-            .append("circle")
-            .attr("cx", timelineX)
-            .attr("cy", (d, i) => yScale(i))
-            .attr("r", isMobile ? 22 : 14)
-            .attr("fill", "#3B82F6")
-            .style("cursor", "pointer")
-            .on("mouseover", function (event, d) {
-                if (!isMobile) {
-                  d3.select(this)
-                    .transition()
-                    .duration(150)
-                    .attr("r", 22);
-                }
-            })
-            .on("mouseout", function (event, d) {
-                if (!isMobile) {
-                  d3.select(this)
-                    .transition()
-                    .duration(150)
-                    .attr("r", 14);
-                }
-            })
-            .on("click", (event, d) => setSelectedEvent(d))
-            .style("opacity", 0)
-            .transition()
-            .duration(500)
-            .style("opacity", 1);
-
-        // Helper for truncating text with ellipsis
-        function truncateText(text, maxWidth, fontSize = 16, fontFamily = 'Orbitron, Segoe UI, Arial, sans-serif') {
-            const tempSvg = d3.select(document.body).append("svg").attr("style", "position:absolute;left:-9999px;top:-9999px;");
-            const tempText = tempSvg.append("text")
-                .attr("font-size", fontSize)
-                .attr("font-family", fontFamily)
-                .text(text);
-            let width = tempText.node().getComputedTextLength();
-            let truncated = text;
-            while (width > maxWidth && truncated.length > 3) {
-                truncated = truncated.slice(0, -1);
-                tempText.text(truncated + '…');
-                width = tempText.node().getComputedTextLength();
-            }
-            tempSvg.remove();
-            return width > maxWidth ? truncated + '…' : truncated;
-        }
-
-        // Draw event text (date and title)
-        svg.selectAll("g.event-label")
-            .data(filteredEvents)
-            .enter()
-            .append("g")
-            .attr("class", "event-label")
-            .attr("transform", (d, i) => `translate(${textX},${yScale(i)})`)
-            .each(function (d) {
-                const g = d3.select(this);
-                if (isMobile) {
+        if (zoomedOut) {
+            // Grouped by century: draw one node per century
+            const links = renderData.slice(1).map((group, index) => ({
+                source: renderData[index],
+                target: group
+            }));
+            svg.selectAll("line")
+                .data(links)
+                .enter()
+                .append("line")
+                .attr("x1", timelineX)
+                .attr("y1", d => yScale(renderData.indexOf(d.source)))
+                .attr("x2", timelineX)
+                .attr("y2", d => yScale(renderData.indexOf(d.target)))
+                .attr("stroke", "#ccc")
+                .attr("stroke-width", isMobile ? 3 : 2)
+                .style("opacity", 0)
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+            svg.selectAll("circle")
+                .data(renderData)
+                .enter()
+                .append("circle")
+                .attr("cx", timelineX)
+                .attr("cy", (d, i) => yScale(i))
+                .attr("r", isMobile ? 26 : 18)
+                .attr("fill", "#6366f1")
+                .style("cursor", "pointer")
+                .on("click", (event, d) => {
+                    setZoomedOut(false);
+                    // Scroll to the first event of this century after zoom in
+                    setTimeout(() => {
+                        if (!timelineContainerRef.current) return;
+                        // Find the index of the first event of this century in filteredEvents
+                        const firstEvent = d.events[0];
+                        const idx = filteredEvents.findIndex(ev => ev === firstEvent);
+                        if (idx >= 0) {
+                            const itemHeight = isMobile ? 80 : 100;
+                            timelineContainerRef.current.scrollTo({
+                                top: Math.max(0, (itemHeight * idx) - 40),
+                                behavior: 'smooth'
+                            });
+                        }
+                    }, 100);
+                })
+                .style("opacity", 0)
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+            svg.selectAll("g.century-label")
+                .data(renderData)
+                .enter()
+                .append("g")
+                .attr("class", "century-label")
+                .attr("transform", (d, i) => `translate(${textX},${yScale(i)})`)
+                .each(function (d) {
+                    const g = d3.select(this);
                     g.append("text")
-                        .attr("y", -10)
+                        .attr("y", -8)
+                        .attr("fill", "#fbbf24")
+                        .attr("font-size", 20)
+                        .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                        .attr("font-weight", "bold")
+                        .attr("text-anchor", "start")
+                        .attr("dominant-baseline", "middle")
+                        .text(d.label);
+                    g.append("text")
+                        .attr("y", 16)
                         .attr("fill", "#93c5fd")
                         .attr("font-size", 16)
                         .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
                         .attr("text-anchor", "start")
                         .attr("dominant-baseline", "middle")
-                        .text(`${new Date(d.date).getFullYear()} ${d.date_type}`);
-                    g.append("text")
-                        .attr("y", 14)
-                        .attr("fill", "white")
-                        .attr("font-size", 18)
-                        .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
-                        .attr("font-weight", "bold")
-                        .attr("text-anchor", "start")
-                        .attr("dominant-baseline", "middle")
-                        .text(truncateText(d.title, maxTextWidth, 18));
-                } else {
-                    g.append("text")
-                        .attr("y", 5)
-                        .attr("fill", "white")
-                        .attr("font-size", 16)
-                        .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
-                        .attr("text-anchor", "start")
-                        .attr("dominant-baseline", "middle")
-                        .text(truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
+                        .text(`${d.events.length} event${d.events.length !== 1 ? 's' : ''}`);
+                });
+        } else {
+            // Per-event rendering
+            const links = renderData.slice(1).map((event, index) => ({
+                source: renderData[index],
+                target: event
+            }));
+
+            svg.selectAll("line")
+                .data(links)
+                .enter()
+                .append("line")
+                .attr("x1", timelineX)
+                .attr("y1", d => yScale(renderData.indexOf(d.source)))
+                .attr("x2", timelineX)
+                .attr("y2", d => yScale(renderData.indexOf(d.target)))
+                .attr("stroke", "#ccc")
+                .attr("stroke-width", isMobile ? 3 : 2)
+                .style("opacity", 0)
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+
+            svg.selectAll("circle")
+                .data(renderData)
+                .enter()
+                .append("circle")
+                .attr("cx", timelineX)
+                .attr("cy", (d, i) => yScale(i))
+                .attr("r", isMobile ? 22 : 14)
+                .attr("fill", "#3B82F6")
+                .style("cursor", "pointer")
+                .on("mouseover", function (event, d) {
+                    if (!isMobile) {
+                        d3.select(this)
+                            .transition()
+                            .duration(150)
+                            .attr("r", 22);
+                    }
+                })
+                .on("mouseout", function (event, d) {
+                    if (!isMobile) {
+                        d3.select(this)
+                            .transition()
+                            .duration(150)
+                            .attr("r", 14);
+                    }
+                })
+                .on("click", (event, d) => setSelectedEvent(d))
+                .style("opacity", 0)
+                .transition()
+                .duration(500)
+                .style("opacity", 1);
+
+            // Helper for truncating text with ellipsis
+            function truncateText(text, maxWidth, fontSize = 16, fontFamily = 'Orbitron, Segoe UI, Arial, sans-serif') {
+                const tempSvg = d3.select(document.body).append("svg").attr("style", "position:absolute;left:-9999px;top:-9999px;");
+                const tempText = tempSvg.append("text")
+                    .attr("font-size", fontSize)
+                    .attr("font-family", fontFamily)
+                    .text(text);
+                let width = tempText.node().getComputedTextLength();
+                let truncated = text;
+                while (width > maxWidth && truncated.length > 3) {
+                    truncated = truncated.slice(0, -1);
+                    tempText.text(truncated + '…');
+                    width = tempText.node().getComputedTextLength();
                 }
-            });
-    }, [filteredEvents]);
+                tempSvg.remove();
+                return width > maxWidth ? truncated + '…' : truncated;
+            }
+
+            // Draw event text (date and title)
+            svg.selectAll("g.event-label")
+                .data(renderData)
+                .enter()
+                .append("g")
+                .attr("class", "event-label")
+                .attr("transform", (d, i) => `translate(${textX},${yScale(i)})`)
+                .each(function (d) {
+                    const g = d3.select(this);
+                    if (isMobile) {
+                        g.append("text")
+                            .attr("y", -10)
+                            .attr("fill", "#93c5fd")
+                            .attr("font-size", 16)
+                            .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                            .attr("text-anchor", "start")
+                            .attr("dominant-baseline", "middle")
+                            .text(`${new Date(d.date).getFullYear()} ${d.date_type}`);
+                        g.append("text")
+                            .attr("y", 14)
+                            .attr("fill", "white")
+                            .attr("font-size", 18)
+                            .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                            .attr("font-weight", "bold")
+                            .attr("text-anchor", "start")
+                            .attr("dominant-baseline", "middle")
+                            .text(truncateText(d.title, maxTextWidth, 18));
+                    } else {
+                        g.append("text")
+                            .attr("y", 5)
+                            .attr("fill", "white")
+                            .attr("font-size", 16)
+                            .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                            .attr("text-anchor", "start")
+                            .attr("dominant-baseline", "middle")
+                            .text(truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
+                    }
+                });
+        }
+    }, [renderData, zoomedOut, filteredEvents]);
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -385,6 +499,8 @@ const Timeline = ({ user, accessToken }) => {
     const isAllowed = user && allowedEmails.includes(user.email);
     // State for filter modal
     const [showFilters, setShowFilters] = useState(false);
+    // Add a ref for the scrollable timeline container
+    const timelineContainerRef = useRef();
 
     return (
         <>
@@ -408,6 +524,16 @@ const Timeline = ({ user, accessToken }) => {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18m-16.5 6.75h15m-13.5 6.75h12" />
                         </svg>
                         Filters
+                    </button>
+                    <button
+                        className={`flex items-center gap-2 px-4 py-2 rounded ${zoomedOut ? 'bg-blue-700' : 'bg-gray-800/80'} text-white border border-blue-400 hover:bg-blue-600 transition shadow-md`}
+                        onClick={() => setZoomedOut(z => !z)}
+                        aria-label={zoomedOut ? 'Zoom in to events' : 'Zoom out to centuries'}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0A9 9 0 11 3 12a9 9 0 0118 0z" />
+                        </svg>
+                        {zoomedOut ? 'Zoom In' : 'Zoom Out'}
                     </button>
                 </div>
 
@@ -548,21 +674,26 @@ const Timeline = ({ user, accessToken }) => {
                                             <option value="CE">CE</option>
                                         </select>
                                     </div>
-                                    <button
-                                        className="ml-2 px-4 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition"
-                                        onClick={() => setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' })}
-                                        type="button"
-                                    >
-                                        Clear
-                                    </button>
                                 </div>
                             </div>
+                            {/* Move Clear button to bottom and clear all filters */}
+                            <button
+                                className="mt-8 px-6 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition w-full"
+                                onClick={() => {
+                                    setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' });
+                                    setSearchTerm('');
+                                }}
+                                type="button"
+                            >
+                                Clear All Filters
+                            </button>
                         </div>
                     </div>
                 )}
 
                 {/* Scrollable timeline container */}
                 <div
+                    ref={timelineContainerRef}
                     style={{ maxHeight: '500px', overflowY: 'auto', marginBottom: '2rem' }}
                     className="timeline-scroll w-full max-w-4xl mx-auto rounded-2xl shadow-2xl bg-gray-800/80 overflow-x-auto sm:overflow-x-visible"
                 >
