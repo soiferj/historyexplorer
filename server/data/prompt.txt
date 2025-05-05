@@ -1,0 +1,15 @@
+Given the following historical event title and date, write a concise historical event description (max 3 sentences) and suggest 3-7 relevant tags (keywords, array of strings). The tags should also include the broader context of the event, such as a war if the event was a battle, or the empire if the event was an event in the empire. 
+
+Title: {{title}}
+Year: {{year}}
+
+Respond in JSON with keys 'description' and 'tags'. For example:
+
+{
+    "description": "description of historical event",
+    "tags": [
+        "tag1",
+        "tag2",
+        "tag3"
+    ]
+}

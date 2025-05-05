@@ -502,6 +502,15 @@ const Timeline = ({ user, accessToken }) => {
     // Add a ref for the scrollable timeline container
     const timelineContainerRef = useRef();
 
+    useEffect(() => {
+        if (showForm) setError("");
+    }, [showForm]);
+
+    useEffect(() => {
+        // Reset edit mode when a new event is selected
+        setEditMode(false);
+    }, [selectedEvent]);
+
     return (
         <>
             <div className="flex flex-col items-center justify-center min-h-screen text-white text-center relative overflow-x-hidden bg-transparent px-2">
@@ -546,8 +555,8 @@ const Timeline = ({ user, accessToken }) => {
                         <div
                             className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
                             style={{
-                                maxHeight: '90vh',
-                                overflowY: 'auto',
+                                maxHeight: '70vh', // Reduced from 90vh
+                                overflow: 'hidden', // Hide overflow for modal
                                 margin: '4rem 1rem 1rem 1rem',
                                 boxSizing: 'border-box',
                             }}
@@ -559,42 +568,38 @@ const Timeline = ({ user, accessToken }) => {
                             >
                                 &times;
                             </button>
-                            <form onSubmit={handleFormSubmit} className="w-full flex flex-col gap-8 items-center">
-                                <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Add New Event</h2>
-                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                    <label className="font-semibold text-blue-200" htmlFor="title">Title</label>
-                                    <input id="title" name="title" value={form.title} onChange={handleFormChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
-                                </div>
-                                <div className="flex flex-row gap-4 w-full max-w-md mx-auto">
-                                    <div className="flex flex-col gap-2 text-left w-1/2">
-                                        <label className="font-semibold text-blue-200" htmlFor="year">Year</label>
-                                        <input id="year" name="year" value={form.year} onChange={handleFormChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" maxLength={4} />
+                            {/* Error at the top */}
+                            {error && <div className="text-red-400 mb-4 text-center w-full max-w-md mx-auto font-semibold">{error}</div>}
+                            {/* Scrollable form wrapper */}
+                            <div style={{width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)'}}>
+                                <form onSubmit={handleFormSubmit} className="w-full flex flex-col gap-8 items-center">
+                                    <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Add New Event</h2>
+                                    <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                        <label className="font-semibold text-blue-200" htmlFor="title">Title</label>
+                                        <input id="title" name="title" value={form.title} onChange={handleFormChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                     </div>
-                                    <div className="flex flex-col gap-2 text-left w-1/2">
-                                        <label className="font-semibold text-blue-200" htmlFor="date_type">Date Type</label>
-                                        <select id="date_type" name="date_type" value={form.date_type} onChange={handleFormChange} className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner">
-                                            <option value="BCE">BCE</option>
-                                            <option value="CE">CE</option>
-                                        </select>
+                                    <div className="flex flex-row gap-4 w-full max-w-md mx-auto">
+                                        <div className="flex flex-col gap-2 text-left w-1/2">
+                                            <label className="font-semibold text-blue-200" htmlFor="year">Year</label>
+                                            <input id="year" name="year" value={form.year} onChange={handleFormChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" maxLength={4} />
+                                        </div>
+                                        <div className="flex flex-col gap-2 text-left w-1/2">
+                                            <label className="font-semibold text-blue-200" htmlFor="date_type">Date Type</label>
+                                            <select id="date_type" name="date_type" value={form.date_type} onChange={handleFormChange} className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner">
+                                                <option value="BCE">BCE</option>
+                                                <option value="CE">CE</option>
+                                            </select>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                    <label className="font-semibold text-blue-200" htmlFor="book_reference">Book Reference</label>
-                                    <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book Reference" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
-                                </div>
-                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                    <label className="font-semibold text-blue-200" htmlFor="tags">Tags</label>
-                                    <input id="tags" name="tags" value={form.tags} onChange={handleFormChange} placeholder="Tags (comma separated)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
-                                </div>
-                                <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                    <label className="font-semibold text-blue-200" htmlFor="description">Description</label>
-                                    <textarea id="description" name="description" value={form.description} onChange={handleFormChange} placeholder="Description" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition min-h-[80px] resize-vertical text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
-                                </div>
-                                <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto tracking-wide">
-                                    {submitting ? "Adding..." : "Add Event"}
-                                </button>
-                                {error && <div className="text-red-400 mt-1 text-center w-full max-w-md mx-auto font-semibold">{error}</div>}
-                            </form>
+                                    <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                        <label className="font-semibold text-blue-200" htmlFor="book_reference">Book Reference</label>
+                                        <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book Reference" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                    </div>
+                                    <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto tracking-wide">
+                                        {submitting ? "Adding..." : "Add Event"}
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -703,67 +708,66 @@ const Timeline = ({ user, accessToken }) => {
                 {selectedEvent && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '4rem' }}>
                         {/* Modal overlay */}
-                        <div className="fixed inset-0 bg-gradient-to-br from-[#232526cc] via-[#00c6ff88] to-[#ff512fcc] blur-sm" onClick={() => setSelectedEvent(null)} />
+                        <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => { setSelectedEvent(null); setEditMode(false); }} />
                         {/* Modal content */}
                         <div
-                            className="relative glass text-gray-100 p-8 rounded-2xl shadow-2xl border border-blue-400 w-full max-w-lg z-60 flex flex-col items-center animate-fade-in-modal"
+                            className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
                             style={{
-                                maxHeight: '90vh',
-                                overflowY: 'auto',
+                                maxHeight: '70vh',
+                                overflow: 'hidden',
                                 margin: '4rem 1rem 1rem 1rem',
                                 boxSizing: 'border-box',
                             }}
                         >
                             <button
-                                className="absolute top-3 right-3 text-2xl text-blue-300 hover:text-pink-400 focus:outline-none"
-                                onClick={() => setSelectedEvent(null)}
+                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none transition-colors duration-200"
+                                onClick={() => { setSelectedEvent(null); setEditMode(false); }}
                                 aria-label="Close modal"
                             >
                                 &times;
                             </button>
                             {/* Edit mode toggle */}
                             {editMode ? (
-                                <form onSubmit={handleEditSubmit} className="glass p-8 rounded-2xl mb-8 w-full max-w-xl flex flex-col gap-4 shadow-xl border border-blue-400">
-                                    <h2 className="text-2xl font-bold mb-2 text-blue-300">Edit Event</h2>
-                                    {/* Title */}
-                                    <div className="flex flex-col gap-2 text-left">
-                                        <label className="font-semibold text-gray-300" htmlFor="edit-title">Title</label>
-                                        <input id="edit-title" name="title" value={editForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                                    </div>
-                                    {/* Year */}
-                                    <div className="flex flex-col gap-2 text-left">
-                                        <label className="font-semibold text-gray-300" htmlFor="edit-year">Year</label>
-                                        <input id="edit-year" name="year" value={editForm.year} onChange={handleEditChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" maxLength={4} />
-                                    </div>
-                                    {/* Book Reference */}
-                                    <div className="flex flex-col gap-2 text-left">
-                                        <label className="font-semibold text-gray-300" htmlFor="edit-book_reference">Book Reference</label>
-                                        <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book Reference" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                                    </div>
-                                    {/* Description */}
-                                    <div className="flex flex-col gap-2 text-left">
-                                        <label className="font-semibold text-gray-300" htmlFor="edit-description">Description</label>
-                                        <textarea id="edit-description" name="description" value={editForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition min-h-[80px] resize-vertical" />
-                                    </div>
-                                    {/* Tags */}
-                                    <div className="flex flex-col gap-2 text-left">
-                                        <label className="font-semibold text-gray-300" htmlFor="edit-tags">Tags</label>
-                                        <input id="edit-tags" name="tags" value={editForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition" />
-                                    </div>
-                                    {/* Date Type */}
-                                    <div className="flex flex-col gap-2 text-left">
-                                        <label className="font-semibold text-gray-300" htmlFor="edit-date_type">Date Type</label>
-                                        <select id="edit-date_type" name="date_type" value={editForm.date_type} onChange={handleEditChange} className="p-3 rounded-lg bg-gray-700 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition">
-                                            <option value="BCE">BCE</option>
-                                            <option value="CE">CE</option>
-                                        </select>
-                                    </div>
-                                    <div className="flex gap-2 mt-2 justify-center">
-                                        <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-lg font-bold text-white shadow-lg transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow">Save</button>
-                                        <button type="button" className="bg-gray-400 text-white px-4 py-2 rounded font-bold" onClick={() => setEditMode(false)}>Cancel</button>
-                                    </div>
-                                    {editError && <div className="text-red-400 mt-1 text-center">{editError}</div>}
-                                </form>
+                                <div style={{width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)'}}>
+                                    <form onSubmit={handleEditSubmit} className="w-full flex flex-col gap-8 items-center">
+                                        {/* Error at the top */}
+                                        {editError && <div className="text-red-400 mb-4 text-center w-full max-w-md mx-auto font-semibold">{editError}</div>}
+                                        <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Edit Event</h2>
+                                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                            <label className="font-semibold text-blue-200" htmlFor="edit-title">Title</label>
+                                            <input id="edit-title" name="title" value={editForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                        </div>
+                                        <div className="flex flex-row gap-4 w-full max-w-md mx-auto">
+                                            <div className="flex flex-col gap-2 text-left w-1/2">
+                                                <label className="font-semibold text-blue-200" htmlFor="edit-year">Year</label>
+                                                <input id="edit-year" name="year" value={editForm.year} onChange={handleEditChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" maxLength={4} />
+                                            </div>
+                                            <div className="flex flex-col gap-2 text-left w-1/2">
+                                                <label className="font-semibold text-blue-200" htmlFor="edit-date_type">Date Type</label>
+                                                <select id="edit-date_type" name="date_type" value={editForm.date_type} onChange={handleEditChange} className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner">
+                                                    <option value="BCE">BCE</option>
+                                                    <option value="CE">CE</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                            <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book Reference</label>
+                                            <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book Reference" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                        </div>
+                                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                            <label className="font-semibold text-blue-200" htmlFor="edit-description">Description</label>
+                                            <textarea id="edit-description" name="description" value={editForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner min-h-[80px] resize-vertical placeholder:text-gray-400" />
+                                        </div>
+                                        <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                            <label className="font-semibold text-blue-200" htmlFor="edit-tags">Tags</label>
+                                            <input id="edit-tags" name="tags" value={editForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                        </div>
+                                        <div className="flex gap-2 mt-2 justify-center w-full max-w-md mx-auto">
+                                            <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-1/2">Save</button>
+                                            <button type="button" className="bg-gray-400 text-white px-4 py-2 rounded-xl font-bold w-1/2" onClick={() => setEditMode(false)}>Cancel</button>
+                                        </div>
+                                    </form>
+                                </div>
                             ) : (
                                 <>
                                     {/* Title */}
@@ -785,10 +789,10 @@ const Timeline = ({ user, accessToken }) => {
                                         </div>
                                     )}
                                     {isAllowed && (
-                                        <>
-                                            <button className="mt-6 bg-gradient-to-r from-blue-500 to-pink-500 text-white px-4 py-2 rounded glow font-bold shadow transition-all duration-300" onClick={startEditEvent}>Edit</button>
-                                            <button className="mt-2 bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded font-bold shadow hover:from-red-600 hover:to-pink-700 transition-all duration-300" onClick={handleDeleteEvent}>Delete</button>
-                                        </>
+                                        <div className="flex flex-row gap-2 mt-6 justify-center opacity-70 hover:opacity-100 transition-opacity">
+                                            <button className="bg-gradient-to-r from-blue-500 to-pink-500 text-white px-4 py-2 rounded glow font-bold shadow transition-all duration-300" onClick={startEditEvent}>Edit</button>
+                                            <button className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded font-bold shadow hover:from-red-600 hover:to-pink-700 transition-all duration-300" onClick={handleDeleteEvent}>Delete</button>
+                                        </div>
                                     )}
                                 </>
                             )}
