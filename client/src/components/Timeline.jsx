@@ -555,9 +555,9 @@ const Timeline = ({ user, accessToken }) => {
                         <div
                             className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
                             style={{
-                                maxHeight: '70vh', // Reduced from 90vh
-                                overflow: 'hidden', // Hide overflow for modal
-                                margin: '4rem 1rem 1rem 1rem',
+                                maxHeight: '70vh',
+                                overflow: 'hidden',
+                                margin: '1rem',
                                 boxSizing: 'border-box',
                             }}
                         >
@@ -706,7 +706,7 @@ const Timeline = ({ user, accessToken }) => {
                 </div>
 
                 {selectedEvent && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '4rem' }}>
+                    <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ marginTop: '1.5rem' }}>
                         {/* Modal overlay */}
                         <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => { setSelectedEvent(null); setEditMode(false); }} />
                         {/* Modal content */}
@@ -715,7 +715,7 @@ const Timeline = ({ user, accessToken }) => {
                             style={{
                                 maxHeight: '70vh',
                                 overflow: 'hidden',
-                                margin: '4rem 1rem 1rem 1rem',
+                                margin: '1rem',
                                 boxSizing: 'border-box',
                             }}
                         >
@@ -773,7 +773,7 @@ const Timeline = ({ user, accessToken }) => {
                                 ) : (
                                     <>
                                         {/* Title */}
-                                        <h2 className="text-3xl font-bold mb-4 text-blue-400 fancy-heading">{selectedEvent.title}</h2>
+                                        <h2 className="text-3xl font-bold text-blue-400 fancy-heading">{selectedEvent.title}</h2>
                                         {/* Year */}
                                         <p className="text-blue-200 mb-2 text-lg">Year: {new Date(selectedEvent.date).getFullYear()} {selectedEvent.date_type}</p>
                                         {/* Book Reference */}
