@@ -357,6 +357,21 @@ const Timeline = ({ user, accessToken }) => {
                 .append("g")
                 .attr("class", "millennium-label")
                 .attr("transform", (d, i) => `translate(${textX},${yScale(i)})`)
+                .on("click", (event, d) => {
+                    setZoomLevel(1);
+                    setTimeout(() => {
+                        if (!timelineContainerRef.current) return;
+                        const firstEvent = d.events[0];
+                        const idx = filteredEvents.findIndex(ev => ev === firstEvent);
+                        if (idx >= 0) {
+                            const itemHeight = isMobile ? 80 : 100;
+                            timelineContainerRef.current.scrollTo({
+                                top: Math.max(0, (itemHeight * idx) - 40),
+                                behavior: 'smooth'
+                            });
+                        }
+                    }, 100);
+                })
                 .each(function (d) {
                     const g = d3.select(this);
                     g.append("text")
@@ -431,6 +446,21 @@ const Timeline = ({ user, accessToken }) => {
                 .append("g")
                 .attr("class", "century-label")
                 .attr("transform", (d, i) => `translate(${textX},${yScale(i)})`)
+                .on("click", (event, d) => {
+                    setZoomLevel(0);
+                    setTimeout(() => {
+                        if (!timelineContainerRef.current) return;
+                        const firstEvent = d.events[0];
+                        const idx = filteredEvents.findIndex(ev => ev === firstEvent);
+                        if (idx >= 0) {
+                            const itemHeight = isMobile ? 80 : 100;
+                            timelineContainerRef.current.scrollTo({
+                                top: Math.max(0, (itemHeight * idx) - 40),
+                                behavior: 'smooth'
+                            });
+                        }
+                    }, 100);
+                })
                 .each(function (d) {
                     const g = d3.select(this);
                     g.append("text")
@@ -529,6 +559,7 @@ const Timeline = ({ user, accessToken }) => {
                 .append("g")
                 .attr("class", "event-label")
                 .attr("transform", (d, i) => `translate(${textX},${yScale(i)})`)
+                .on("click", (event, d) => setSelectedEvent(d)) // Make the whole label group clickable
                 .each(function (d) {
                     const g = d3.select(this);
                     if (isMobile) {
