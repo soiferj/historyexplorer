@@ -515,45 +515,94 @@ const Timeline = ({ user, accessToken }) => {
             } else if (groupMode === 'book' && selectedBooks.length > 0) {
                 selectedBooks.forEach((book, idx) => { colorMap[book] = colorPalette[idx % colorPalette.length]; });
             }
-            svg.selectAll("circle")
-                .data(renderData)
-                .enter()
-                .append("circle")
-                .attr("cx", timelineX)
-                .attr("cy", (d, i) => yScale(i))
-                .attr("r", isMobile ? 10 : 14)
-                .attr("fill", d => {
-                    if (groupMode === 'tag' && selectedTags.length > 0 && Array.isArray(d.tags)) {
-                        const match = d.tags.find(tag => selectedTags.includes(tag));
-                        return match ? colorMap[match] : "#3B82F6";
-                    } else if (groupMode === 'book' && selectedBooks.length > 0) {
-                        return colorMap[d.book_reference] || "#3B82F6";
-                    }
-                    return "#3B82F6";
-                })
-                .style("cursor", "pointer")
-                .on("mouseover", function (event, d) {
-                    if (!isMobile) {
-                        d3.select(this)
-                            .transition()
-                            .duration(150)
-                            .attr("r", 22);
-                    }
-                })
-                .on("mouseout", function (event, d) {
-                    if (!isMobile) {
-                        d3.select(this)
-                            .transition()
-                            .duration(150)
-                            .attr("r", 14);
-                    }
-                })
-                .on("click", (event, d) => setSelectedEvent(d))
-                .style("opacity", 0)
-                .transition()
-                .duration(500)
-                .style("opacity", 1);
 
+            // Multi-tag circle rendering
+            if (groupMode === 'tag' && selectedTags.length > 1) {
+                // Remove any previous circles
+                svg.selectAll("g.event-multitag").remove();
+                svg.selectAll("g.event-multitag")
+                    .data(renderData)
+                    .enter()
+                    .append("g")
+                    .attr("class", "event-multitag")
+                    .attr("transform", (d, i) => `translate(${timelineX},${yScale(i)})`)
+                    .each(function (d, i) {
+                        const g = d3.select(this);
+                        let matchingTags = Array.isArray(d.tags) ? d.tags.filter(tag => selectedTags.includes(tag)) : [];
+                        if (matchingTags.length === 0) matchingTags = [null];
+                        const r = isMobile ? 10 : 14;
+                        const arc = d3.arc()
+                            .innerRadius(0)
+                            .outerRadius(r);
+                        const n = matchingTags.length;
+                        matchingTags.forEach((tag, idx) => {
+                            const startAngle = (2 * Math.PI * idx) / n;
+                            const endAngle = (2 * Math.PI * (idx + 1)) / n;
+                            g.append("path")
+                                .attr("d", arc({ startAngle, endAngle }))
+                                .attr("fill", tag ? colorMap[tag] : "#3B82F6")
+                                .attr("stroke", "#222")
+                                .attr("stroke-width", 1.5);
+                        });
+                        g.style("cursor", "pointer")
+                            .on("mouseover", function (event) {
+                                if (!isMobile) {
+                                    g.selectAll("path")
+                                        .transition()
+                                        .duration(150)
+                                        .attr("d", arc.outerRadius(22));
+                                }
+                            })
+                            .on("mouseout", function (event) {
+                                if (!isMobile) {
+                                    g.selectAll("path")
+                                        .transition()
+                                        .duration(150)
+                                        .attr("d", arc.outerRadius(r));
+                                }
+                            })
+                            .on("click", (event) => setSelectedEvent(d));
+                    });
+            } else {
+                svg.selectAll("circle")
+                    .data(renderData)
+                    .enter()
+                    .append("circle")
+                    .attr("cx", timelineX)
+                    .attr("cy", (d, i) => yScale(i))
+                    .attr("r", isMobile ? 10 : 14)
+                    .attr("fill", d => {
+                        if (groupMode === 'tag' && selectedTags.length > 0 && Array.isArray(d.tags)) {
+                            const match = d.tags.find(tag => selectedTags.includes(tag));
+                            return match ? colorMap[match] : "#3B82F6";
+                        } else if (groupMode === 'book' && selectedBooks.length > 0) {
+                            return colorMap[d.book_reference] || "#3B82F6";
+                        }
+                        return "#3B82F6";
+                    })
+                    .style("cursor", "pointer")
+                    .on("mouseover", function (event, d) {
+                        if (!isMobile) {
+                            d3.select(this)
+                                .transition()
+                                .duration(150)
+                                .attr("r", 22);
+                        }
+                    })
+                    .on("mouseout", function (event, d) {
+                        if (!isMobile) {
+                            d3.select(this)
+                                .transition()
+                                .duration(150)
+                                .attr("r", 14);
+                        }
+                    })
+                    .on("click", (event, d) => setSelectedEvent(d))
+                    .style("opacity", 0)
+                    .transition()
+                    .duration(500)
+                    .style("opacity", 1);
+            }
             // Helper for truncating text with ellipsis
             function truncateText(text, maxWidth, fontSize = 16, fontFamily = 'Orbitron, Segoe UI, Arial, sans-serif') {
                 const tempSvg = d3.select(document.body).append("svg").attr("style", "position:absolute;left:-9999px;top:-9999px;");
