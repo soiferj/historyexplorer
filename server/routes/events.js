@@ -96,4 +96,30 @@ router.delete("/:id", verifyAllowedUser, async (req, res) => {
     res.json({ success: true });
 });
 
+// Remove a tag from all events (admin only)
+router.post("/remove-tag", verifyAllowedUser, async (req, res) => {
+    const { tag } = req.body;
+    if (!tag) return res.status(400).json({ error: "Tag is required" });
+    try {
+        // Fetch all events with the tag
+        const { data: events, error: fetchError } = await supabase
+            .from("events")
+            .select("id, tags");
+        if (fetchError) return res.status(500).json({ error: fetchError.message });
+        // Find events that have the tag
+        const toUpdate = (events || []).filter(ev => Array.isArray(ev.tags) && ev.tags.includes(tag));
+        // Remove the tag from each event's tags array
+        for (const ev of toUpdate) {
+            const newTags = ev.tags.filter(t => t !== tag);
+            await supabase
+                .from("events")
+                .update({ tags: newTags })
+                .eq("id", ev.id);
+        }
+        res.json({ success: true, updated: toUpdate.length });
+    } catch (err) {
+        res.status(500).json({ error: "Failed to remove tag" });
+    }
+});
+
 module.exports = router;
