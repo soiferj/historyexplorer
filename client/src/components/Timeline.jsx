@@ -161,16 +161,19 @@ const Timeline = ({ user, accessToken }) => {
     const [selectedTags, setSelectedTags] = useState([]); // array of tags
     const [selectedBooks, setSelectedBooks] = useState([]); // array of books
 
-    // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically
+    // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically (case-insensitive)
     function getAllTags(events) {
         const tagCount = {};
+        const tagOriginal = {};
         (events || []).forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => {
-            tagCount[tag] = (tagCount[tag] || 0) + 1;
+            const lower = tag.toLowerCase();
+            tagCount[lower] = (tagCount[lower] || 0) + 1;
+            if (!tagOriginal[lower]) tagOriginal[lower] = tag; // preserve first original case
         }));
         return Object.entries(tagCount)
             .filter(([tag, count]) => count > 2)
-            .map(([tag]) => tag)
-            .sort((a, b) => a.localeCompare(b));
+            .map(([tag]) => tagOriginal[tag])
+            .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
     }
     // Helper to get all unique book references from filteredEvents, sorted alphabetically
     function getAllBooks(events) {
@@ -253,7 +256,7 @@ const Timeline = ({ user, accessToken }) => {
     if (zoomLevel === 2) {
         // Millennium grouping
         if (groupMode === 'tag' && selectedTags.length > 0) {
-            renderData = groupEventsByMillennium(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.includes(tag))));
+            renderData = groupEventsByMillennium(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase()))));
         } else if (groupMode === 'book' && selectedBooks.length > 0) {
             renderData = groupEventsByMillennium(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
@@ -262,7 +265,7 @@ const Timeline = ({ user, accessToken }) => {
     } else if (zoomLevel === 1) {
         // Century grouping
         if (groupMode === 'tag' && selectedTags.length > 0) {
-            renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.includes(tag))));
+            renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase()))));
         } else if (groupMode === 'book' && selectedBooks.length > 0) {
             renderData = groupEventsByCentury(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
@@ -271,7 +274,7 @@ const Timeline = ({ user, accessToken }) => {
     } else {
         // Per-event
         if (groupMode === 'tag' && selectedTags.length > 0) {
-            renderData = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.includes(tag)));
+            renderData = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
         } else if (groupMode === 'book' && selectedBooks.length > 0) {
             renderData = filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference));
         } else {
@@ -511,7 +514,17 @@ const Timeline = ({ user, accessToken }) => {
             // Color mapping for tags/books (use same as above)
             let colorMap = {};
             if (groupMode === 'tag' && selectedTags.length > 0) {
-                selectedTags.forEach((tag, idx) => { colorMap[tag] = colorPalette[idx % colorPalette.length]; });
+                // Build a canonical tag list (case-insensitive, first original-case wins)
+                const lowerToOriginal = {};
+                selectedTags.forEach(tag => {
+                    const lower = tag.toLowerCase();
+                    if (!lowerToOriginal[lower]) lowerToOriginal[lower] = tag;
+                });
+                // Assign colors by order of first appearance in selectedTags (case-insensitive)
+                const canonicalTags = Object.values(lowerToOriginal);
+                canonicalTags.forEach((tag, idx) => {
+                    colorMap[tag.toLowerCase()] = colorPalette[idx % colorPalette.length];
+                });
             } else if (groupMode === 'book' && selectedBooks.length > 0) {
                 selectedBooks.forEach((book, idx) => { colorMap[book] = colorPalette[idx % colorPalette.length]; });
             }
@@ -528,8 +541,16 @@ const Timeline = ({ user, accessToken }) => {
                     .attr("transform", (d, i) => `translate(${timelineX},${yScale(i)})`)
                     .each(function (d, i) {
                         const g = d3.select(this);
-                        let matchingTags = Array.isArray(d.tags) ? d.tags.filter(tag => selectedTags.includes(tag)) : [];
+                        let matchingTags = Array.isArray(d.tags) ? d.tags.filter(tag => selectedTags.some(sel => sel.toLowerCase() === tag.toLowerCase())) : [];
                         if (matchingTags.length === 0) matchingTags = [null];
+                        // Deduplicate matchingTags by lowercased value, preserving first original-case
+                        const seen = new Set();
+                        matchingTags = matchingTags.filter(tag => {
+                            const lower = tag ? tag.toLowerCase() : '';
+                            if (seen.has(lower)) return false;
+                            seen.add(lower);
+                            return true;
+                        });
                         const r = isMobile ? 10 : 14;
                         const arc = d3.arc()
                             .innerRadius(0)
@@ -538,9 +559,10 @@ const Timeline = ({ user, accessToken }) => {
                         matchingTags.forEach((tag, idx) => {
                             const startAngle = (2 * Math.PI * idx) / n;
                             const endAngle = (2 * Math.PI * (idx + 1)) / n;
+                            const lower = tag ? tag.toLowerCase() : '';
                             g.append("path")
                                 .attr("d", arc({ startAngle, endAngle }))
-                                .attr("fill", tag ? colorMap[tag] : "#3B82F6")
+                                .attr("fill", tag ? colorMap[lower] || "#3B82F6" : "#3B82F6")
                                 .attr("stroke", "#222")
                                 .attr("stroke-width", 1.5);
                         });
@@ -573,8 +595,14 @@ const Timeline = ({ user, accessToken }) => {
                     .attr("r", isMobile ? 10 : 14)
                     .attr("fill", d => {
                         if (groupMode === 'tag' && selectedTags.length > 0 && Array.isArray(d.tags)) {
-                            const match = d.tags.find(tag => selectedTags.includes(tag));
-                            return match ? colorMap[match] : "#3B82F6";
+                            // Find the first matching tag (case-insensitive) in selectedTags
+                            const match = d.tags.find(tag => selectedTags.some(sel => sel.toLowerCase() === tag.toLowerCase()));
+                            if (match) {
+                                // Always use the color of the canonical tag (first in selectedTags with same lowercased value)
+                                const lower = match.toLowerCase();
+                                return colorMap[lower] || "#3B82F6";
+                            }
+                            return "#3B82F6";
                         } else if (groupMode === 'book' && selectedBooks.length > 0) {
                             return colorMap[d.book_reference] || "#3B82F6";
                         }
@@ -927,7 +955,7 @@ const Timeline = ({ user, accessToken }) => {
                         )}
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
                             {getAllTags(filteredEvents).map((tag) => {
-                                const idx = selectedTags.indexOf(tag);
+                                const idx = selectedTags.findIndex(t => t.toLowerCase() === tag.toLowerCase());
                                 const isSelected = idx !== -1;
                                 const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb'; // blue-700
                                 return (
@@ -935,7 +963,17 @@ const Timeline = ({ user, accessToken }) => {
                                         key={tag}
                                         className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
                                         style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                        onClick={() => setSelectedTags(tags => tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag])}
+                                        onClick={() => setSelectedTags(tags => {
+                                            const lower = tag.toLowerCase();
+                                            const existingIdx = tags.findIndex(t => t.toLowerCase() === lower);
+                                            if (existingIdx !== -1) {
+                                                // Remove the tag (case-insensitive)
+                                                return tags.filter((t, i) => i !== existingIdx);
+                                            } else {
+                                                // Add the tag, but first remove any with the same lowercased value
+                                                return [...tags.filter(t => t.toLowerCase() !== lower), tag];
+                                            }
+                                        })}
                                     >
                                         {tag}
                                     </button>
