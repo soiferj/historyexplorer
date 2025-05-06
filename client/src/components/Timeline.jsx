@@ -1,6 +1,11 @@
 import React, { useRef, useEffect, useState } from "react";
 import * as d3 from "d3";
 
+// Color palette for tags/books (define once for use in both UI and D3)
+const colorPalette = [
+    '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
+];
+
 const Timeline = ({ user, accessToken }) => {
     const svgRef = useRef();
     const [selectedEvent, setSelectedEvent] = useState(null);
@@ -152,9 +157,9 @@ const Timeline = ({ user, accessToken }) => {
     const [zoomLevel, setZoomLevel] = useState(0); // 0: event, 1: century, 2: millennium
     // Grouping state: 'none', 'tag', 'book'
     const [groupMode, setGroupMode] = useState('none');
-    // Selected tag or book reference for filtering
-    const [selectedTag, setSelectedTag] = useState(null);
-    const [selectedBook, setSelectedBook] = useState(null);
+    // Selected tags or book references for filtering (multi-select)
+    const [selectedTags, setSelectedTags] = useState([]); // array of tags
+    const [selectedBooks, setSelectedBooks] = useState([]); // array of books
 
     // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically
     function getAllTags(events) {
@@ -243,32 +248,32 @@ const Timeline = ({ user, accessToken }) => {
         });
     }
 
-    // Use grouped or flat data for rendering, and filter by selected tag/book if set
+    // Use grouped or flat data for rendering, and filter by selected tags/books if set
     let renderData;
     if (zoomLevel === 2) {
         // Millennium grouping
-        if (groupMode === 'tag' && selectedTag) {
-            renderData = groupEventsByMillennium(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(selectedTag)));
-        } else if (groupMode === 'book' && selectedBook) {
-            renderData = groupEventsByMillennium(filteredEvents.filter(ev => ev.book_reference === selectedBook));
+        if (groupMode === 'tag' && selectedTags.length > 0) {
+            renderData = groupEventsByMillennium(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.includes(tag))));
+        } else if (groupMode === 'book' && selectedBooks.length > 0) {
+            renderData = groupEventsByMillennium(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
             renderData = groupEventsByMillennium(filteredEvents);
         }
     } else if (zoomLevel === 1) {
         // Century grouping
-        if (groupMode === 'tag' && selectedTag) {
-            renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(selectedTag)));
-        } else if (groupMode === 'book' && selectedBook) {
-            renderData = groupEventsByCentury(filteredEvents.filter(ev => ev.book_reference === selectedBook));
+        if (groupMode === 'tag' && selectedTags.length > 0) {
+            renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.includes(tag))));
+        } else if (groupMode === 'book' && selectedBooks.length > 0) {
+            renderData = groupEventsByCentury(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
             renderData = groupEventsByCentury(filteredEvents);
         }
     } else {
         // Per-event
-        if (groupMode === 'tag' && selectedTag) {
-            renderData = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(selectedTag));
-        } else if (groupMode === 'book' && selectedBook) {
-            renderData = filteredEvents.filter(ev => ev.book_reference === selectedBook);
+        if (groupMode === 'tag' && selectedTags.length > 0) {
+            renderData = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.includes(tag)));
+        } else if (groupMode === 'book' && selectedBooks.length > 0) {
+            renderData = filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference));
         } else {
             renderData = filteredEvents;
         }
@@ -503,6 +508,13 @@ const Timeline = ({ user, accessToken }) => {
                 .duration(500)
                 .style("opacity", 1);
 
+            // Color mapping for tags/books (use same as above)
+            let colorMap = {};
+            if (groupMode === 'tag' && selectedTags.length > 0) {
+                selectedTags.forEach((tag, idx) => { colorMap[tag] = colorPalette[idx % colorPalette.length]; });
+            } else if (groupMode === 'book' && selectedBooks.length > 0) {
+                selectedBooks.forEach((book, idx) => { colorMap[book] = colorPalette[idx % colorPalette.length]; });
+            }
             svg.selectAll("circle")
                 .data(renderData)
                 .enter()
@@ -510,7 +522,15 @@ const Timeline = ({ user, accessToken }) => {
                 .attr("cx", timelineX)
                 .attr("cy", (d, i) => yScale(i))
                 .attr("r", isMobile ? 10 : 14)
-                .attr("fill", "#3B82F6")
+                .attr("fill", d => {
+                    if (groupMode === 'tag' && selectedTags.length > 0 && Array.isArray(d.tags)) {
+                        const match = d.tags.find(tag => selectedTags.includes(tag));
+                        return match ? colorMap[match] : "#3B82F6";
+                    } else if (groupMode === 'book' && selectedBooks.length > 0) {
+                        return colorMap[d.book_reference] || "#3B82F6";
+                    }
+                    return "#3B82F6";
+                })
                 .style("cursor", "pointer")
                 .on("mouseover", function (event, d) {
                     if (!isMobile) {
@@ -617,7 +637,7 @@ const Timeline = ({ user, accessToken }) => {
                     }
                 });
         }
-    }, [renderData, zoomLevel, filteredEvents]);
+    }, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, groupMode]);
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -821,8 +841,8 @@ const Timeline = ({ user, accessToken }) => {
                             value={groupMode}
                             onChange={e => {
                                 setGroupMode(e.target.value);
-                                setSelectedTag(null);
-                                setSelectedBook(null);
+                                setSelectedTags([]);
+                                setSelectedBooks([]);
                                 setZoomLevel(0);
                             }}
                             className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm"
@@ -834,42 +854,48 @@ const Timeline = ({ user, accessToken }) => {
                     </div>
                 </div>
                 {/* Tag or Book Reference group selection UI */}
-                {groupMode === 'tag' && !selectedTag && (
+                {groupMode === 'tag' && (
                     <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
-                        {getAllTags(filteredEvents).map(tag => (
-                            <button
-                                key={tag}
-                                className="px-3 py-1 rounded-full bg-blue-700 text-white text-xs font-semibold shadow hover:bg-pink-500 transition"
-                                onClick={() => setSelectedTag(tag)}
-                            >
-                                {tag}
-                            </button>
-                        ))}
+                        {getAllTags(filteredEvents).map((tag) => {
+                            const idx = selectedTags.indexOf(tag);
+                            const isSelected = idx !== -1;
+                            const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb'; // blue-700
+                            return (
+                                <button
+                                    key={tag}
+                                    className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                    style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                    onClick={() => setSelectedTags(tags => tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag])}
+                                >
+                                    {tag}
+                                </button>
+                            );
+                        })}
+                        {selectedTags.length > 0 && (
+                            <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedTags([])}>Clear</button>
+                        )}
                     </div>
                 )}
-                {groupMode === 'tag' && selectedTag && (
+                {groupMode === 'book' && (
                     <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
-                        <span className="px-3 py-1 rounded-full bg-pink-500 text-white text-xs font-semibold shadow">Tag: {selectedTag}</span>
-                        <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedTag(null)}>Clear</button>
-                    </div>
-                )}
-                {groupMode === 'book' && !selectedBook && (
-                    <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
-                        {getAllBooks(filteredEvents).map(book => (
-                            <button
-                                key={book}
-                                className="px-3 py-1 rounded-full bg-blue-700 text-white text-xs font-semibold shadow hover:bg-pink-500 transition"
-                                onClick={() => setSelectedBook(book)}
-                            >
-                                {book}
-                            </button>
-                        ))}
-                    </div>
-                )}
-                {groupMode === 'book' && selectedBook && (
-                    <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
-                        <span className="px-3 py-1 rounded-full bg-pink-500 text-white text-xs font-semibold shadow">Book: {selectedBook}</span>
-                        <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedBook(null)}>Clear</button>
+                        {getAllBooks(filteredEvents).map((book) => {
+                            const idx = selectedBooks.indexOf(book);
+                            const isSelected = idx !== -1;
+                            const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb';
+                            return (
+                                <button
+                                    key={book}
+                                    className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                    style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                    onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
+                                >
+                                    {book}
+                                </button>
+                            );
+                        })}
+                        {selectedBooks.length > 0 && (
+                            <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedBooks([])}>Clear</button>
+                        )}
                     </div>
                 )}
 
