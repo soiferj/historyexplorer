@@ -1,4 +1,4 @@
-Given the following historical event title and date, write a concise historical event description (max 3 sentences) and suggest 3-7 relevant tags (keywords, array of strings). The tags should include the broader context of the event, such as a war if the event was a battle, or the empire if the event was an event in the empire. Do not include overly generic tags like year, century and unspecific single words like "colonialism" or "empire".
+Given the following historical event title and date, write a concise historical event description (max 3 sentences) and suggest 3-7 relevant tags (keywords, array of strings). The tags should include the broader context of the event, such as a war if the event was a battle, or the empire if the event was an event in the empire. The tags should be unified as much as possible since they will be used for filtering on the UX. For example, "Mongols" should be used as a more generic term in place of "Mongol History" or "Mongol Expansion". Do not include overly generic tags like year, century and unspecific single words like "colonialism" or "empire".
 
 Title: {{title}}
 Year: {{year}}
