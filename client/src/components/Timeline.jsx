@@ -160,6 +160,9 @@ const Timeline = ({ user, accessToken }) => {
     // Selected tags or book references for filtering (multi-select)
     const [selectedTags, setSelectedTags] = useState([]); // array of tags
     const [selectedBooks, setSelectedBooks] = useState([]); // array of books
+    // Search terms for tag/book selection
+    const [tagSearchTerm, setTagSearchTerm] = useState("");
+    const [bookSearchTerm, setBookSearchTerm] = useState("");
 
     // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically (case-insensitive)
     function getAllTags(events) {
@@ -972,32 +975,44 @@ const Timeline = ({ user, accessToken }) => {
                                 Delete Tags
                             </button>
                         )}
+                        {/* Tag search input */}
+                        <div className="w-full flex justify-center mb-2">
+                            <input
+                                type="text"
+                                placeholder="Search tags..."
+                                className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center"
+                                value={tagSearchTerm}
+                                onChange={e => setTagSearchTerm(e.target.value)}
+                            />
+                        </div>
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
-                            {getAllTags(filteredEvents).map((tag) => {
-                                const idx = selectedTags.findIndex(t => t.toLowerCase() === tag.toLowerCase());
-                                const isSelected = idx !== -1;
-                                const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb'; // blue-700
-                                return (
-                                    <button
-                                        key={tag}
-                                        className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                        style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                        onClick={() => setSelectedTags(tags => {
-                                            const lower = tag.toLowerCase();
-                                            const existingIdx = tags.findIndex(t => t.toLowerCase() === lower);
-                                            if (existingIdx !== -1) {
-                                                // Remove the tag (case-insensitive)
-                                                return tags.filter((t, i) => i !== existingIdx);
-                                            } else {
-                                                // Add the tag, but first remove any with the same lowercased value
-                                                return [...tags.filter(t => t.toLowerCase() !== lower), tag];
-                                            }
-                                        })}
-                                    >
-                                        {tag}
-                                    </button>
-                                );
-                            })}
+                            {getAllTags(filteredEvents)
+                                .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
+                                .map((tag) => {
+                                    const idx = selectedTags.findIndex(t => t.toLowerCase() === tag.toLowerCase());
+                                    const isSelected = idx !== -1;
+                                    const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb'; // blue-700
+                                    return (
+                                        <button
+                                            key={tag}
+                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                            onClick={() => setSelectedTags(tags => {
+                                                const lower = tag.toLowerCase();
+                                                const existingIdx = tags.findIndex(t => t.toLowerCase() === lower);
+                                                if (existingIdx !== -1) {
+                                                    // Remove the tag (case-insensitive)
+                                                    return tags.filter((t, i) => i !== existingIdx);
+                                                } else {
+                                                    // Add the tag, but first remove any with the same lowercased value
+                                                    return [...tags.filter(t => t.toLowerCase() !== lower), tag];
+                                                }
+                                            })}
+                                        >
+                                            {tag}
+                                        </button>
+                                    );
+                                })}
                             {selectedTags.length > 0 && (
                                 <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedTags([])}>Clear</button>
                             )}
@@ -1102,26 +1117,40 @@ const Timeline = ({ user, accessToken }) => {
                     </>
                 )}
                 {groupMode === 'book' && (
-                    <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
-                        {getAllBooks(filteredEvents).map((book) => {
-                            const idx = selectedBooks.indexOf(book);
-                            const isSelected = idx !== -1;
-                            const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb';
-                            return (
-                                <button
-                                    key={book}
-                                    className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                    style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                    onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
-                                >
-                                    {book}
-                                </button>
-                            );
-                        })}
-                        {selectedBooks.length > 0 && (
-                            <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedBooks([])}>Clear</button>
-                        )}
-                    </div>
+                    <>
+                        {/* Book search input */}
+                        <div className="w-full flex justify-center mb-2">
+                            <input
+                                type="text"
+                                placeholder="Search books..."
+                                className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center"
+                                value={bookSearchTerm}
+                                onChange={e => setBookSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
+                            {getAllBooks(filteredEvents)
+                                .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
+                                .map((book) => {
+                                    const idx = selectedBooks.indexOf(book);
+                                    const isSelected = idx !== -1;
+                                    const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb';
+                                    return (
+                                        <button
+                                            key={book}
+                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                            onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
+                                        >
+                                            {book}
+                                        </button>
+                                    );
+                                })}
+                            {selectedBooks.length > 0 && (
+                                <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedBooks([])}>Clear</button>
+                            )}
+                        </div>
+                    </>
                 )}
 
                 {/* Add Event Modal */}
