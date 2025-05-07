@@ -164,6 +164,9 @@ const Timeline = ({ user, accessToken }) => {
     const [tagSearchTerm, setTagSearchTerm] = useState("");
     const [bookSearchTerm, setBookSearchTerm] = useState("");
 
+    // Overlap filter state for tag grouping
+    const [tagOverlapOnly, setTagOverlapOnly] = useState(false);
+
     // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically (case-insensitive)
     function getAllTags(events) {
         const tagCount = {};
@@ -256,10 +259,27 @@ const Timeline = ({ user, accessToken }) => {
 
     // Use grouped or flat data for rendering, and filter by selected tags/books if set
     let renderData;
+    // Helper: filter for tag overlap
+    function filterTagOverlap(events, selectedTags) {
+        // Only include events that have at least 2 of the selected tags (case-insensitive)
+        return events.filter(ev => {
+            if (!Array.isArray(ev.tags)) return false;
+            let count = 0;
+            for (const tag of ev.tags) {
+                if (selectedTags.some(sel => sel.toLowerCase() === tag.toLowerCase())) count++;
+                if (count > 1) return true;
+            }
+            return false;
+        });
+    }
     if (zoomLevel === 2) {
         // Millennium grouping
         if (groupMode === 'tag' && selectedTags.length > 0) {
-            renderData = groupEventsByMillennium(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase()))));
+            let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
+            if (tagOverlapOnly && selectedTags.length > 1) {
+                tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
+            }
+            renderData = groupEventsByMillennium(tagFiltered);
         } else if (groupMode === 'book' && selectedBooks.length > 0) {
             renderData = groupEventsByMillennium(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
@@ -268,7 +288,11 @@ const Timeline = ({ user, accessToken }) => {
     } else if (zoomLevel === 1) {
         // Century grouping
         if (groupMode === 'tag' && selectedTags.length > 0) {
-            renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase()))));
+            let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
+            if (tagOverlapOnly && selectedTags.length > 1) {
+                tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
+            }
+            renderData = groupEventsByCentury(tagFiltered);
         } else if (groupMode === 'book' && selectedBooks.length > 0) {
             renderData = groupEventsByCentury(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
@@ -277,7 +301,11 @@ const Timeline = ({ user, accessToken }) => {
     } else {
         // Per-event
         if (groupMode === 'tag' && selectedTags.length > 0) {
-            renderData = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
+            let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
+            if (tagOverlapOnly && selectedTags.length > 1) {
+                tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
+            }
+            renderData = tagFiltered;
         } else if (groupMode === 'book' && selectedBooks.length > 0) {
             renderData = filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference));
         } else {
@@ -544,7 +572,12 @@ const Timeline = ({ user, accessToken }) => {
                     .attr("transform", (d, i) => `translate(${timelineX},${yScale(i)})`)
                     .each(function (d, i) {
                         const g = d3.select(this);
-                        let matchingTags = Array.isArray(d.tags) ? d.tags.filter(tag => selectedTags.some(sel => sel.toLowerCase() === tag.toLowerCase())) : [];
+                        // Sort matchingTags by selectedTags order for consistent color order
+                        let matchingTags = Array.isArray(d.tags)
+                            ? selectedTags
+                                .map(sel => d.tags.find(tag => sel.toLowerCase() === tag.toLowerCase()))
+                                .filter(Boolean)
+                            : [];
                         if (matchingTags.length === 0) matchingTags = [null];
                         // Deduplicate matchingTags by lowercased value, preserving first original-case
                         const seen = new Set();
@@ -716,8 +749,7 @@ const Timeline = ({ user, accessToken }) => {
                             .text(truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
                     }
                 });
-        }
-    }, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, groupMode]);
+    }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, groupMode]); // End of useEffect for D3 rendering
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -1091,6 +1123,19 @@ const Timeline = ({ user, accessToken }) => {
                                 onChange={e => setTagSearchTerm(e.target.value)}
                             />
                         </div>
+                        {/* Overlap toggle */}
+                        {selectedTags.length > 1 && (
+                            <div className="w-full flex justify-center mb-2">
+                                <label className="flex items-center gap-2 text-xs sm:text-sm text-blue-200 font-semibold bg-gray-900/70 px-3 py-1 rounded-full border border-blue-400 shadow">
+                                    <input
+                                        type="checkbox"
+                                        checked={tagOverlapOnly}
+                                        onChange={e => setTagOverlapOnly(e.target.checked)}
+                                    />
+                                    Show only events with overlapping tags
+                                </label>
+                            </div>
+                        )}
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
                             {getAllTags(filteredEvents)
                                 .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
