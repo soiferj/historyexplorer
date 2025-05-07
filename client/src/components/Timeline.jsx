@@ -1123,20 +1123,7 @@ const Timeline = ({ user, accessToken }) => {
                                 onChange={e => setTagSearchTerm(e.target.value)}
                             />
                         </div>
-                        {/* Overlap toggle */}
-                        {selectedTags.length > 1 && (
-                            <div className="w-full flex justify-center mb-2">
-                                <label className="flex items-center gap-2 text-xs sm:text-sm text-blue-200 font-semibold bg-gray-900/70 px-3 py-1 rounded-full border border-blue-400 shadow">
-                                    <input
-                                        type="checkbox"
-                                        checked={tagOverlapOnly}
-                                        onChange={e => setTagOverlapOnly(e.target.checked)}
-                                    />
-                                    Show only events with overlapping tags
-                                </label>
-                            </div>
-                        )}
-                        <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
+                        <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                             {getAllTags(filteredEvents)
                                 .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
                                 .map((tag) => {
@@ -1168,6 +1155,19 @@ const Timeline = ({ user, accessToken }) => {
                                 <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedTags([])}>Clear</button>
                             )}
                         </div>
+                        {/* Overlap toggle moved under tags */}
+                        {selectedTags.length > 1 && (
+                            <div className="w-full flex justify-center mb-4">
+                                <label className="flex items-center gap-2 text-xs sm:text-sm text-blue-200 font-semibold bg-gray-900/70 px-3 py-1 rounded-full border border-blue-400 shadow">
+                                    <input
+                                        type="checkbox"
+                                        checked={tagOverlapOnly}
+                                        onChange={e => setTagOverlapOnly(e.target.checked)}
+                                    />
+                                    Show only events with overlapping tags
+                                </label>
+                            </div>
+                        )}
                     </>
                 )}
                 {groupMode === 'book' && (
@@ -1233,7 +1233,7 @@ const Timeline = ({ user, accessToken }) => {
                             }}
                         >
                             <button
-                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none transition-colors duration-200"
+                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
                                 onClick={() => setShowForm(false)}
                                 aria-label="Close modal"
                             >
