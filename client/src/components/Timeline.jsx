@@ -755,7 +755,26 @@ const Timeline = ({ user, accessToken }) => {
             // Refetch events
             const eventsRes = await fetch(`${apiUrl}/events`);
             const newEvents = await eventsRes.json();
-            setEvents(sortEvents(newEvents));
+            const sortedEvents = sortEvents(newEvents);
+            setEvents(sortedEvents);
+            // Scroll to the newly added event
+            setTimeout(() => {
+                if (!timelineContainerRef.current) return;
+                // Try to find the new event by matching title, year, and book_reference
+                const newEventIdx = sortedEvents.findIndex(ev =>
+                    ev.title === form.title &&
+                    new Date(ev.date).getFullYear().toString() === paddedYear &&
+                    ev.book_reference === form.book_reference
+                );
+                if (newEventIdx >= 0) {
+                    const isMobile = window.innerWidth < 640;
+                    const itemHeight = isMobile ? 80 : 100;
+                    timelineContainerRef.current.scrollTo({
+                        top: Math.max(0, (itemHeight * newEventIdx) - 40),
+                        behavior: 'smooth'
+                    });
+                }
+            }, 400); // Wait for re-render
         } catch (err) {
             console.error('Error adding event:', err);
             setError(err.message);
