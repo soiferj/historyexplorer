@@ -885,6 +885,10 @@ const Timeline = ({ user, accessToken }) => {
     const [removalError, setRemovalError] = useState("");
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+    // Add loading state for enrichment
+    const [regenDescriptionLoading, setRegenDescriptionLoading] = useState(false);
+    const [regenTagsLoading, setRegenTagsLoading] = useState(false);
+
     return (
         <>
             <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
@@ -1376,10 +1380,82 @@ const Timeline = ({ user, accessToken }) => {
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                 <label className="font-semibold text-blue-200" htmlFor="edit-description">Description</label>
                                                 <textarea id="edit-description" name="description" value={editForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner min-h-[80px] resize-vertical placeholder:text-gray-400" />
+                                                <button
+                                                    type="button"
+                                                    className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    disabled={regenDescriptionLoading}
+                                                    onClick={async () => {
+                                                        setEditError("");
+                                                        setRegenDescriptionLoading(true);
+                                                        try {
+                                                            const response = await fetch(`${apiUrl}/events/enrich-description`, {
+                                                                method: "POST",
+                                                                headers: {
+                                                                    "Content-Type": "application/json",
+                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    title: editForm.title,
+                                                                    date: editForm.year ? `${editForm.year.padStart(4, "0")}-01-01` : undefined
+                                                                })
+                                                            });
+                                                            const data = await response.json();
+                                                            if (data && data.description) {
+                                                                setEditForm(f => ({ ...f, description: data.description }));
+                                                            } else if (data && data.error) {
+                                                                setEditError("Failed to regenerate description: " + data.error);
+                                                            } else {
+                                                                setEditError("Failed to regenerate description");
+                                                            }
+                                                        } catch (err) {
+                                                            setEditError("Failed to regenerate description");
+                                                        } finally {
+                                                            setRegenDescriptionLoading(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {regenDescriptionLoading ? "Regenerating..." : "Regenerate Description"}
+                                                </button>
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                 <label className="font-semibold text-blue-200" htmlFor="edit-tags">Tags</label>
                                                 <input id="edit-tags" name="tags" value={editForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                <button
+                                                    type="button"
+                                                    className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    disabled={regenTagsLoading}
+                                                    onClick={async () => {
+                                                        setEditError("");
+                                                        setRegenTagsLoading(true);
+                                                        try {
+                                                            const response = await fetch(`${apiUrl}/events/enrich-tags`, {
+                                                                method: "POST",
+                                                                headers: {
+                                                                    "Content-Type": "application/json",
+                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    title: editForm.title,
+                                                                    date: editForm.year ? `${editForm.year.padStart(4, "0")}-01-01` : undefined
+                                                                })
+                                                            });
+                                                            const data = await response.json();
+                                                            if (data && data.tags) {
+                                                                setEditForm(f => ({ ...f, tags: data.tags.join(", ") }));
+                                                            } else if (data && data.error) {
+                                                                setEditError("Failed to regenerate tags: " + data.error);
+                                                            } else {
+                                                                setEditError("Failed to regenerate tags");
+                                                            }
+                                                        } catch (err) {
+                                                            setEditError("Failed to regenerate tags");
+                                                        } finally {
+                                                            setRegenTagsLoading(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {regenTagsLoading ? "Regenerating..." : "Regenerate Tags"}
+                                                </button>
                                             </div>
                                             <div className="flex gap-2 mt-2 justify-center w-full max-w-md mx-auto">
                                                 <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-1/2">Save</button>
@@ -1423,5 +1499,6 @@ const Timeline = ({ user, accessToken }) => {
         </>
     );
 };
+
 
 export default Timeline;

@@ -122,4 +122,28 @@ router.post("/remove-tag", verifyAllowedUser, async (req, res) => {
     }
 });
 
+// Enrich description only
+router.post("/enrich-description", verifyAllowedUser, async (req, res) => {
+    const { title, date } = req.body;
+    if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
+    try {
+        const enrichment = await enrichEventWithLLM({ title, date });
+        res.json({ description: enrichment.description });
+    } catch (e) {
+        res.status(500).json({ error: "Failed to enrich description" });
+    }
+});
+
+// Enrich tags only
+router.post("/enrich-tags", verifyAllowedUser, async (req, res) => {
+    const { title, date } = req.body;
+    if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
+    try {
+        const enrichment = await enrichEventWithLLM({ title, date });
+        res.json({ tags: enrichment.tags });
+    } catch (e) {
+        res.status(500).json({ error: "Failed to enrich tags" });
+    }
+});
+
 module.exports = router;
