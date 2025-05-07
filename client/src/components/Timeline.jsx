@@ -879,7 +879,6 @@ const Timeline = ({ user, accessToken }) => {
     }, [selectedEvent]);
 
     // State for Delete Tags modal
-    const [showRemoveTagsModal, setShowRemoveTagsModal] = useState(false);
     const [removalSelectedTags, setRemovalSelectedTags] = useState([]);
     const [removalLoading, setRemovalLoading] = useState(false);
     const [removalError, setRemovalError] = useState("");
@@ -888,6 +887,7 @@ const Timeline = ({ user, accessToken }) => {
     // Add loading state for enrichment
     const [regenDescriptionLoading, setRegenDescriptionLoading] = useState(false);
     const [regenTagsLoading, setRegenTagsLoading] = useState(false);
+    const [showAdminToolsModal, setShowAdminToolsModal] = useState(false);
 
     return (
         <>
@@ -908,15 +908,130 @@ const Timeline = ({ user, accessToken }) => {
                         </div>
                     </div>
                 )}
+                {/* Admin Tools Modal */}
+                {isAllowed && showAdminToolsModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+                        <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => { setShowAdminToolsModal(false); setShowDeleteConfirm(false); }} />
+                        <div className="relative glass p-8 rounded-2xl shadow-2xl border border-blue-400 w-full max-w-lg z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg">
+                            <button
+                                className="absolute top-3 right-3 text-2xl text-blue-300 hover:text-pink-400 focus:outline-none"
+                                onClick={() => { setShowAdminToolsModal(false); setShowDeleteConfirm(false); }}
+                                aria-label="Close admin tools modal"
+                            >
+                                &times;
+                            </button>
+                            <h2 className="text-2xl font-bold mb-4 text-blue-300">Admin Tools</h2>
+                            {/* Delete Tags Section */}
+                            <div className="w-full mb-8">
+                                <h3 className="text-lg font-semibold text-red-300 mb-2">Delete Tags</h3>
+                                <div className="mb-4 w-full flex flex-col items-center max-h-40 overflow-y-auto">
+                                    {getAllTags(filteredEvents).length === 0 && <div className="text-gray-400">No tags available.</div>}
+                                    {getAllTags(filteredEvents).map(tag => (
+                                        <label key={tag} className="flex items-center gap-2 mb-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={removalSelectedTags.includes(tag)}
+                                                onChange={e => {
+                                                    setRemovalSelectedTags(sel => e.target.checked ? [...sel, tag] : sel.filter(t => t !== tag));
+                                                }}
+                                            />
+                                            <span>{tag}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                {removalError && <div className="text-red-400 mb-2">{removalError}</div>}
+                                <button
+                                    className="mt-2 px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-50"
+                                    disabled={removalSelectedTags.length === 0 || removalLoading}
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                >
+                                    Delete Selected ({removalSelectedTags.length})
+                                </button>
+                            </div>
+                            {/* Confirm Delete Modal (inside admin tools modal) */}
+                            {showDeleteConfirm && (
+                                <div className="fixed inset-0 z-60 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+                                    <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowDeleteConfirm(false)} />
+                                    <div className="relative glass p-6 rounded-2xl shadow-2xl border border-red-400 w-full max-w-sm z-70 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#ff512f33] to-[#ff512f33] backdrop-blur-lg">
+                                        <h3 className="text-lg font-bold mb-2 text-red-300">Confirm Delete</h3>
+                                        <div className="mb-4 text-center text-red-200">
+                                            Are you sure you want to delete these tags?
+                                            <ul className="mt-2 mb-2 text-red-300 font-bold">
+                                                {removalSelectedTags.map(tag => (
+                                                    <li key={tag}>{tag}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                        {removalError && <div className="text-red-400 mb-2">{removalError}</div>}
+                                        <div className="flex gap-4 mt-2">
+                                            <button
+                                                className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
+                                                onClick={() => setShowDeleteConfirm(false)}
+                                                disabled={removalLoading}
+                                            >
+                                                Cancel
+                                            </button>
+                                            <button
+                                                className="px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-50"
+                                                disabled={removalLoading}
+                                                onClick={async () => {
+                                                    setRemovalLoading(true);
+                                                    setRemovalError("");
+                                                    try {
+                                                        for (const tag of removalSelectedTags) {
+                                                            const response = await fetch(`${apiUrl}/events/remove-tag`, {
+                                                                method: "POST",
+                                                                headers: {
+                                                                    "Content-Type": "application/json",
+                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                                },
+                                                                body: JSON.stringify({ tag })
+                                                            });
+                                                            if (!response.ok) throw new Error(`Failed to delete tag: ${tag}`);
+                                                        }
+                                                        // Refetch events
+                                                        const eventsRes = await fetch(`${apiUrl}/events`);
+                                                        const newEvents = await eventsRes.json();
+                                                        setEvents(sortEvents(newEvents));
+                                                        setShowDeleteConfirm(false);
+                                                        setShowAdminToolsModal(false);
+                                                    } catch (err) {
+                                                        setRemovalError(err.message);
+                                                    } finally {
+                                                        setRemovalLoading(false);
+                                                    }
+                                                }}
+                                            >
+                                                {removalLoading ? "Deleting..." : "Confirm Delete"}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
                 {/* Add Event and Filters Button (in a single row) */}
                 <div className="w-full flex flex-wrap justify-center z-10 mb-4 gap-3 flex-row items-center">
                     {isAllowed && (
-                        <button
-                            className="px-2 py-1 text-sm sm:px-4 sm:py-2 sm:text-base rounded bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 font-bold text-white shadow transition-all duration-200 glow border border-white/20"
-                            onClick={() => setShowForm(true)}
-                        >
-                            Add New Event
-                        </button>
+                        <>
+                            <button
+                                className="px-2 py-1 text-sm sm:px-4 sm:py-2 sm:text-base rounded bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 font-bold text-white shadow transition-all duration-200 glow border border-white/20"
+                                onClick={() => setShowForm(true)}
+                            >
+                                Add New Event
+                            </button>
+                            <button
+                                className="px-2 py-1 text-sm sm:px-4 sm:py-2 sm:text-base rounded bg-gradient-to-r from-blue-700 to-pink-700 hover:from-blue-800 hover:to-pink-800 font-bold text-white shadow transition-all duration-200 border border-white/20 ml-2"
+                                onClick={() => {
+                                    setShowAdminToolsModal(true);
+                                    setRemovalSelectedTags([]);
+                                    setRemovalError("");
+                                }}
+                            >
+                                Admin Tools
+                            </button>
+                        </>
                     )}
                     <button
                         className="flex items-center gap-1 px-2 py-1 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base rounded bg-gray-800/80 text-white border border-blue-400 hover:bg-blue-600 transition shadow-md"
@@ -966,19 +1081,6 @@ const Timeline = ({ user, accessToken }) => {
                 {/* Tag or Book Reference group selection UI */}
                 {groupMode === 'tag' && (
                     <>
-                        {/* Admin Delete Tags button */}
-                        {isAllowed && (
-                            <button
-                                className="mb-2 px-3 py-1 rounded bg-red-700 text-white text-xs font-bold hover:bg-red-800 border border-red-300 shadow"
-                                onClick={() => {
-                                    setShowRemoveTagsModal(true);
-                                    setRemovalSelectedTags([]);
-                                    setRemovalError("");
-                                }}
-                            >
-                                Delete Tags
-                            </button>
-                        )}
                         {/* Tag search input */}
                         <div className="w-full flex justify-center mb-2">
                             <input
@@ -1021,103 +1123,6 @@ const Timeline = ({ user, accessToken }) => {
                                 <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedTags([])}>Clear</button>
                             )}
                         </div>
-                        {/* Delete Tags Modal */}
-                        {showRemoveTagsModal && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
-                                <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => { setShowRemoveTagsModal(false); setShowDeleteConfirm(false); }} />
-                                <div className="relative glass p-8 rounded-2xl shadow-2xl border border-red-400 w-full max-w-md z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#ff512f33] to-[#ff512f33] backdrop-blur-lg">
-                                    <button
-                                        className="absolute top-3 right-3 text-2xl text-red-300 hover:text-pink-400 focus:outline-none"
-                                        onClick={() => { setShowRemoveTagsModal(false); setShowDeleteConfirm(false); }}
-                                        aria-label="Close delete tags modal"
-                                    >
-                                        &times;
-                                    </button>
-                                    <h2 className="text-xl font-bold mb-4 text-red-300">Delete Tags</h2>
-                                    {!showDeleteConfirm ? (
-                                        <>
-                                            <div className="mb-4 w-full flex flex-col items-center max-h-60 overflow-y-auto">
-                                                {getAllTags(filteredEvents).length === 0 && <div className="text-gray-400">No tags available.</div>}
-                                                {getAllTags(filteredEvents).map(tag => (
-                                                    <label key={tag} className="flex items-center gap-2 mb-2 cursor-pointer">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={removalSelectedTags.includes(tag)}
-                                                            onChange={e => {
-                                                                setRemovalSelectedTags(sel => e.target.checked ? [...sel, tag] : sel.filter(t => t !== tag));
-                                                            }}
-                                                        />
-                                                        <span>{tag}</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                            {removalError && <div className="text-red-400 mb-2">{removalError}</div>}
-                                            <button
-                                                className="mt-2 px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-50"
-                                                disabled={removalSelectedTags.length === 0 || removalLoading}
-                                                onClick={() => setShowDeleteConfirm(true)}
-                                            >
-                                                Delete Selected ({removalSelectedTags.length})
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <div className="mb-4 text-center text-red-200">
-                                                Are you sure you want to delete these tags?
-                                                <ul className="mt-2 mb-2 text-red-300 font-bold">
-                                                    {removalSelectedTags.map(tag => (
-                                                        <li key={tag}>{tag}</li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                            {removalError && <div className="text-red-400 mb-2">{removalError}</div>}
-                                            <div className="flex gap-4 mt-2">
-                                                <button
-                                                    className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
-                                                    onClick={() => setShowDeleteConfirm(false)}
-                                                    disabled={removalLoading}
-                                                >
-                                                    Cancel
-                                                </button>
-                                                <button
-                                                    className="px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-50"
-                                                    disabled={removalLoading}
-                                                    onClick={async () => {
-                                                        setRemovalLoading(true);
-                                                        setRemovalError("");
-                                                        try {
-                                                            for (const tag of removalSelectedTags) {
-                                                                const response = await fetch(`${apiUrl}/events/remove-tag`, {
-                                                                    method: "POST",
-                                                                    headers: {
-                                                                        "Content-Type": "application/json",
-                                                                        ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                                                                    },
-                                                                    body: JSON.stringify({ tag })
-                                                                });
-                                                                if (!response.ok) throw new Error(`Failed to delete tag: ${tag}`);
-                                                            }
-                                                            // Refetch events
-                                                            const eventsRes = await fetch(`${apiUrl}/events`);
-                                                            const newEvents = await eventsRes.json();
-                                                            setEvents(sortEvents(newEvents));
-                                                            setShowRemoveTagsModal(false);
-                                                            setShowDeleteConfirm(false);
-                                                        } catch (err) {
-                                                            setRemovalError(err.message);
-                                                        } finally {
-                                                            setRemovalLoading(false);
-                                                        }
-                                                    }}
-                                                >
-                                                    {removalLoading ? "Deleting..." : "Confirm Delete"}
-                                                </button>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </>
                 )}
                 {groupMode === 'book' && (
