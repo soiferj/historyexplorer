@@ -1153,6 +1153,16 @@ const Timeline = ({ user, accessToken }) => {
                     </>
                 )}
 
+                {/* Event count display */}
+                <div className="w-full flex justify-center mb-2">
+                    <span className="inline-block bg-gray-900/80 text-blue-200 rounded-full px-4 py-1 text-xs sm:text-sm font-semibold border border-blue-400 shadow">
+                        {zoomLevel === 0
+                            ? `${renderData.length} event${renderData.length !== 1 ? 's' : ''} shown`
+                            : `${renderData.length} group${renderData.length !== 1 ? 's' : ''} shown (${renderData.reduce((sum, g) => sum + (g.events ? g.events.length : 0), 0)} events)`
+                        }
+                    </span>
+                </div>
+
                 {/* Add Event Modal */}
                 {showForm && isAllowed && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
