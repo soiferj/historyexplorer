@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { MapContainer, TileLayer, CircleMarker, Tooltip } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 // Use the same color palette as Timeline
@@ -22,37 +22,18 @@ const regionCoords = {
   // Add more as needed
 };
 
-const MapView = ({ onRegionSelect }) => {
-  const [events, setEvents] = useState([]);
-  const [regionEvents, setRegionEvents] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const fetchEvents = async () => {
-      setLoading(true);
-      try {
-        const apiUrl = process.env.REACT_APP_API_URL;
-        const res = await fetch(`${apiUrl}/events`);
-        const data = await res.json();
-        setEvents(data);
-        // Group events by region
-        const grouped = {};
-        (data || []).forEach(ev => {
-          (ev.regions || []).forEach(region => {
-            if (!grouped[region]) grouped[region] = [];
-            grouped[region].push(ev);
-          });
-        });
-        setRegionEvents(grouped);
-      } catch (e) {
-        setError("Failed to load events");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEvents();
-  }, []);
+const MapView = ({ events = [], onRegionSelect, loading, error, onBackToTimeline }) => {
+  // Group events by region
+  const regionEvents = React.useMemo(() => {
+    const grouped = {};
+    (events || []).forEach(ev => {
+      (ev.regions || []).forEach(region => {
+        if (!grouped[region]) grouped[region] = [];
+        grouped[region].push(ev);
+      });
+    });
+    return grouped;
+  }, [events]);
 
   // Assign a color to each region (by order)
   const regionList = Object.keys(regionEvents);
@@ -63,6 +44,14 @@ const MapView = ({ onRegionSelect }) => {
 
   return (
     <div className="w-full h-[500px] relative">
+      <div className="w-full flex justify-center mb-4 gap-4">
+        <button
+          className="px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white bg-gray-700 hover:bg-blue-700"
+          onClick={onBackToTimeline}
+        >
+          Timeline
+        </button>
+      </div>
       {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
       {error && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10 text-red-300">{error}</div>}
       <MapContainer center={[20, 0]} zoom={2} style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1 }} scrollWheelZoom={true}>

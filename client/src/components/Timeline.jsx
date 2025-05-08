@@ -6,11 +6,19 @@ const colorPalette = [
     '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
 ];
 
-const Timeline = ({ user, accessToken, regionFilter }) => {
+const Timeline = (props) => {
+    // Destructure all props
+    const {
+        user, accessToken, events, allEvents, eventsLoading, eventsError,
+        showMap, setShowMap, regionFilter, setRegionFilter, clearRegionFilter,
+        searchTerm, setSearchTerm, dateFilter, setDateFilter, zoomLevel, setZoomLevel,
+        selectedTags, setSelectedTags, selectedBooks, setSelectedBooks,
+        selectedRegions, setSelectedRegions, tagSearchTerm, setTagSearchTerm, bookSearchTerm, setBookSearchTerm,
+        regionSearchTerm, setRegionSearchTerm, tagOverlapOnly, setTagOverlapOnly
+    } = props;
+
     const svgRef = useRef();
     const [selectedEvent, setSelectedEvent] = useState(null);
-    const [events, setEvents] = useState([]);
-    const [searchTerm, setSearchTerm] = useState("");
     // New state for form fields and loading
     const [form, setForm] = useState({
         title: "",
@@ -67,38 +75,6 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
         };
     }, [apiUrl, accessToken]);
 
-    const [eventsLoading, setEventsLoading] = useState(true);
-    const [eventsError, setEventsError] = useState(null);
-    useEffect(() => {
-        let isMounted = true;
-        let retryTimeout;
-        const fetchEvents = async () => {
-            setEventsLoading(true);
-            setEventsError(null);
-            try {
-                const response = await fetch(`${apiUrl}/events`);
-                if (!response.ok) throw new Error("Failed to fetch events");
-                const data = await response.json();
-                if (isMounted) {
-                    setEvents(sortEvents(data));
-                    setEventsLoading(false);
-                }
-            } catch (err) {
-                if (isMounted) {
-                    setEvents([]);
-                    setEventsError(err.message);
-                    setEventsLoading(true); // keep loading
-                    retryTimeout = setTimeout(fetchEvents, 5000);
-                }
-            }
-        };
-        fetchEvents();
-        return () => {
-            isMounted = false;
-            if (retryTimeout) clearTimeout(retryTimeout);
-        };
-    }, [apiUrl]);
-
     // Helper to sort events: BCE descending, CE ascending
     function sortEvents(events) {
         return (events || []).slice().sort((a, b) => {
@@ -115,22 +91,6 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
         });
     }
 
-    // Date filter state
-    const [dateFilter, setDateFilter] = useState({
-        startYear: '',
-        startEra: 'BCE',
-        endYear: '',
-        endEra: 'CE'
-    });
-
-    // Helper to convert year/era to comparable number
-    function yearEraToComparable(year, era) {
-        if (!year) return null;
-        const y = parseInt(year, 10);
-        if (isNaN(y)) return null;
-        return era === 'BCE' ? -y : y;
-    }
-
     // Calculate filtered events (all matching events)
     const filteredEvents = (() => {
         if (!events || events.length === 0) return [];
@@ -138,7 +98,8 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
             event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
             event.book_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
             event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase() === searchTerm.toLowerCase()))
+            (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase() === searchTerm.toLowerCase())) ||
+            (Array.isArray(event.regions) && event.regions.some(region => region.toLowerCase().includes(searchTerm.toLowerCase())))
         );
         // Apply region filter if set
         if (regionFilter) {
@@ -157,23 +118,6 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
         }
         return filtered;
     })();
-
-    // Add zoom state (now 3 levels: 0=event, 1=century, 2=millennium)
-    const [zoomLevel, setZoomLevel] = useState(0); // 0: event, 1: century, 2: millennium
-    // Grouping state: 'none', 'tag', 'book'
-    const [groupMode, setGroupMode] = useState('none');
-    // Selected tags or book references for filtering (multi-select)
-    const [selectedTags, setSelectedTags] = useState([]); // array of tags
-    const [selectedBooks, setSelectedBooks] = useState([]); // array of books
-    // Search terms for tag/book selection
-    const [tagSearchTerm, setTagSearchTerm] = useState("");
-    const [bookSearchTerm, setBookSearchTerm] = useState("");
-    // Add region group state
-    const [selectedRegions, setSelectedRegions] = useState([]); // array of regions
-    const [regionSearchTerm, setRegionSearchTerm] = useState("");
-
-    // Overlap filter state for tag grouping
-    const [tagOverlapOnly, setTagOverlapOnly] = useState(false);
 
     // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically (case-insensitive)
     function getAllTags(events) {
@@ -288,45 +232,45 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
     }
     if (zoomLevel === 2) {
         // Millennium grouping
-        if (groupMode === 'region' && selectedRegions.length > 0) {
+        if (regionFilter && selectedRegions.length > 0) {
             renderData = groupEventsByMillennium(filteredEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region))));
-        } else if (groupMode === 'tag' && selectedTags.length > 0) {
+        } else if (selectedTags.length > 0) {
             let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
             if (tagOverlapOnly && selectedTags.length > 1) {
                 tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
             }
             renderData = groupEventsByMillennium(tagFiltered);
-        } else if (groupMode === 'book' && selectedBooks.length > 0) {
+        } else if (selectedBooks.length > 0) {
             renderData = groupEventsByMillennium(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
             renderData = groupEventsByMillennium(filteredEvents);
         }
     } else if (zoomLevel === 1) {
         // Century grouping
-        if (groupMode === 'region' && selectedRegions.length > 0) {
+        if (regionFilter && selectedRegions.length > 0) {
             renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region))));
-        } else if (groupMode === 'tag' && selectedTags.length > 0) {
+        } else if (selectedTags.length > 0) {
             let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
             if (tagOverlapOnly && selectedTags.length > 1) {
                 tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
             }
             renderData = groupEventsByCentury(tagFiltered);
-        } else if (groupMode === 'book' && selectedBooks.length > 0) {
+        } else if (selectedBooks.length > 0) {
             renderData = groupEventsByCentury(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
             renderData = groupEventsByCentury(filteredEvents);
         }
     } else {
         // Per-event
-        if (groupMode === 'region' && selectedRegions.length > 0) {
+        if (regionFilter && selectedRegions.length > 0) {
             renderData = filteredEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region)));
-        } else if (groupMode === 'tag' && selectedTags.length > 0) {
+        } else if (selectedTags.length > 0) {
             let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
             if (tagOverlapOnly && selectedTags.length > 1) {
                 tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
             }
             renderData = tagFiltered;
-        } else if (groupMode === 'book' && selectedBooks.length > 0) {
+        } else if (selectedBooks.length > 0) {
             renderData = filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference));
         } else {
             renderData = filteredEvents;
@@ -564,7 +508,7 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
 
             // Color mapping for tags/books (use same as above)
             let colorMap = {};
-            if (groupMode === 'tag' && selectedTags.length > 0) {
+            if (selectedTags.length > 0) {
                 // Build a canonical tag list (case-insensitive, first original-case wins)
                 const lowerToOriginal = {};
                 selectedTags.forEach(tag => {
@@ -576,12 +520,12 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                 canonicalTags.forEach((tag, idx) => {
                     colorMap[tag.toLowerCase()] = colorPalette[idx % colorPalette.length];
                 });
-            } else if (groupMode === 'book' && selectedBooks.length > 0) {
+            } else if (selectedBooks.length > 0) {
                 selectedBooks.forEach((book, idx) => { colorMap[book] = colorPalette[idx % colorPalette.length]; });
             }
 
             // Multi-tag circle rendering
-            if (groupMode === 'tag' && selectedTags.length > 1) {
+            if (selectedTags.length > 1) {
                 // Remove any previous circles
                 svg.selectAll("g.event-multitag").remove();
                 svg.selectAll("g.event-multitag")
@@ -650,7 +594,7 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                     .attr("cy", (d, i) => yScale(i))
                     .attr("r", isMobile ? 10 : 14)
                     .attr("fill", d => {
-                        if (groupMode === 'tag' && selectedTags.length > 0 && Array.isArray(d.tags)) {
+                        if (selectedTags.length > 0 && Array.isArray(d.tags)) {
                             // Find the first matching tag (case-insensitive) in selectedTags
                             const match = d.tags.find(tag => selectedTags.some(sel => sel.toLowerCase() === tag.toLowerCase()));
                             if (match) {
@@ -659,7 +603,7 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                                 return colorMap[lower] || "#3B82F6";
                             }
                             return "#3B82F6";
-                        } else if (groupMode === 'book' && selectedBooks.length > 0) {
+                        } else if (selectedBooks.length > 0) {
                             return colorMap[d.book_reference] || "#3B82F6";
                         }
                         return "#3B82F6";
@@ -769,7 +713,7 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                             .text(truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
                     }
                 });
-    }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, selectedRegions, groupMode]); // End of useEffect for D3 rendering
+    }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, selectedRegions]); // End of useEffect for D3 rendering
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -811,7 +755,6 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
             const eventsRes = await fetch(`${apiUrl}/events`);
             const newEvents = await eventsRes.json();
             const sortedEvents = sortEvents(newEvents);
-            setEvents(sortedEvents);
             // Immediately select the new event for editing
             setTimeout(() => {
                 if (!timelineContainerRef.current) return;
@@ -880,10 +823,6 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
             if (!response.ok) throw new Error(data.error || "Failed to update event");
             setEditMode(false);
             setSelectedEvent(null);
-            // Refetch events
-            const eventsRes = await fetch(`${apiUrl}/events`);
-            const newEvents = await eventsRes.json();
-            setEvents(sortEvents(newEvents));
         } catch (err) {
             setEditError(err.message);
         }
@@ -903,10 +842,6 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
             console.log('Delete event response:', response);
             if (!response.ok) throw new Error("Failed to delete event");
             setSelectedEvent(null);
-            // Refetch events
-            const eventsRes = await fetch(`${apiUrl}/events`);
-            const newEvents = await eventsRes.json();
-            setEvents(sortEvents(newEvents));
         } catch (err) {
             console.error('Error deleting event:', err);
             alert(err.message);
@@ -943,9 +878,45 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
     const [backfillRegionsLoading, setBackfillRegionsLoading] = useState(false);
     const [backfillRegionsResult, setBackfillRegionsResult] = useState("");
 
+    // Helper to convert year/era to comparable number
+    function yearEraToComparable(year, era) {
+        if (!year) return null;
+        const y = parseInt(year, 10);
+        if (isNaN(y)) return null;
+        return era === 'BCE' ? -y : y;
+    }
+
+    // Define local state for tag, book, and region filters
+    const [showTagFilter, setShowTagFilter] = useState(false);
+    const [showBookFilter, setShowBookFilter] = useState(false);
+    const [showRegionFilter, setShowRegionFilter] = useState(false);
+
     return (
         <>
             <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
+                {/* World Map button at the top of timeline controls */}
+                <div className="w-full flex justify-center mb-4 gap-4">
+                    <button
+                        className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                        onClick={() => setShowMap(true)}
+                    >
+                        World Map
+                    </button>
+                    <button
+                        className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${!showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                        onClick={() => setShowMap(false)}
+                    >
+                        Timeline
+                    </button>
+                    {regionFilter && (
+                        <button
+                            className="ml-2 px-3 py-2 rounded bg-pink-700 text-white font-bold border border-pink-300 shadow"
+                            onClick={clearRegionFilter}
+                        >
+                            Clear Region Filter
+                        </button>
+                    )}
+                </div>
                 {/* Loading overlay for events or allowed emails */}
                 {(eventsLoading || allowedEmailsLoading) && (
                     <div className="absolute inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
@@ -1046,7 +1017,6 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                                                         // Refetch events
                                                         const eventsRes = await fetch(`${apiUrl}/events`);
                                                         const newEvents = await eventsRes.json();
-                                                        setEvents(sortEvents(newEvents));
                                                         setShowDeleteConfirm(false);
                                                         setShowAdminToolsModal(false);
                                                     } catch (err) {
@@ -1083,7 +1053,8 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                                             // Refetch events to update UI
                                             const eventsRes = await fetch(`${apiUrl}/events`);
                                             const newEvents = await eventsRes.json();
-                                            setEvents(sortEvents(newEvents));
+                                            setShowDeleteConfirm(false);
+                                            setShowAdminToolsModal(false);
                                         } else {
                                             setBackfillRegionsResult(data.error || "Failed to backfill regions.");
                                         }
@@ -1134,176 +1105,7 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                         </svg>
                         Filters
                     </button>
-                    {/* Zoom controls moved to the left of group by */}
-                    <div className="flex items-center gap-2">
-                        <label className="text-blue-200 font-semibold text-xs sm:text-sm">Zoom:</label>
-                        <button
-                            className={`px-2 py-1 rounded ${zoomLevel === 0 ? 'bg-gray-700 cursor-not-allowed opacity-60' : (zoomLevel === 0 ? 'bg-gray-700' : 'bg-gray-800/80')} text-white border border-gray-400 hover:bg-gray-900 transition text-xs sm:text-sm`}
-                            onClick={() => zoomLevel > 0 && setZoomLevel(zoomLevel - 1)}
-                            aria-label="Zoom in"
-                            disabled={zoomLevel === 0}
-                        >-</button>
-                        <button
-                            className={`px-2 py-1 rounded ${zoomLevel === 2 ? 'bg-gray-700 cursor-not-allowed opacity-60' : (zoomLevel === 2 ? 'bg-gray-700' : 'bg-gray-800/80')} text-white border border-gray-400 hover:bg-gray-900 transition text-xs sm:text-sm`}
-                            onClick={() => zoomLevel < 2 && setZoomLevel(zoomLevel + 1)}
-                            aria-label="Zoom out"
-                            disabled={zoomLevel === 2}
-                        >+</button>
-                    </div>
-                    {/* Grouping mode selector */}
-                    <div className="flex items-center gap-2">
-                        <label className="text-blue-200 font-semibold text-xs sm:text-sm">Group by:</label>
-                        <select
-                            value={groupMode}
-                            onChange={e => {
-                                setGroupMode(e.target.value);
-                                setSelectedTags([]);
-                                setSelectedBooks([]);
-                                setSelectedRegions([]);
-                                setZoomLevel(0);
-                            }}
-                            className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm"
-                        >
-                            <option value="none">None</option>
-                            <option value="tag">Tag</option>
-                            <option value="book">Book</option>
-                            <option value="region">Region</option>
-                        </select>
-                    </div>
                 </div>
-                {/* Tag or Book Reference group selection UI */}
-                {groupMode === 'tag' && (
-                    <>
-                        {/* Tag search input */}
-                        <div className="w-full flex justify-center mb-2">
-                            <input
-                                type="text"
-                                placeholder="Search tags..."
-                                className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center"
-                                value={tagSearchTerm}
-                                onChange={e => setTagSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                            {getAllTags(filteredEvents)
-                                .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
-                                .map((tag) => {
-                                    const idx = selectedTags.findIndex(t => t.toLowerCase() === tag.toLowerCase());
-                                    const isSelected = idx !== -1;
-                                    const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb'; // blue-700
-                                    return (
-                                        <button
-                                            key={tag}
-                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                            onClick={() => setSelectedTags(tags => {
-                                                const lower = tag.toLowerCase();
-                                                const existingIdx = tags.findIndex(t => t.toLowerCase() === lower);
-                                                if (existingIdx !== -1) {
-                                                    // Remove the tag (case-insensitive)
-                                                    return tags.filter((t, i) => i !== existingIdx);
-                                                } else {
-                                                    // Add the tag, but first remove any with the same lowercased value
-                                                    return [...tags.filter(t => t.toLowerCase() !== lower), tag];
-                                                }
-                                            })}
-                                        >
-                                            {tag}
-                                        </button>
-                                    );
-                                })}
-                            {selectedTags.length > 0 && (
-                                <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedTags([])}>Clear</button>
-                            )}
-                        </div>
-                        {/* Overlap toggle moved under tags */}
-                        {selectedTags.length > 1 && (
-                            <div className="w-full flex justify-center mb-4">
-                                <label className="flex items-center gap-2 text-xs sm:text-sm text-blue-200 font-semibold bg-gray-900/70 px-3 py-1 rounded-full border border-blue-400 shadow">
-                                    <input
-                                        type="checkbox"
-                                        checked={tagOverlapOnly}
-                                        onChange={e => setTagOverlapOnly(e.target.checked)}
-                                    />
-                                    Show only events with overlapping tags
-                                </label>
-                            </div>
-                        )}
-                    </>
-                )}
-                {groupMode === 'book' && (
-                    <>
-                        {/* Book search input */}
-                        <div className="w-full flex justify-center mb-2">
-                            <input
-                                type="text"
-                                placeholder="Search books..."
-                                className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center"
-                                value={bookSearchTerm}
-                                onChange={e => setBookSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
-                            {getAllBooks(filteredEvents)
-                                .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
-                                .map((book) => {
-                                    const idx = selectedBooks.indexOf(book);
-                                    const isSelected = idx !== -1;
-                                    const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb';
-                                    return (
-                                        <button
-                                            key={book}
-                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                            onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
-                                        >
-                                            {book}
-                                        </button>
-                                    );
-                                })}
-                            {selectedBooks.length > 0 && (
-                                <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedBooks([])}>Clear</button>
-                            )}
-                        </div>
-                    </>
-                )}
-                {groupMode === 'region' && (
-                    <>
-                        {/* Region search input */}
-                        <div className="w-full flex justify-center mb-2">
-                            <input
-                                type="text"
-                                placeholder="Search regions..."
-                                className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center"
-                                value={regionSearchTerm}
-                                onChange={e => setRegionSearchTerm(e.target.value)}
-                            />
-                        </div>
-                        <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
-                            {getAllRegions(filteredEvents)
-                                .filter(region => region.toLowerCase().includes(regionSearchTerm.toLowerCase()))
-                                .map((region) => {
-                                    const idx = selectedRegions.indexOf(region);
-                                    const isSelected = idx !== -1;
-                                    const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb';
-                                    return (
-                                        <button
-                                            key={region}
-                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                            onClick={() => setSelectedRegions(regions => regions.includes(region) ? regions.filter(r => r !== region) : [...regions, region])}
-                                        >
-                                            {region}
-                                        </button>
-                                    );
-                                })}
-                            {selectedRegions.length > 0 && (
-                                <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedRegions([])}>Clear</button>
-                            )}
-                        </div>
-                    </>
-                )}
-
                 {/* Event count display */}
                 <div className="w-full flex justify-center mb-2">
                     <span className="inline-block bg-gray-900/80 text-blue-200 rounded-full px-4 py-1 text-xs sm:text-sm font-semibold border border-blue-400 shadow">
@@ -1402,7 +1204,7 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                             {/* Search Bar */}
                             <input
                                 type="text"
-                                placeholder="Search events..."
+                                placeholder="Search anything..."
                                 className="mb-4 p-3 w-64 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -1453,12 +1255,142 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                                     </div>
                                 </div>
                             </div>
+                            {/* Filter by Tag */}
+                            <div className="mb-4 w-full flex flex-col items-center">
+                              <div className="w-full flex justify-between items-center">
+                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowTagFilter(v => !v)}>
+                                  <span>Filter by Tag</span>
+                                  <span>{showTagFilter ? '▲' : '▼'}</span>
+                                </button>
+                                {selectedTags.length > 0 && (
+                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedTags([])}>Clear</button>
+                                )}
+                              </div>
+                              {showTagFilter && (
+                                <>
+                                  <input
+                                    type="text"
+                                    placeholder="Search tags..."
+                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
+                                    value={tagSearchTerm}
+                                    onChange={e => setTagSearchTerm(e.target.value)}
+                                  />
+                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
+                                    {getAllTags(allEvents)
+                                      .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
+                                      .map((tag) => {
+                                        const isSelected = selectedTags.includes(tag);
+                                        const color = isSelected ? colorPalette[selectedTags.indexOf(tag) % colorPalette.length] : '#2563eb';
+                                        return (
+                                          <button
+                                            key={tag}
+                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                            onClick={() => setSelectedTags(tags => tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag])}
+                                          >
+                                            {tag}
+                                          </button>
+                                        );
+                                      })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            {/* Filter by Book */}
+                            <div className="mb-4 w-full flex flex-col items-center">
+                              <div className="w-full flex justify-between items-center">
+                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowBookFilter(v => !v)}>
+                                  <span>Filter by Book</span>
+                                  <span>{showBookFilter ? '▲' : '▼'}</span>
+                                </button>
+                                {selectedBooks.length > 0 && (
+                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedBooks([])}>Clear</button>
+                                )}
+                              </div>
+                              {showBookFilter && (
+                                <>
+                                  <input
+                                    type="text"
+                                    placeholder="Search books..."
+                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
+                                    value={bookSearchTerm}
+                                    onChange={e => setBookSearchTerm(e.target.value)}
+                                  />
+                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
+                                    {getAllBooks(allEvents)
+                                      .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
+                                      .map((book) => {
+                                        const isSelected = selectedBooks.includes(book);
+                                        const color = isSelected ? colorPalette[selectedBooks.indexOf(book) % colorPalette.length] : '#2563eb';
+                                        return (
+                                          <button
+                                            key={book}
+                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                            onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
+                                          >
+                                            {book}
+                                          </button>
+                                        );
+                                      })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            {/* Filter by Region */}
+                            <div className="mb-4 w-full flex flex-col items-center">
+                              <div className="w-full flex justify-between items-center">
+                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowRegionFilter(v => !v)}>
+                                  <span>Filter by Region</span>
+                                  <span>{showRegionFilter ? '▲' : '▼'}</span>
+                                </button>
+                                {selectedRegions.length > 0 && (
+                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedRegions([])}>Clear</button>
+                                )}
+                              </div>
+                              {showRegionFilter && (
+                                <>
+                                  <input
+                                    type="text"
+                                    placeholder="Search regions..."
+                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
+                                    value={regionSearchTerm}
+                                    onChange={e => setRegionSearchTerm(e.target.value)}
+                                  />
+                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
+                                    {getAllRegions(allEvents)
+                                      .filter(region => region.toLowerCase().includes(regionSearchTerm.toLowerCase()))
+                                      .map((region) => {
+                                        const isSelected = selectedRegions.includes(region);
+                                        const color = isSelected ? colorPalette[selectedRegions.indexOf(region) % colorPalette.length] : '#2563eb';
+                                        return (
+                                          <button
+                                            key={region}
+                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                            onClick={() => setSelectedRegions(regions => regions.includes(region) ? regions.filter(r => r !== region) : [...regions, region])}
+                                          >
+                                            {region}
+                                          </button>
+                                        );
+                                      })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
                             {/* Move Clear button to bottom and clear all filters */}
                             <button
                                 className="mt-8 px-6 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition w-full"
                                 onClick={() => {
                                     setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' });
                                     setSearchTerm('');
+                                    setSelectedTags([]);
+                                    setSelectedBooks([]);
+                                    setSelectedRegions([]);
+                                    setTagSearchTerm('');
+                                    setBookSearchTerm('');
+                                    setRegionSearchTerm('');
+                                    setTagOverlapOnly(false);
                                 }}
                                 type="button"
                             >
@@ -1505,10 +1437,10 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                                     <div style={{width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)'}}>
                                         <form onSubmit={handleEditSubmit} className="w-full flex flex-col gap-8 items-center">
                                             {/* Error at the top */}
-                                            {editError && <div className="text-red-400 mb-4 text-center w-full max-w-md mx-auto font-semibold">{editError}</div>}
+                                                                                       {editError && <div className="text-red-400 mb-4 text-center w-full max-w-md mx-auto font-semibold">{editError}</div>}
                                             <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Edit Event</h2>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                <label className="font-semibold text-blue-200" htmlFor="edit-title">Title</label>
+                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-title">Title</label>
                                                 <input id="edit-title" name="title" value={editForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                             </div>
                                             <div className="flex flex-row gap-4 w-full max-w-md mx-auto">
@@ -1529,7 +1461,7 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                                                 <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                <label className="font-semibold text-blue-200" htmlFor="edit-description">Description</label>
+                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-description">Description</label>
                                                 <textarea id="edit-description" name="description" value={editForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner min-h-[80px] resize-vertical placeholder:text-gray-400" />
                                                 <button
                                                     type="button"
@@ -1538,7 +1470,7 @@ const Timeline = ({ user, accessToken, regionFilter }) => {
                                                     onClick={async () => {
                                                         setEditError("");
                                                         setRegenDescriptionLoading(true);
-                                                        try {
+                                                                                                               try {
                                                             const response = await fetch(`${apiUrl}/events/enrich-description`, {
                                                                 method: "POST",
                                                                 headers: {
