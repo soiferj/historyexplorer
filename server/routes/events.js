@@ -38,27 +38,30 @@ async function enrichEventWithLLM({ title, date }) {
         const parsed = JSON.parse(content);
         return {
             description: parsed.description,
-            tags: parsed.tags
+            tags: parsed.tags,
+            regions: parsed.regions || []
         };
     } catch (e) {
         console.log("[OpenAI Parse Error]", e);
-        return { description: "", tags: [] };
+        return { description: "", tags: [], regions: [] };
     }
 }
 
 // Add an event
 router.post("/", verifyAllowedUser, async (req, res) => {
-    const { title, description, book_reference, date, tags, date_type } = req.body;
+    const { title, description, book_reference, date, tags, date_type, regions } = req.body;
     let enrichedDescription = description;
     let enrichedTags = tags;
-    if (!description || !tags || tags.length === 0) {
+    let enrichedRegions = regions;
+    if (!description || !tags || tags.length === 0 || !regions || regions.length === 0) {
         const enrichment = await enrichEventWithLLM({ title, date });
         if (!description) enrichedDescription = enrichment.description;
         if (!tags || tags.length === 0) enrichedTags = enrichment.tags;
+        if (!regions || regions.length === 0) enrichedRegions = enrichment.regions;
     }
     const { data, error } = await supabase
         .from("events")
-        .insert([{ title, description: enrichedDescription, book_reference, date, tags: enrichedTags, date_type }]);
+        .insert([{ title, description: enrichedDescription, book_reference, date, tags: enrichedTags, date_type, regions: enrichedRegions }]);
 
     if (error) return res.status(400).json({ error: error.message });
     res.json(data);
@@ -75,10 +78,10 @@ router.get("/", async (req, res) => {
 // Update an event
 router.put("/:id", verifyAllowedUser, async (req, res) => {
     const { id } = req.params;
-    const { title, description, book_reference, date, tags, date_type } = req.body;
+    const { title, description, book_reference, date, tags, date_type, regions } = req.body;
     const { data, error } = await supabase
         .from("events")
-        .update({ title, description, book_reference, date, tags, date_type })
+        .update({ title, description, book_reference, date, tags, date_type, regions })
         .eq("id", id)
         .select();
     if (error) return res.status(400).json({ error: error.message });
@@ -128,7 +131,7 @@ router.post("/enrich-description", verifyAllowedUser, async (req, res) => {
     if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
     try {
         const enrichment = await enrichEventWithLLM({ title, date });
-        res.json({ description: enrichment.description });
+        res.json({ description: enrichment.description, regions: enrichment.regions });
     } catch (e) {
         res.status(500).json({ error: "Failed to enrich description" });
     }
@@ -140,7 +143,7 @@ router.post("/enrich-tags", verifyAllowedUser, async (req, res) => {
     if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
     try {
         const enrichment = await enrichEventWithLLM({ title, date });
-        res.json({ tags: enrichment.tags });
+        res.json({ tags: enrichment.tags, regions: enrichment.regions });
     } catch (e) {
         res.status(500).json({ error: "Failed to enrich tags" });
     }

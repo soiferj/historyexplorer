@@ -18,14 +18,15 @@ const Timeline = ({ user, accessToken }) => {
         book_reference: "",
         year: "",
         tags: "",
-        date_type: "CE"
+        date_type: "CE",
+        regions: ""
     });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [showForm, setShowForm] = useState(false);
     // Edit mode states
     const [editMode, setEditMode] = useState(false);
-    const [editForm, setEditForm] = useState({ title: '', description: '', book_reference: '', year: '', tags: '', date_type: 'CE' });
+    const [editForm, setEditForm] = useState({ title: '', description: '', book_reference: '', year: '', tags: '', date_type: 'CE', regions: '' });
     const [editError, setEditError] = useState("");
 
     const apiUrl = process.env.REACT_APP_API_URL;
@@ -163,6 +164,9 @@ const Timeline = ({ user, accessToken }) => {
     // Search terms for tag/book selection
     const [tagSearchTerm, setTagSearchTerm] = useState("");
     const [bookSearchTerm, setBookSearchTerm] = useState("");
+    // Add region group state
+    const [selectedRegions, setSelectedRegions] = useState([]); // array of regions
+    const [regionSearchTerm, setRegionSearchTerm] = useState("");
 
     // Overlap filter state for tag grouping
     const [tagOverlapOnly, setTagOverlapOnly] = useState(false);
@@ -186,6 +190,12 @@ const Timeline = ({ user, accessToken }) => {
         const bookSet = new Set();
         (events || []).forEach(ev => ev.book_reference && bookSet.add(ev.book_reference));
         return Array.from(bookSet).sort((a, b) => a.localeCompare(b));
+    }
+    // Helper to get all unique regions from filteredEvents, sorted alphabetically
+    function getAllRegions(events) {
+        const regionSet = new Set();
+        (events || []).forEach(ev => Array.isArray(ev.regions) && ev.regions.forEach(region => regionSet.add(region)));
+        return Array.from(regionSet).sort((a, b) => a.localeCompare(b));
     }
 
     // Group events by century
@@ -274,7 +284,9 @@ const Timeline = ({ user, accessToken }) => {
     }
     if (zoomLevel === 2) {
         // Millennium grouping
-        if (groupMode === 'tag' && selectedTags.length > 0) {
+        if (groupMode === 'region' && selectedRegions.length > 0) {
+            renderData = groupEventsByMillennium(filteredEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region))));
+        } else if (groupMode === 'tag' && selectedTags.length > 0) {
             let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
             if (tagOverlapOnly && selectedTags.length > 1) {
                 tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
@@ -287,7 +299,9 @@ const Timeline = ({ user, accessToken }) => {
         }
     } else if (zoomLevel === 1) {
         // Century grouping
-        if (groupMode === 'tag' && selectedTags.length > 0) {
+        if (groupMode === 'region' && selectedRegions.length > 0) {
+            renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region))));
+        } else if (groupMode === 'tag' && selectedTags.length > 0) {
             let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
             if (tagOverlapOnly && selectedTags.length > 1) {
                 tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
@@ -300,7 +314,9 @@ const Timeline = ({ user, accessToken }) => {
         }
     } else {
         // Per-event
-        if (groupMode === 'tag' && selectedTags.length > 0) {
+        if (groupMode === 'region' && selectedRegions.length > 0) {
+            renderData = filteredEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region)));
+        } else if (groupMode === 'tag' && selectedTags.length > 0) {
             let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
             if (tagOverlapOnly && selectedTags.length > 1) {
                 tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
@@ -749,7 +765,7 @@ const Timeline = ({ user, accessToken }) => {
                             .text(truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
                     }
                 });
-    }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, groupMode]); // End of useEffect for D3 rendering
+    }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, selectedRegions, groupMode]); // End of useEffect for D3 rendering
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -769,7 +785,7 @@ const Timeline = ({ user, accessToken }) => {
         setError("");
         try {
             const paddedYear = padYear(form.year);
-            console.log('Submitting new event:', { ...form, date: paddedYear ? `${paddedYear}-01-01` : undefined });
+            const regionsArr = form.regions.split(",").map(r => r.trim()).filter(Boolean);
             const response = await fetch(`${apiUrl}/events`, {
                 method: "POST",
                 headers: {
@@ -779,29 +795,29 @@ const Timeline = ({ user, accessToken }) => {
                 body: JSON.stringify({
                     ...form,
                     date: paddedYear ? `${paddedYear}-01-01` : undefined,
-                    tags: form.tags.split(",").map(t => t.trim()).filter(Boolean)
+                    tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
+                    regions: regionsArr
                 })
             });
-            console.log('Add event response:', response);
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to add event");
-            setForm({ title: "", description: "", book_reference: "", year: "", tags: "", date_type: "CE" });
+            setForm({ title: "", description: "", book_reference: "", year: "", tags: "", date_type: "CE", regions: "" });
             setShowForm(false); // Close the modal after successful creation
             // Refetch events
             const eventsRes = await fetch(`${apiUrl}/events`);
             const newEvents = await eventsRes.json();
             const sortedEvents = sortEvents(newEvents);
             setEvents(sortedEvents);
-            // Scroll to the newly added event
+            // Immediately select the new event for editing
             setTimeout(() => {
                 if (!timelineContainerRef.current) return;
-                // Try to find the new event by matching title, year, and book_reference
                 const newEventIdx = sortedEvents.findIndex(ev =>
                     ev.title === form.title &&
                     new Date(ev.date).getFullYear().toString() === paddedYear &&
                     ev.book_reference === form.book_reference
                 );
                 if (newEventIdx >= 0) {
+                    setSelectedEvent(sortedEvents[newEventIdx]);
                     const isMobile = window.innerWidth < 640;
                     const itemHeight = isMobile ? 80 : 100;
                     timelineContainerRef.current.scrollTo({
@@ -811,7 +827,6 @@ const Timeline = ({ user, accessToken }) => {
                 }
             }, 400); // Wait for re-render
         } catch (err) {
-            console.error('Error adding event:', err);
             setError(err.message);
         } finally {
             setSubmitting(false);
@@ -827,6 +842,7 @@ const Timeline = ({ user, accessToken }) => {
             year: selectedEvent.date ? new Date(selectedEvent.date).getFullYear().toString() : '',
             tags: selectedEvent.tags ? selectedEvent.tags.join(", ") : '',
             date_type: selectedEvent.date_type || 'CE',
+            regions: selectedEvent.regions ? selectedEvent.regions.join(", ") : '',
         });
         setEditMode(true);
         setEditError("");
@@ -842,7 +858,7 @@ const Timeline = ({ user, accessToken }) => {
         setEditError("");
         try {
             const paddedYear = padYear(editForm.year);
-            console.log('Submitting event edit:', { ...editForm, date: paddedYear ? `${paddedYear}-01-01` : undefined });
+            const regionsArr = editForm.regions.split(",").map(r => r.trim()).filter(Boolean);
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "PUT",
                 headers: {
@@ -853,9 +869,9 @@ const Timeline = ({ user, accessToken }) => {
                     ...editForm,
                     date: paddedYear ? `${paddedYear}-01-01` : undefined,
                     tags: editForm.tags.split(",").map(t => t.trim()).filter(Boolean),
+                    regions: regionsArr,
                 })
             });
-            console.log('Edit event response:', response);
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to update event");
             setEditMode(false);
@@ -865,7 +881,6 @@ const Timeline = ({ user, accessToken }) => {
             const newEvents = await eventsRes.json();
             setEvents(sortEvents(newEvents));
         } catch (err) {
-            console.error('Error editing event:', err);
             setEditError(err.message);
         }
     };
@@ -919,6 +934,7 @@ const Timeline = ({ user, accessToken }) => {
     // Add loading state for enrichment
     const [regenDescriptionLoading, setRegenDescriptionLoading] = useState(false);
     const [regenTagsLoading, setRegenTagsLoading] = useState(false);
+    const [regenRegionsLoading, setRegenRegionsLoading] = useState(false);
     const [showAdminToolsModal, setShowAdminToolsModal] = useState(false);
 
     return (
@@ -1100,6 +1116,7 @@ const Timeline = ({ user, accessToken }) => {
                                 setGroupMode(e.target.value);
                                 setSelectedTags([]);
                                 setSelectedBooks([]);
+                                setSelectedRegions([]);
                                 setZoomLevel(0);
                             }}
                             className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm"
@@ -1107,6 +1124,7 @@ const Timeline = ({ user, accessToken }) => {
                             <option value="none">None</option>
                             <option value="tag">Tag</option>
                             <option value="book">Book</option>
+                            <option value="region">Region</option>
                         </select>
                     </div>
                 </div>
@@ -1206,6 +1224,42 @@ const Timeline = ({ user, accessToken }) => {
                         </div>
                     </>
                 )}
+                {groupMode === 'region' && (
+                    <>
+                        {/* Region search input */}
+                        <div className="w-full flex justify-center mb-2">
+                            <input
+                                type="text"
+                                placeholder="Search regions..."
+                                className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center"
+                                value={regionSearchTerm}
+                                onChange={e => setRegionSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-full flex flex-wrap justify-center gap-2 mb-4">
+                            {getAllRegions(filteredEvents)
+                                .filter(region => region.toLowerCase().includes(regionSearchTerm.toLowerCase()))
+                                .map((region) => {
+                                    const idx = selectedRegions.indexOf(region);
+                                    const isSelected = idx !== -1;
+                                    const color = isSelected ? colorPalette[idx % colorPalette.length] : '#2563eb';
+                                    return (
+                                        <button
+                                            key={region}
+                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                            onClick={() => setSelectedRegions(regions => regions.includes(region) ? regions.filter(r => r !== region) : [...regions, region])}
+                                        >
+                                            {region}
+                                        </button>
+                                    );
+                                })}
+                            {selectedRegions.length > 0 && (
+                                <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs" onClick={() => setSelectedRegions([])}>Clear</button>
+                            )}
+                        </div>
+                    </>
+                )}
 
                 {/* Event count display */}
                 <div className="w-full flex justify-center mb-2">
@@ -1265,6 +1319,10 @@ const Timeline = ({ user, accessToken }) => {
                                     <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                         <label className="font-semibold text-blue-200" htmlFor="book_reference">Book</label>
                                         <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                    </div>
+                                    <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                        <label className="font-semibold text-blue-200" htmlFor="regions">Regions</label>
+                                        <input id="regions" name="regions" value={form.regions} onChange={handleFormChange} placeholder="Regions (comma separated, e.g. europe, east asia)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                     </div>
                                     <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto tracking-wide">
                                         {submitting ? "Adding..." : "Add Event"}
@@ -1423,7 +1481,7 @@ const Timeline = ({ user, accessToken }) => {
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                            <div className="flex flexcol gap-2 text-left w-full max-w-md mx-auto">
                                                 <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book</label>
                                                 <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                             </div>
@@ -1507,6 +1565,46 @@ const Timeline = ({ user, accessToken }) => {
                                                     {regenTagsLoading ? "Regenerating..." : "Regenerate Tags"}
                                                 </button>
                                             </div>
+                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                                <label className="font-semibold text-blue-200" htmlFor="edit-regions">Regions</label>
+                                                <input id="edit-regions" name="regions" value={editForm.regions} onChange={handleEditChange} placeholder="Regions (comma separated, e.g. europe, east asia)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                <button
+                                                    type="button"
+                                                    className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    disabled={regenRegionsLoading}
+                                                    onClick={async () => {
+                                                        setEditError("");
+                                                        setRegenRegionsLoading(true);
+                                                        try {
+                                                            const response = await fetch(`${apiUrl}/events/enrich-tags`, {
+                                                                method: "POST",
+                                                                headers: {
+                                                                    "Content-Type": "application/json",
+                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    title: editForm.title,
+                                                                    date: editForm.year ? `${editForm.year.padStart(4, "0")}-01-01` : undefined
+                                                                })
+                                                            });
+                                                            const data = await response.json();
+                                                            if (data && Array.isArray(data.regions)) {
+                                                                setEditForm(f => ({ ...f, regions: data.regions.join(", ") }));
+                                                            } else if (data && data.error) {
+                                                                setEditError("Failed to regenerate regions: " + data.error);
+                                                            } else {
+                                                                setEditError("Failed to regenerate regions");
+                                                            }
+                                                        } catch (err) {
+                                                            setEditError("Failed to regenerate regions");
+                                                        } finally {
+                                                            setRegenRegionsLoading(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {regenRegionsLoading ? "Regenerating..." : "Regenerate Regions"}
+                                                </button>
+                                            </div>
                                             <div className="flex gap-2 mt-2 justify-center w-full max-w-md mx-auto">
                                                 <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-1/2">Save</button>
                                                 <button type="button" className="bg-gray-400 text-white px-4 py-2 rounded-xl font-bold w-1/2" onClick={() => setEditMode(false)}>Cancel</button>
@@ -1530,6 +1628,14 @@ const Timeline = ({ user, accessToken }) => {
                                             <div className="mt-4 flex flex-wrap gap-2 justify-center">
                                                 <span className="bg-gradient-to-r from-blue-200 to-pink-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic shadow">
                                                     <span className="italic font-normal text-gray-700 mr-1">Tags: </span>{selectedEvent.tags.join(", ")}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {/* Regions */}
+                                        {selectedEvent.regions && selectedEvent.regions.length > 0 && (
+                                            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                                                <span className="bg-gradient-to-r from-blue-200 to-pink-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic shadow">
+                                                    <span className="italic font-normal text-gray-700 mr-1">Regions: </span>{selectedEvent.regions.join(", ")}
                                                 </span>
                                             </div>
                                         )}
