@@ -149,4 +149,24 @@ router.post("/enrich-tags", verifyAllowedUser, async (req, res) => {
     }
 });
 
+// POST /events/backfill-regions (admin only)
+router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
+    try {
+        const { data: events, error } = await supabase.from("events").select("*");
+        if (error) return res.status(500).json({ error: error.message });
+        let updated = 0;
+        for (const event of events) {
+            if (Array.isArray(event.regions) && event.regions.length > 0) continue;
+            const enrichment = await enrichEventWithLLM({ title: event.title, date: event.date });
+            if (enrichment.regions && enrichment.regions.length > 0) {
+                await supabase.from("events").update({ regions: enrichment.regions }).eq("id", event.id);
+                updated++;
+            }
+        }
+        res.json({ success: true, updated });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;

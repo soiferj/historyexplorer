@@ -936,6 +936,8 @@ const Timeline = ({ user, accessToken }) => {
     const [regenTagsLoading, setRegenTagsLoading] = useState(false);
     const [regenRegionsLoading, setRegenRegionsLoading] = useState(false);
     const [showAdminToolsModal, setShowAdminToolsModal] = useState(false);
+    const [backfillRegionsLoading, setBackfillRegionsLoading] = useState(false);
+    const [backfillRegionsResult, setBackfillRegionsResult] = useState("");
 
     return (
         <>
@@ -1055,6 +1057,43 @@ const Timeline = ({ user, accessToken }) => {
                                         </div>
                                     </div>
                                 </div>
+                            )}
+                            <hr className="my-6 border-blue-400/40" />
+                            <h3 className="text-lg font-semibold text-blue-300 mb-2">Regions Backfill</h3>
+                            <button
+                                className="px-4 py-2 rounded bg-blue-700 text-white font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-50"
+                                disabled={backfillRegionsLoading}
+                                onClick={async () => {
+                                    setBackfillRegionsLoading(true);
+                                    setBackfillRegionsResult("");
+                                    try {
+                                        const response = await fetch(`${apiUrl}/events/backfill-regions`, {
+                                            method: "POST",
+                                            headers: {
+                                                ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                            }
+                                        });
+                                        const data = await response.json();
+                                        if (response.ok) {
+                                            setBackfillRegionsResult(`Regions generated for ${data.updated} events.`);
+                                            // Refetch events to update UI
+                                            const eventsRes = await fetch(`${apiUrl}/events`);
+                                            const newEvents = await eventsRes.json();
+                                            setEvents(sortEvents(newEvents));
+                                        } else {
+                                            setBackfillRegionsResult(data.error || "Failed to backfill regions.");
+                                        }
+                                    } catch (err) {
+                                        setBackfillRegionsResult("Failed to backfill regions.");
+                                    } finally {
+                                        setBackfillRegionsLoading(false);
+                                    }
+                                }}
+                            >
+                                {backfillRegionsLoading ? "Generating..." : "Generate Regions for All Events"}
+                            </button>
+                            {backfillRegionsResult && (
+                                <div className="mt-2 text-blue-200 text-sm">{backfillRegionsResult}</div>
                             )}
                         </div>
                     </div>
