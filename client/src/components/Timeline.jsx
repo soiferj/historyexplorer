@@ -6,7 +6,7 @@ const colorPalette = [
     '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
 ];
 
-const Timeline = ({ user, accessToken }) => {
+const Timeline = ({ user, accessToken, regionFilter }) => {
     const svgRef = useRef();
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [events, setEvents] = useState([]);
@@ -140,6 +140,10 @@ const Timeline = ({ user, accessToken }) => {
             event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase() === searchTerm.toLowerCase()))
         );
+        // Apply region filter if set
+        if (regionFilter) {
+            filtered = filtered.filter(event => Array.isArray(event.regions) && event.regions.includes(regionFilter));
+        }
         const startComparable = yearEraToComparable(dateFilter.startYear, dateFilter.startEra);
         const endComparable = yearEraToComparable(dateFilter.endYear, dateFilter.endEra);
         if (startComparable !== null || endComparable !== null) {

@@ -1,10 +1,13 @@
 import React, { useEffect, useState } from "react";
 import supabase from "./supabase";
 import Timeline from "./components/Timeline";
+import MapView from "./components/MapView";
 import "./index.css";
 
 function App() {
     const [session, setSession] = useState(null);
+    const [showMap, setShowMap] = useState(false);
+    const [regionFilter, setRegionFilter] = useState(null);
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -14,7 +17,9 @@ function App() {
             setSession(session);
         });
         return () => {
-            listener?.subscription.unsubscribe();
+            if (listener && typeof listener.unsubscribe === "function") {
+                listener.unsubscribe();
+            }
         };
     }, []);
 
@@ -25,6 +30,13 @@ function App() {
     const handleLogout = async () => {
         await supabase.auth.signOut();
     };
+
+    const handleRegionSelect = (region) => {
+        setRegionFilter(region);
+        setShowMap(false);
+    };
+
+    const clearRegionFilter = () => setRegionFilter(null);
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0f2027] via-[#2c5364] to-[#232526] flex flex-col relative overflow-x-hidden">
@@ -47,7 +59,33 @@ function App() {
             </div>
             {/* Main content centered below header */}
             <div className="flex flex-col items-center w-full max-w-5xl px-8 mx-auto mt-2 mb-4 z-10 min-h-0">
-                <Timeline user={session?.user} accessToken={session?.access_token} />
+                <div className="w-full flex justify-center mb-4 gap-4">
+                    <button
+                        className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                        onClick={() => { setShowMap(true); setRegionFilter(null); }}
+                    >
+                        World Map
+                    </button>
+                    <button
+                        className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${!showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                        onClick={() => setShowMap(false)}
+                    >
+                        Timeline
+                    </button>
+                    {regionFilter && (
+                        <button
+                            className="ml-2 px-3 py-2 rounded bg-pink-700 text-white font-bold border border-pink-300 shadow"
+                            onClick={clearRegionFilter}
+                        >
+                            Clear Region Filter
+                        </button>
+                    )}
+                </div>
+                {showMap ? (
+                    <MapView onRegionSelect={handleRegionSelect} />
+                ) : (
+                    <Timeline user={session?.user} accessToken={session?.access_token} regionFilter={regionFilter} />
+                )}
             </div>
         </div>
     );
