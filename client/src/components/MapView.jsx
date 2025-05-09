@@ -1,5 +1,6 @@
 import React from "react";
-import { MapContainer, TileLayer, CircleMarker, Tooltip } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Tooltip, Polyline, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 // Use the same color palette as Timeline
 const colorPalette = [
@@ -229,6 +230,12 @@ const countryCoords = {
 const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedCountries, loading, error, onBackToTimeline }) => {
   // Toggle state: 'region' or 'country'
   const [viewMode, setViewMode] = React.useState('region');
+  // Animation state
+  const [animating, setAnimating] = React.useState(false);
+  const [currentLineIdx, setCurrentLineIdx] = React.useState(-1);
+  const [linesToDraw, setLinesToDraw] = React.useState([]);
+  const [paused, setPaused] = React.useState(false);
+  const timerRef = React.useRef(null);
 
   // Group events by region
   const regionEvents = React.useMemo(() => {
@@ -266,6 +273,145 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     return acc;
   }, {});
 
+  // Helper to sort events: BCE descending, CE ascending
+  function sortEvents(events) {
+    return (events || []).slice().sort((a, b) => {
+      if (a.date_type === b.date_type) {
+        const aYear = a.date ? parseInt(a.date.split("-")[0], 10) : 0;
+        const bYear = b.date ? parseInt(b.date.split("-")[0], 10) : 0;
+        if (a.date_type === "BCE") {
+          return bYear - aYear; // Descending for BCE
+        } else {
+          return aYear - bYear; // Ascending for CE
+        }
+      }
+      return a.date_type === "BCE" ? -1 : 1;
+    });
+  }
+
+  // Calculate lines to draw whenever events or viewMode change
+  React.useEffect(() => {
+    let lines = [];
+    // Use sorted events for animation order
+    const sortedEvents = sortEvents(events);
+    sortedEvents.forEach(ev => {
+      if (viewMode === 'region' && ev.regions && ev.regions.length > 1) {
+        let points = [];
+        ev.regions.forEach(region => {
+          const coords = regionCoords[region.toLowerCase()];
+          if (coords) points.push(coords);
+        });
+        if (points.length > 1) {
+          lines.push({ points, color: regionColor[ev.regions?.[0]] || '#f472b6', eventTitle: ev.title, destCoords: points[points.length - 1] });
+        }
+      } else if (viewMode === 'country' && ev.countries && ev.countries.length > 1) {
+        // Draw a line for every unique pair of countries
+        for (let i = 0; i < ev.countries.length; i++) {
+          const base = ev.countries[i];
+          const baseCoords = countryCoords[base.toLowerCase()];
+          for (let j = i + 1; j < ev.countries.length; j++) {
+            const other = ev.countries[j];
+            const otherCoords = countryCoords[other.toLowerCase()];
+            if (baseCoords && otherCoords) {
+              lines.push({ points: [baseCoords, otherCoords], color: countryColor[base] || '#f472b6', eventTitle: ev.title, destCoords: otherCoords });
+            }
+          }
+        }
+      } else if (viewMode === 'country' && ev.countries && ev.countries.length === 1) {
+        // Animate label for single-country event
+        const coords = countryCoords[ev.countries[0].toLowerCase()];
+        if (coords) {
+          lines.push({ points: [], color: countryColor[ev.countries[0]] || '#f472b6', eventTitle: ev.title, destCoords: coords });
+        }
+      }
+    });
+    setLinesToDraw(lines);
+    setCurrentLineIdx(-1);
+    setPaused(false);
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, [events, viewMode]);
+
+  // Animation effect: step through linesToDraw
+  React.useEffect(() => {
+    if (!animating || paused) return;
+    if (!linesToDraw.length) return;
+    let idx = currentLineIdx + 1;
+    if (idx >= linesToDraw.length) {
+      timerRef.current = setTimeout(() => setAnimating(false), 1200);
+      return;
+    }
+    const step = () => {
+      if (!animating || paused) return;
+      setCurrentLineIdx(i => {
+        const nextIdx = i < linesToDraw.length - 1 ? i + 1 : i;
+        return nextIdx;
+      });
+    };
+    timerRef.current = setTimeout(step, 900);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [animating, paused, currentLineIdx, linesToDraw]);
+
+  // Stop animation
+  const handleStop = () => {
+    setAnimating(false);
+    setPaused(false);
+    setCurrentLineIdx(-1);
+    if (timerRef.current) clearTimeout(timerRef.current);
+  };
+
+  // Pause/Resume animation
+  const handlePauseResume = () => {
+    setPaused(p => {
+      if (p && animating) {
+        // Resume
+        if (timerRef.current) clearTimeout(timerRef.current);
+        let idx = currentLineIdx + 1;
+        const step = () => {
+          if (!animating || paused) return;
+          setCurrentLineIdx(idx);
+          idx++;
+          if (idx < linesToDraw.length) {
+            timerRef.current = setTimeout(step, 900);
+          } else {
+            timerRef.current = setTimeout(() => setAnimating(false), 1200);
+          }
+        };
+        timerRef.current = setTimeout(step, 100);
+      }
+      return !p;
+    });
+  };
+
+  // Step forward
+  const handleForward = () => {
+    if (!linesToDraw.length) return;
+    setCurrentLineIdx(idx => {
+      if (idx < linesToDraw.length - 1) {
+        return idx + 1;
+      }
+      return idx;
+    });
+  };
+
+  // Step back
+  const handleBack = () => {
+    setCurrentLineIdx(idx => Math.max(idx - 1, -1));
+  };
+
+  // Play animation from current frame
+  const handlePlay = () => {
+    if (linesToDraw.length === 0) return;
+    // If at the end, reset to beginning
+    if (currentLineIdx >= linesToDraw.length - 1) {
+      setCurrentLineIdx(-1);
+      setAnimating(true);
+      setPaused(false);
+      return;
+    }
+    setAnimating(true);
+    setPaused(false);
+  };
+
   // Handler for marker click (region or country)
   const handleMarkerClick = (name) => {
     if (viewMode === 'region') {
@@ -290,6 +436,61 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         >
           {viewMode === 'region' ? 'Show by Country' : 'Show by Region'}
         </button>
+      </div>
+      {/* Animation controls row */}
+      <div className="w-full flex justify-center mb-4 gap-2 items-center">
+        <span className="text-white font-semibold mr-2">Animation</span>
+        {/* Frame counter */}
+        <span className="text-pink-200 font-mono text-sm mr-2">
+          {linesToDraw.length > 0 ? `${Math.max(0, currentLineIdx + 1)} / ${linesToDraw.length}` : '0 / 0'}
+        </span>
+        <button
+          className="p-2 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-lg"
+          onClick={handlePlay}
+          title="Play"
+          style={{ minWidth: 32 }}
+          disabled={animating || (events || []).length === 0}
+        >
+          <span role="img" aria-label="Play">&#9654;</span>
+        </button>
+        <button
+          className="p-2 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-lg"
+          onClick={handlePauseResume}
+          title={paused ? "Resume" : "Pause"}
+          style={{ minWidth: 32 }}
+          disabled={!animating}
+        >
+          {paused ? <span role="img" aria-label="Resume">&#9654;&#10073;</span> : <span role="img" aria-label="Pause">&#10073;&#10073;</span>}
+        </button>
+        <button
+          className="p-2 rounded shadow border border-red-400 text-white bg-gray-700 hover:bg-red-700 text-lg"
+          onClick={handleStop}
+          title="Stop"
+          style={{ minWidth: 32 }}
+          disabled={!animating && currentLineIdx === -1}
+        >
+          <span role="img" aria-label="Stop">&#9632;</span>
+        </button>
+        <div className="flex gap-1">
+          <button
+            className="p-2 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-lg"
+            onClick={handleBack}
+            title="Back"
+            style={{ minWidth: 32 }}
+            disabled={!animating && currentLineIdx <= 0}
+          >
+            &#8592;
+          </button>
+          <button
+            className="p-2 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-lg"
+            onClick={handleForward}
+            title="Forward"
+            style={{ minWidth: 32 }}
+            disabled={!animating && currentLineIdx >= linesToDraw.length - 1}
+          >
+            &#8594;
+          </button>
+        </div>
       </div>
       {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
       {error && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10 text-red-300">{error}</div>}
@@ -340,6 +541,46 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
             </CircleMarker>
           );
         })}
+        {/* Animated lines */}
+        {linesToDraw.slice(0, currentLineIdx + 1).map((line, idx) => (
+          <React.Fragment key={idx}>
+            <Polyline positions={line.points} color={line.color} weight={5} opacity={0.7} />
+            {idx === currentLineIdx && line.destCoords && line.eventTitle && (
+              <Marker
+                position={line.destCoords}
+                icon={L.divIcon({
+                  className: 'event-label-marker',
+                  html: '<div></div>', // invisible marker
+                  iconSize: [1, 1],
+                  iconAnchor: [0, 0],
+                })}
+                interactive={false}
+                zIndexOffset={1000}
+              >
+                <Tooltip
+                  direction="top"
+                  offset={[0, -18]}
+                  permanent
+                  className="event-label-tooltip"
+                  opacity={1}
+                >
+                  <span style={{
+                    color: '#fff',
+                    background: 'rgba(24,24,32,0.85)',
+                    borderRadius: 8,
+                    padding: '2px 10px',
+                    fontWeight: 700,
+                    fontSize: 16,
+                    boxShadow: '0 2px 8px #0008',
+                    border: '1px solid #f472b6',
+                    textShadow: '0 1px 4px #000a',
+                    whiteSpace: 'nowrap',
+                  }}>{line.eventTitle}</span>
+                </Tooltip>
+              </Marker>
+            )}
+          </React.Fragment>
+        ))}
       </MapContainer>
     </div>
   );
