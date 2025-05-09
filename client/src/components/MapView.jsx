@@ -517,19 +517,27 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         {viewMode === 'region' && regionList.map((region, idx) => {
           const coords = regionCoords[region.toLowerCase()];
           if (!coords) return null;
+          let isActive = false;
+          if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
+            isActive = linesToDraw[currentLineIdx].dests.some(dest => dest.name === region);
+          }
           return (
             <CircleMarker
               key={region}
               center={coords}
-              radius={18}
+              radius={isActive ? 32 : 18}
               fillColor={regionColor[region]}
-              color="#222"
-              weight={2}
-              fillOpacity={0.85}
+              color={isActive ? '#fff' : '#222'}
+              weight={isActive ? 10 : 2}
+              fillOpacity={isActive ? 1 : 0.85}
               eventHandlers={{
                 click: () => handleMarkerClick(region)
               }}
-              style={{ cursor: "pointer" }}
+              style={{
+                cursor: "pointer",
+                filter: isActive ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${regionColor[region]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
+                zIndex: isActive ? 1000 : undefined
+              }}
             >
               <Tooltip direction="top" offset={[0, -10]}>{region} ({regionEvents[region].length} events)</Tooltip>
             </CircleMarker>
@@ -538,19 +546,27 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         {viewMode === 'country' && countryList.map((country, idx) => {
           const coords = countryCoords[country.toLowerCase()];
           if (!coords) return null;
+          let isActive = false;
+          if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
+            isActive = linesToDraw[currentLineIdx].dests.some(dest => dest.name === country);
+          }
           return (
             <CircleMarker
               key={country}
               center={coords}
-              radius={12}
+              radius={isActive ? 22 : 12}
               fillColor={countryColor[country]}
-              color="#222"
-              weight={2}
-              fillOpacity={0.85}
+              color={isActive ? '#fff' : '#222'}
+              weight={isActive ? 10 : 2}
+              fillOpacity={isActive ? 1 : 0.85}
               eventHandlers={{
                 click: () => handleMarkerClick(country)
               }}
-              style={{ cursor: "pointer" }}
+              style={{
+                cursor: "pointer",
+                filter: isActive ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${countryColor[country]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
+                zIndex: isActive ? 1000 : undefined
+              }}
             >
               <Tooltip direction="top" offset={[0, -10]}>{country} ({countryEvents[country].length} events)</Tooltip>
             </CircleMarker>
@@ -560,39 +576,41 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         {linesToDraw.slice(0, currentLineIdx + 1).map((line, idx) => (
           idx === currentLineIdx && line.dests && line.eventTitle && (
             line.dests.map((dest, dIdx) => (
-              <Marker
-                key={idx + '-' + dIdx}
-                position={dest.coords}
-                icon={L.divIcon({
-                  className: 'event-label-marker',
-                  html: '<div></div>', // invisible marker
-                  iconSize: [1, 1],
-                  iconAnchor: [0, 0],
-                })}
-                interactive={false}
-                zIndexOffset={1000}
-              >
-                <Tooltip
-                  direction="top"
-                  offset={[0, -18]}
-                  permanent
-                  className="event-label-tooltip"
-                  opacity={1}
+              dIdx === 0 ? (
+                <Marker
+                  key={idx + '-' + dIdx}
+                  position={dest.coords}
+                  icon={L.divIcon({
+                    className: 'event-label-marker',
+                    html: '<div></div>', // invisible marker
+                    iconSize: [1, 1],
+                    iconAnchor: [0, 0],
+                  })}
+                  interactive={false}
+                  zIndexOffset={1000}
                 >
-                  <span style={{
-                    color: '#fff',
-                    background: 'rgba(24,24,32,0.85)',
-                    borderRadius: 8,
-                    padding: '2px 10px',
-                    fontWeight: 700,
-                    fontSize: 16,
-                    boxShadow: '0 2px 8px #0008',
-                    border: `1px solid ${dest.color}`,
-                    textShadow: '0 1px 4px #000a',
-                    whiteSpace: 'nowrap',
-                  }}>{line.eventTitle} {line.year ? `(${line.year} ${line.dateType || ''})` : ''}</span>
-                </Tooltip>
-              </Marker>
+                  <Tooltip
+                    direction="top"
+                    offset={[0, -18]}
+                    permanent
+                    className="event-label-tooltip"
+                    opacity={1}
+                  >
+                    <span style={{
+                      color: '#fff',
+                      background: 'rgba(24,24,32,0.85)',
+                      borderRadius: 8,
+                      padding: '2px 10px',
+                      fontWeight: 700,
+                      fontSize: 16,
+                      boxShadow: '0 2px 8px #0008',
+                      border: `1px solid ${dest.color}`,
+                      textShadow: '0 1px 4px #000a',
+                      whiteSpace: 'nowrap',
+                    }}>{line.eventTitle} {line.year ? `(${line.year} ${line.dateType || ''})` : ''}</span>
+                  </Tooltip>
+                </Marker>
+              ) : null
             ))
           )
         ))}
