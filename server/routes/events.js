@@ -39,29 +39,32 @@ async function enrichEventWithLLM({ title, date }) {
         return {
             description: parsed.description,
             tags: parsed.tags,
-            regions: parsed.regions || []
+            regions: parsed.regions || [],
+            countries: parsed.countries || []
         };
     } catch (e) {
         console.log("[OpenAI Parse Error]", e);
-        return { description: "", tags: [], regions: [] };
+        return { description: "", tags: [], regions: [], countries: [] };
     }
 }
 
 // Add an event
 router.post("/", verifyAllowedUser, async (req, res) => {
-    const { title, description, book_reference, date, tags, date_type, regions } = req.body;
+    const { title, description, book_reference, date, tags, date_type, regions, countries } = req.body;
     let enrichedDescription = description;
     let enrichedTags = tags;
     let enrichedRegions = regions;
-    if (!description || !tags || tags.length === 0 || !regions || regions.length === 0) {
+    let enrichedCountries = countries;
+    if (!description || !tags || tags.length === 0 || !regions || regions.length === 0 || !countries || countries.length === 0) {
         const enrichment = await enrichEventWithLLM({ title, date });
         if (!description) enrichedDescription = enrichment.description;
         if (!tags || tags.length === 0) enrichedTags = enrichment.tags;
         if (!regions || regions.length === 0) enrichedRegions = enrichment.regions;
+        if (!countries || countries.length === 0) enrichedCountries = enrichment.countries;
     }
     const { data, error } = await supabase
         .from("events")
-        .insert([{ title, description: enrichedDescription, book_reference, date, tags: enrichedTags, date_type, regions: enrichedRegions }]);
+        .insert([{ title, description: enrichedDescription, book_reference, date, tags: enrichedTags, date_type, regions: enrichedRegions, countries: enrichedCountries }]);
 
     if (error) return res.status(400).json({ error: error.message });
     res.json(data);
@@ -78,10 +81,10 @@ router.get("/", async (req, res) => {
 // Update an event
 router.put("/:id", verifyAllowedUser, async (req, res) => {
     const { id } = req.params;
-    const { title, description, book_reference, date, tags, date_type, regions } = req.body;
+    const { title, description, book_reference, date, tags, date_type, regions, countries } = req.body;
     const { data, error } = await supabase
         .from("events")
-        .update({ title, description, book_reference, date, tags, date_type, regions })
+        .update({ title, description, book_reference, date, tags, date_type, regions, countries })
         .eq("id", id)
         .select();
     if (error) return res.status(400).json({ error: error.message });
@@ -131,7 +134,7 @@ router.post("/enrich-description", verifyAllowedUser, async (req, res) => {
     if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
     try {
         const enrichment = await enrichEventWithLLM({ title, date });
-        res.json({ description: enrichment.description, regions: enrichment.regions });
+        res.json({ description: enrichment.description, regions: enrichment.regions, countries: enrichment.countries });
     } catch (e) {
         res.status(500).json({ error: "Failed to enrich description" });
     }
@@ -143,7 +146,7 @@ router.post("/enrich-tags", verifyAllowedUser, async (req, res) => {
     if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
     try {
         const enrichment = await enrichEventWithLLM({ title, date });
-        res.json({ tags: enrichment.tags, regions: enrichment.regions });
+        res.json({ tags: enrichment.tags, regions: enrichment.regions, countries: enrichment.countries });
     } catch (e) {
         res.status(500).json({ error: "Failed to enrich tags" });
     }
@@ -156,10 +159,14 @@ router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
         if (error) return res.status(500).json({ error: error.message });
         let updated = 0;
         for (const event of events) {
-            if (Array.isArray(event.regions) && event.regions.length > 0) continue;
+            // Only backfill if either regions or countries are missing or empty
+            if ((Array.isArray(event.regions) && event.regions.length > 0) && (Array.isArray(event.countries) && event.countries.length > 0)) continue;
             const enrichment = await enrichEventWithLLM({ title: event.title, date: event.date });
-            if (enrichment.regions && enrichment.regions.length > 0) {
-                await supabase.from("events").update({ regions: enrichment.regions }).eq("id", event.id);
+            const updateObj = {};
+            if (enrichment.regions && enrichment.regions.length > 0) updateObj.regions = enrichment.regions;
+            if (enrichment.countries && enrichment.countries.length > 0) updateObj.countries = enrichment.countries;
+            if (Object.keys(updateObj).length > 0) {
+                await supabase.from("events").update(updateObj).eq("id", event.id);
                 updated++;
             }
         }

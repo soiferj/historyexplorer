@@ -27,14 +27,15 @@ const Timeline = (props) => {
         year: "",
         tags: "",
         date_type: "CE",
-        regions: ""
+        regions: "",
+        countries: ""
     });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [showForm, setShowForm] = useState(false);
     // Edit mode states
     const [editMode, setEditMode] = useState(false);
-    const [editForm, setEditForm] = useState({ title: '', description: '', book_reference: '', year: '', tags: '', date_type: 'CE', regions: '' });
+    const [editForm, setEditForm] = useState({ title: '', description: '', book_reference: '', year: '', tags: '', date_type: 'CE', regions: '', countries: '' });
     const [editError, setEditError] = useState("");
 
     const apiUrl = process.env.REACT_APP_API_URL;
@@ -144,6 +145,12 @@ const Timeline = (props) => {
         const regionSet = new Set();
         (events || []).forEach(ev => Array.isArray(ev.regions) && ev.regions.forEach(region => regionSet.add(region)));
         return Array.from(regionSet).sort((a, b) => a.localeCompare(b));
+    }
+    // Helper to get all unique countries from filteredEvents, sorted alphabetically
+    function getAllCountries(events) {
+        const countrySet = new Set();
+        (events || []).forEach(ev => Array.isArray(ev.countries) && ev.countries.forEach(country => countrySet.add(country)));
+        return Array.from(countrySet).sort((a, b) => a.localeCompare(b));
     }
 
     // Group events by century
@@ -734,6 +741,7 @@ const Timeline = (props) => {
         try {
             const paddedYear = padYear(form.year);
             const regionsArr = form.regions.split(",").map(r => r.trim()).filter(Boolean);
+            const countriesArr = form.countries.split(",").map(r => r.trim()).filter(Boolean);
             const response = await fetch(`${apiUrl}/events`, {
                 method: "POST",
                 headers: {
@@ -744,12 +752,13 @@ const Timeline = (props) => {
                     ...form,
                     date: paddedYear ? `${paddedYear}-01-01` : undefined,
                     tags: form.tags.split(",").map(t => t.trim()).filter(Boolean),
-                    regions: regionsArr
+                    regions: regionsArr,
+                    countries: countriesArr
                 })
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to add event");
-            setForm({ title: "", description: "", book_reference: "", year: "", tags: "", date_type: "CE", regions: "" });
+            setForm({ title: "", description: "", book_reference: "", year: "", tags: "", date_type: "CE", regions: "", countries: "" });
             setShowForm(false); // Close the modal after successful creation
             // Refetch events
             const eventsRes = await fetch(`${apiUrl}/events`);
@@ -790,6 +799,7 @@ const Timeline = (props) => {
             tags: selectedEvent.tags ? selectedEvent.tags.join(", ") : '',
             date_type: selectedEvent.date_type || 'CE',
             regions: selectedEvent.regions ? selectedEvent.regions.join(", ") : '',
+            countries: selectedEvent.countries ? selectedEvent.countries.join(", ") : '',
         });
         setEditMode(true);
         setEditError("");
@@ -806,6 +816,7 @@ const Timeline = (props) => {
         try {
             const paddedYear = padYear(editForm.year);
             const regionsArr = editForm.regions.split(",").map(r => r.trim()).filter(Boolean);
+            const countriesArr = editForm.countries.split(",").map(r => r.trim()).filter(Boolean);
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "PUT",
                 headers: {
@@ -817,6 +828,7 @@ const Timeline = (props) => {
                     date: paddedYear ? `${paddedYear}-01-01` : undefined,
                     tags: editForm.tags.split(",").map(t => t.trim()).filter(Boolean),
                     regions: regionsArr,
+                    countries: countriesArr,
                 })
             });
             const data = await response.json();
@@ -890,6 +902,10 @@ const Timeline = (props) => {
     const [showTagFilter, setShowTagFilter] = useState(false);
     const [showBookFilter, setShowBookFilter] = useState(false);
     const [showRegionFilter, setShowRegionFilter] = useState(false);
+    const [showCountryFilter, setShowCountryFilter] = useState(false);
+    // Add countries filter state
+    const [selectedCountries, setSelectedCountries] = useState([]);
+    const [countrySearchTerm, setCountrySearchTerm] = useState("");
 
     return (
         <>
@@ -1065,7 +1081,7 @@ const Timeline = (props) => {
                                     }
                                 }}
                             >
-                                {backfillRegionsLoading ? "Generating..." : "Generate Regions for All Events"}
+                                {backfillRegionsLoading ? "Generating..." : "Regenerate All Regions and Countries"}
                             </button>
                             {backfillRegionsResult && (
                                 <div className="mt-2 text-blue-200 text-sm">{backfillRegionsResult}</div>
@@ -1169,6 +1185,10 @@ const Timeline = (props) => {
                                         <label className="font-semibold text-blue-200" htmlFor="regions">Regions</label>
                                         <input id="regions" name="regions" value={form.regions} onChange={handleFormChange} placeholder="Regions (comma separated, e.g. europe, east asia)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                     </div>
+                                    <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                        <label className="font-semibold text-blue-200" htmlFor="countries">Countries</label>
+                                        <input id="countries" name="countries" value={form.countries} onChange={handleFormChange} placeholder="Countries (comma separated, e.g. france, germany)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                    </div>
                                     <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto tracking-wide">
                                         {submitting ? "Adding..." : "Add Event"}
                                     </button>
@@ -1180,12 +1200,12 @@ const Timeline = (props) => {
 
                 {/* Filters Modal/Popover */}
                 {showFilters && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
                         {/* Modal overlay */}
                         <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowFilters(false)} />
                         {/* Modal content */}
                         <div
-                            className="relative glass p-8 rounded-2xl shadow-2xl border border-blue-400 w-full max-w-md z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg"
+                            className="relative glass p-8 rounded-2xl shadow-2xl border border-blue-400 w-full max-w-md z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg overflow-y-auto"
                             style={{
                                 maxHeight: '90vh',
                                 overflowY: 'auto',
@@ -1378,6 +1398,47 @@ const Timeline = (props) => {
                                 </>
                               )}
                             </div>
+                            {/* Filter by Country */}
+                            <div className="mb-4 w-full flex flex-col items-center">
+                              <div className="w-full flex justify-between items-center">
+                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowCountryFilter(v => !v)}>
+                                  <span>Filter by Country</span>
+                                  <span>{showCountryFilter ? '▲' : '▼'}</span>
+                                </button>
+                                {selectedCountries.length > 0 && (
+                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedCountries([])}>Clear</button>
+                                )}
+                              </div>
+                              {showCountryFilter && (
+                                <>
+                                  <input
+                                    type="text"
+                                    placeholder="Search countries..."
+                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
+                                    value={countrySearchTerm}
+                                    onChange={e => setCountrySearchTerm(e.target.value)}
+                                  />
+                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
+                                    {getAllCountries(allEvents)
+                                      .filter(country => country.toLowerCase().includes(countrySearchTerm.toLowerCase()))
+                                      .map((country) => {
+                                        const isSelected = selectedCountries.includes(country);
+                                        const color = isSelected ? colorPalette[selectedCountries.indexOf(country) % colorPalette.length] : '#2563eb';
+                                        return (
+                                          <button
+                                            key={country}
+                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                            onClick={() => setSelectedCountries(countries => countries.includes(country) ? countries.filter(c => c !== country) : [...countries, country])}
+                                          >
+                                            {country}
+                                          </button>
+                                        );
+                                      })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
                             {/* Move Clear button to bottom and clear all filters */}
                             <button
                                 className="mt-8 px-6 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition w-full"
@@ -1387,9 +1448,11 @@ const Timeline = (props) => {
                                     setSelectedTags([]);
                                     setSelectedBooks([]);
                                     setSelectedRegions([]);
+                                    setSelectedCountries([]);
                                     setTagSearchTerm('');
                                     setBookSearchTerm('');
                                     setRegionSearchTerm('');
+                                    setCountrySearchTerm('');
                                     setTagOverlapOnly(false);
                                 }}
                                 type="button"
@@ -1430,7 +1493,7 @@ const Timeline = (props) => {
                             >
                                 &times;
                             </button>
-                            {/* Scrollable content wrapper for mobile */}
+                                                       {/* Scrollable content wrapper for mobile */}
                             <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
                                 {/* Edit mode toggle */}
                                 {editMode ? (
@@ -1580,6 +1643,46 @@ const Timeline = (props) => {
                                                     {regenRegionsLoading ? "Regenerating..." : "Regenerate Regions"}
                                                 </button>
                                             </div>
+                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                                <label className="font-semibold text-blue-200" htmlFor="edit-countries">Countries</label>
+                                                <input id="edit-countries" name="countries" value={editForm.countries} onChange={handleEditChange} placeholder="Countries (comma separated, e.g. france, germany)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                <button
+                                                    type="button"
+                                                    className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
+                                                    disabled={regenRegionsLoading}
+                                                    onClick={async () => {
+                                                        setEditError("");
+                                                        setRegenRegionsLoading(true);
+                                                        try {
+                                                            const response = await fetch(`${apiUrl}/events/enrich-tags`, {
+                                                                method: "POST",
+                                                                headers: {
+                                                                    "Content-Type": "application/json",
+                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    title: editForm.title,
+                                                                    date: editForm.year ? `${editForm.year.padStart(4, "0")}-01-01` : undefined
+                                                                })
+                                                            });
+                                                            const data = await response.json();
+                                                            if (data && Array.isArray(data.countries)) {
+                                                                setEditForm(f => ({ ...f, countries: data.countries.join(", ") }));
+                                                            } else if (data && data.error) {
+                                                                setEditError("Failed to regenerate countries: " + data.error);
+                                                            } else {
+                                                                setEditError("Failed to regenerate countries");
+                                                            }
+                                                        } catch (err) {
+                                                            setEditError("Failed to regenerate countries");
+                                                        } finally {
+                                                            setRegenRegionsLoading(false);
+                                                        }
+                                                    }}
+                                                >
+                                                    {regenRegionsLoading ? "Regenerating..." : "Regenerate Countries"}
+                                                </button>
+                                            </div>
                                             <div className="flex gap-2 mt-2 justify-center w-full max-w-md mx-auto">
                                                 <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-1/2">Save</button>
                                                 <button type="button" className="bg-gray-400 text-white px-4 py-2 rounded-xl font-bold w-1/2" onClick={() => setEditMode(false)}>Cancel</button>
@@ -1611,6 +1714,14 @@ const Timeline = (props) => {
                                             <div className="mt-4 flex flex-wrap gap-2 justify-center">
                                                 <span className="bg-gradient-to-r from-blue-200 to-pink-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic shadow">
                                                     <span className="italic font-normal text-gray-700 mr-1">Regions: </span>{selectedEvent.regions.join(", ")}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {/* Countries */}
+                                        {selectedEvent.countries && selectedEvent.countries.length > 0 && (
+                                            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                                                <span className="bg-gradient-to-r from-blue-200 to-pink-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic shadow">
+                                                    <span className="italic font-normal text-gray-700 mr-1">Countries: </span>{selectedEvent.countries.join(", ")}
                                                 </span>
                                             </div>
                                         )}

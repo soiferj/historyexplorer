@@ -22,7 +22,25 @@ const regionCoords = {
   // Add more as needed
 };
 
+// Simple country-to-coords mapping (expand as needed)
+const countryCoords = {
+  "united states": [37.0902, -95.7129],
+  "china": [35.8617, 104.1954],
+  "india": [20.5937, 78.9629],
+  "brazil": [-14.235, -51.9253],
+  "germany": [51.1657, 10.4515],
+  "france": [46.6034, 1.8883],
+  "united kingdom": [55.3781, -3.4360],
+  "japan": [36.2048, 138.2529],
+  "australia": [-25.2744, 133.7751],
+  "south africa": [-30.5595, 22.9375],
+  // Add more as needed
+};
+
 const MapView = ({ events = [], onRegionSelect, loading, error, onBackToTimeline }) => {
+  // Toggle state: 'region' or 'country'
+  const [viewMode, setViewMode] = React.useState('region');
+
   // Group events by region
   const regionEvents = React.useMemo(() => {
     const grouped = {};
@@ -35,12 +53,39 @@ const MapView = ({ events = [], onRegionSelect, loading, error, onBackToTimeline
     return grouped;
   }, [events]);
 
-  // Assign a color to each region (by order)
+  // Group events by country
+  const countryEvents = React.useMemo(() => {
+    const grouped = {};
+    (events || []).forEach(ev => {
+      (ev.countries || []).forEach(country => {
+        if (!grouped[country]) grouped[country] = [];
+        grouped[country].push(ev);
+      });
+    });
+    return grouped;
+  }, [events]);
+
+  // Assign a color to each region/country (by order)
   const regionList = Object.keys(regionEvents);
+  const countryList = Object.keys(countryEvents);
   const regionColor = regionList.reduce((acc, region, idx) => {
     acc[region] = colorPalette[idx % colorPalette.length];
     return acc;
   }, {});
+  const countryColor = countryList.reduce((acc, country, idx) => {
+    acc[country] = colorPalette[idx % colorPalette.length];
+    return acc;
+  }, {});
+
+  // Handler for marker click (region or country)
+  const handleMarkerClick = (name) => {
+    if (viewMode === 'region') {
+      onRegionSelect && onRegionSelect(name);
+    } else {
+      // Optionally, you can add a callback for country select
+      // For now, just alert or do nothing
+    }
+  };
 
   return (
     <div className="w-full h-[500px] relative">
@@ -51,6 +96,12 @@ const MapView = ({ events = [], onRegionSelect, loading, error, onBackToTimeline
         >
           Timeline
         </button>
+        <button
+          className="px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-green-400 text-white bg-gray-700 hover:bg-green-700"
+          onClick={() => setViewMode(viewMode === 'region' ? 'country' : 'region')}
+        >
+          {viewMode === 'region' ? 'Show by Country' : 'Show by Region'}
+        </button>
       </div>
       {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
       {error && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10 text-red-300">{error}</div>}
@@ -59,7 +110,7 @@ const MapView = ({ events = [], onRegionSelect, loading, error, onBackToTimeline
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {regionList.map((region, idx) => {
+        {viewMode === 'region' && regionList.map((region, idx) => {
           const coords = regionCoords[region.toLowerCase()];
           if (!coords) return null;
           return (
@@ -72,11 +123,32 @@ const MapView = ({ events = [], onRegionSelect, loading, error, onBackToTimeline
               weight={2}
               fillOpacity={0.85}
               eventHandlers={{
-                click: () => onRegionSelect(region)
+                click: () => handleMarkerClick(region)
               }}
               style={{ cursor: "pointer" }}
             >
               <Tooltip direction="top" offset={[0, -10]}>{region} ({regionEvents[region].length} events)</Tooltip>
+            </CircleMarker>
+          );
+        })}
+        {viewMode === 'country' && countryList.map((country, idx) => {
+          const coords = countryCoords[country.toLowerCase()];
+          if (!coords) return null;
+          return (
+            <CircleMarker
+              key={country}
+              center={coords}
+              radius={12}
+              fillColor={countryColor[country]}
+              color="#222"
+              weight={2}
+              fillOpacity={0.85}
+              eventHandlers={{
+                click: () => handleMarkerClick(country)
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              <Tooltip direction="top" offset={[0, -10]}>{country} ({countryEvents[country].length} events)</Tooltip>
             </CircleMarker>
           );
         })}
