@@ -237,6 +237,9 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
   const [paused, setPaused] = React.useState(false);
   const [speed, setSpeed] = React.useState(900); // Animation speed in ms per frame
   const timerRef = React.useRef(null);
+  const [modalOpen, setModalOpen] = React.useState(false);
+  const [modalEvents, setModalEvents] = React.useState([]);
+  const [modalTitle, setModalTitle] = React.useState("");
 
   // Group events by region
   const regionEvents = React.useMemo(() => {
@@ -414,15 +417,60 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
 
   // Handler for marker click (region or country)
   const handleMarkerClick = (name) => {
+    let eventsList = [];
     if (viewMode === 'region') {
       setSelectedRegions && setSelectedRegions([name]);
+      eventsList = regionEvents[name] || [];
     } else {
       setSelectedCountries && setSelectedCountries([name]);
+      eventsList = countryEvents[name] || [];
     }
+    setModalTitle(name);
+    setModalEvents(sortEvents(eventsList));
+    setModalOpen(true);
   };
 
   return (
     <div className="w-full h-[500px] relative">
+      {/* Modal for timeline of events in selected region/country */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            className="bg-gray-900 rounded-lg shadow-lg p-6 max-w-lg w-full relative border-2 border-blue-400 max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              className="absolute top-2 right-2 text-white text-2xl font-bold hover:text-pink-400"
+              onClick={() => setModalOpen(false)}
+              aria-label="Close"
+            >
+              &times;
+            </button>
+            <h2 className="text-xl font-bold text-blue-200 mb-4 text-center">{modalTitle} Timeline</h2>
+            {modalEvents.length === 0 ? (
+              <div className="text-gray-300 text-center">No events found.</div>
+            ) : (
+              <ol className="space-y-2 max-h-96 overflow-y-auto pr-2">
+                {modalEvents.map((ev, idx) => {
+                  // Extract year, remove leading zeros
+                  let year = ev.date ? ev.date.split("-")[0].replace(/^0+/, "") : "?";
+                  // If year is empty after removing zeros, fallback to "?"
+                  if (!year) year = "?";
+                  return (
+                    <li key={ev.id || idx} className="bg-gray-800 rounded px-3 py-2 flex flex-col sm:flex-row sm:items-center gap-2 border-l-4 border-blue-400">
+                      <span className="font-semibold text-pink-200 flex-1">{ev.title}</span>
+                      <span className="text-blue-100 text-xs font-mono">{year} {ev.date_type || ""}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </div>
+        </div>
+      )}
       <div className="w-full flex justify-center mb-4 gap-4">
         <button
           className="px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white bg-gray-700 hover:bg-blue-700"
