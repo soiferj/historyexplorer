@@ -20,6 +20,7 @@ function App() {
     const [selectedTags, setSelectedTags] = useState([]);
     const [selectedBooks, setSelectedBooks] = useState([]);
     const [selectedRegions, setSelectedRegions] = useState([]);
+    const [selectedCountries, setSelectedCountries] = useState([]);
     const [tagSearchTerm, setTagSearchTerm] = useState("");
     const [bookSearchTerm, setBookSearchTerm] = useState("");
     const [regionSearchTerm, setRegionSearchTerm] = useState("");
@@ -156,6 +157,8 @@ function App() {
                     <MapView
                         events={filteredEvents}
                         onRegionSelect={handleRegionSelect}
+                        setSelectedRegions={setSelectedRegions}
+                        setSelectedCountries={setSelectedCountries}
                         loading={eventsLoading}
                         error={eventsError}
                         onBackToTimeline={() => setShowMap(false)}
@@ -187,6 +190,8 @@ function App() {
                         setSelectedBooks={setSelectedBooks}
                         selectedRegions={selectedRegions}
                         setSelectedRegions={setSelectedRegions}
+                        selectedCountries={selectedCountries}
+                        setSelectedCountries={setSelectedCountries}
                         tagSearchTerm={tagSearchTerm}
                         setTagSearchTerm={setTagSearchTerm}
                         bookSearchTerm={bookSearchTerm}

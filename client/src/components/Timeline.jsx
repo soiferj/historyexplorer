@@ -10,7 +10,7 @@ const Timeline = (props) => {
     // Destructure all props
     const {
         user, accessToken, events, allEvents, eventsLoading, eventsError,
-        showMap, setShowMap, regionFilter, setRegionFilter, clearRegionFilter,
+        showMap, setShowMap, regionFilter, clearRegionFilter,
         searchTerm, setSearchTerm, dateFilter, setDateFilter, zoomLevel, setZoomLevel,
         selectedTags, setSelectedTags, selectedBooks, setSelectedBooks,
         selectedRegions, setSelectedRegions, tagSearchTerm, setTagSearchTerm, bookSearchTerm, setBookSearchTerm,
@@ -720,7 +720,7 @@ const Timeline = (props) => {
                             .text(truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
                     }
                 });
-    }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, selectedRegions]); // End of useEffect for D3 rendering
+    }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, selectedRegions, setZoomLevel]); // added setZoomLevel to deps
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -1030,9 +1030,6 @@ const Timeline = (props) => {
                                                             });
                                                             if (!response.ok) throw new Error(`Failed to delete tag: ${tag}`);
                                                         }
-                                                        // Refetch events
-                                                        const eventsRes = await fetch(`${apiUrl}/events`);
-                                                        const newEvents = await eventsRes.json();
                                                         setShowDeleteConfirm(false);
                                                         setShowAdminToolsModal(false);
                                                     } catch (err) {
@@ -1066,9 +1063,6 @@ const Timeline = (props) => {
                                         const data = await response.json();
                                         if (response.ok) {
                                             setBackfillRegionsResult(`Regions generated for ${data.updated} events.`);
-                                            // Refetch events to update UI
-                                            const eventsRes = await fetch(`${apiUrl}/events`);
-                                            const newEvents = await eventsRes.json();
                                             setShowDeleteConfirm(false);
                                             setShowAdminToolsModal(false);
                                         } else {
@@ -1279,7 +1273,7 @@ const Timeline = (props) => {
                             <div className="mb-4 w-full flex flex-col items-center">
                               <div className="w-full flex justify-between items-center">
                                 <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowTagFilter(v => !v)}>
-                                  <span>Filter by Tag</span>
+                                  <span>Filter by Tag{!showTagFilter && selectedTags.length > 0 ? ` (${selectedTags.length} selected)` : ''}</span>
                                   <span>{showTagFilter ? '▲' : '▼'}</span>
                                 </button>
                                 {selectedTags.length > 0 && (
@@ -1320,7 +1314,7 @@ const Timeline = (props) => {
                             <div className="mb-4 w-full flex flex-col items-center">
                               <div className="w-full flex justify-between items-center">
                                 <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowBookFilter(v => !v)}>
-                                  <span>Filter by Book</span>
+                                  <span>Filter by Book{!showBookFilter && selectedBooks.length > 0 ? ` (${selectedBooks.length} selected)` : ''}</span>
                                   <span>{showBookFilter ? '▲' : '▼'}</span>
                                 </button>
                                 {selectedBooks.length > 0 && (
@@ -1361,7 +1355,7 @@ const Timeline = (props) => {
                             <div className="mb-4 w-full flex flex-col items-center">
                               <div className="w-full flex justify-between items-center">
                                 <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowRegionFilter(v => !v)}>
-                                  <span>Filter by Region</span>
+                                  <span>Filter by Region{!showRegionFilter && selectedRegions.length > 0 ? ` (${selectedRegions.length} selected)` : ''}</span>
                                   <span>{showRegionFilter ? '▲' : '▼'}</span>
                                 </button>
                                 {selectedRegions.length > 0 && (
@@ -1402,7 +1396,7 @@ const Timeline = (props) => {
                             <div className="mb-4 w-full flex flex-col items-center">
                               <div className="w-full flex justify-between items-center">
                                 <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowCountryFilter(v => !v)}>
-                                  <span>Filter by Country</span>
+                                  <span>Filter by Country{!showCountryFilter && selectedCountries.length > 0 ? ` (${selectedCountries.length} selected)` : ''}</span>
                                   <span>{showCountryFilter ? '▲' : '▼'}</span>
                                 </button>
                                 {selectedCountries.length > 0 && (
