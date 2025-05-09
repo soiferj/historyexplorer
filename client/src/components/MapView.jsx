@@ -263,16 +263,16 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
   }, [events]);
 
   // Assign a color to each region/country (by order)
-  const regionList = Object.keys(regionEvents);
-  const countryList = Object.keys(countryEvents);
-  const regionColor = regionList.reduce((acc, region, idx) => {
+  const regionList = React.useMemo(() => Object.keys(regionEvents), [regionEvents]);
+  const countryList = React.useMemo(() => Object.keys(countryEvents), [countryEvents]);
+  const regionColor = React.useMemo(() => regionList.reduce((acc, region, idx) => {
     acc[region] = colorPalette[idx % colorPalette.length];
     return acc;
-  }, {});
-  const countryColor = countryList.reduce((acc, country, idx) => {
+  }, {}), [regionList]);
+  const countryColor = React.useMemo(() => countryList.reduce((acc, country, idx) => {
     acc[country] = colorPalette[idx % colorPalette.length];
     return acc;
-  }, {});
+  }, {}), [countryList]);
 
   // Helper to sort events: BCE descending, CE ascending
   function sortEvents(events) {
@@ -298,53 +298,53 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     sortedEvents.forEach(ev => {
       const year = ev.date ? new Date(ev.date).getFullYear() : undefined;
       const dateType = ev.date_type || '';
-      if (viewMode === 'region' && ev.regions && ev.regions.length > 1) {
-        // Animate label for each region in the event
-        ev.regions.forEach(region => {
+      if (viewMode === 'region' && ev.regions && ev.regions.length > 0) {
+        // Group all regions for this event into a single frame
+        const dests = (ev.regions || []).map(region => {
           const coords = regionCoords[region.toLowerCase()];
           if (!coords) {
             console.warn(`Region not found in regionCoords: '${region}' (event: ${ev.title})`);
+            return null;
           }
-          if (coords) {
-            lines.push({ points: [], color: regionColor[region] || '#f472b6', eventTitle: ev.title, destCoords: coords, year, dateType });
+          return {
+            coords,
+            name: region,
+            color: regionColor[region] || '#f472b6',
+            count: (regionEvents[region] || []).length
+          };
+        }).filter(Boolean);
+        if (dests.length > 0) {
+          lines.push({
+            points: [],
+            dests,
+            eventTitle: ev.title,
+            year,
+            dateType
+          });
+        }
+      } else if (viewMode === 'country' && ev.countries && ev.countries.length > 0) {
+        // Group all countries for this event into a single frame
+        const dests = (ev.countries || []).map(country => {
+          const coords = countryCoords[country.toLowerCase()];
+          if (!coords) {
+            console.warn(`Country not found in countryCoords: '${country}' (event: ${ev.title})`);
+            return null;
           }
-        });
-      } else if (viewMode === 'country' && ev.countries && ev.countries.length > 1) {
-        // Draw a line for every unique pair of countries
-        for (let i = 0; i < ev.countries.length; i++) {
-          const base = ev.countries[i].trim().toLowerCase();
-          const baseCoords = countryCoords[base];
-          if (!baseCoords) {
-            console.warn(`Country not found in countryCoords: '${ev.countries[i]}' (event: ${ev.title})`);
-          }
-          for (let j = i + 1; j < ev.countries.length; j++) {
-            const other = ev.countries[j].trim().toLowerCase();
-            const otherCoords = countryCoords[other];
-            if (!otherCoords) {
-              console.warn(`Country not found in countryCoords: '${ev.countries[j]}' (event: ${ev.title})`);
-            }
-            if (baseCoords && otherCoords) {
-              lines.push({ points: [baseCoords, otherCoords], color: countryColor[ev.countries[i]] || '#f472b6', eventTitle: ev.title, destCoords: otherCoords, year, dateType });
-            }
-          }
-        }
-      } else if (viewMode === 'country' && ev.countries && ev.countries.length === 1) {
-        // Animate label for single-country event
-        const coords = countryCoords[ev.countries[0].toLowerCase()];
-        if (!coords) {
-          console.warn(`Country not found in countryCoords: '${ev.countries[0]}' (event: ${ev.title})`);
-        }
-        if (coords) {
-          lines.push({ points: [], color: countryColor[ev.countries[0]] || '#f472b6', eventTitle: ev.title, destCoords: coords, year, dateType });
-        }
-      } else if (viewMode === 'region' && ev.regions && ev.regions.length === 1) {
-        // Animate label for single-region event
-        const coords = regionCoords[ev.regions[0].toLowerCase()];
-        if (!coords) {
-          console.warn(`Region not found in regionCoords: '${ev.regions[0]}' (event: ${ev.title})`);
-        }
-        if (coords) {
-          lines.push({ points: [], color: regionColor[ev.regions[0]] || '#f472b6', eventTitle: ev.title, destCoords: coords, year, dateType });
+          return {
+            coords,
+            name: country,
+            color: countryColor[country] || '#f472b6',
+            count: (countryEvents[country] || []).length
+          };
+        }).filter(Boolean);
+        if (dests.length > 0) {
+          lines.push({
+            points: [],
+            dests,
+            eventTitle: ev.title,
+            year,
+            dateType
+          });
         }
       }
     });
@@ -352,25 +352,19 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     setCurrentLineIdx(-1);
     setPaused(false);
     if (timerRef.current) clearTimeout(timerRef.current);
-  }, [events, viewMode, countryColor, regionColor]);
+  }, [events, viewMode, countryColor, regionColor, regionEvents, countryEvents]);
 
   // Animation effect: step through linesToDraw
   React.useEffect(() => {
     if (!animating || paused) return;
     if (!linesToDraw.length) return;
-    let idx = currentLineIdx + 1;
-    if (idx >= linesToDraw.length) {
+    if (currentLineIdx >= linesToDraw.length - 1) {
       timerRef.current = setTimeout(() => setAnimating(false), 1200);
       return;
     }
-    const step = () => {
-      if (!animating || paused) return;
-      setCurrentLineIdx(i => {
-        const nextIdx = i < linesToDraw.length - 1 ? i + 1 : i;
-        return nextIdx;
-      });
-    };
-    timerRef.current = setTimeout(step, speed);
+    timerRef.current = setTimeout(() => {
+      setCurrentLineIdx(idx => idx + 1);
+    }, speed);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [animating, paused, currentLineIdx, linesToDraw, speed]);
 
@@ -384,25 +378,8 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
 
   // Pause/Resume animation
   const handlePauseResume = () => {
-    setPaused(p => {
-      if (p && animating) {
-        // Resume
-        if (timerRef.current) clearTimeout(timerRef.current);
-        let idx = currentLineIdx + 1;
-        const step = () => {
-          if (!animating || paused) return;
-          setCurrentLineIdx(idx);
-          idx++;
-          if (idx < linesToDraw.length) {
-            timerRef.current = setTimeout(step, 900);
-          } else {
-            timerRef.current = setTimeout(() => setAnimating(false), 1200);
-          }
-        };
-        timerRef.current = setTimeout(step, 100);
-      }
-      return !p;
-    });
+    if (!animating) return;
+    setPaused(p => !p);
   };
 
   // Step forward
@@ -581,40 +558,42 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         })}
         {/* Animated lines */}
         {linesToDraw.slice(0, currentLineIdx + 1).map((line, idx) => (
-          idx === currentLineIdx && line.destCoords && line.eventTitle && (
-            <Marker
-              key={idx}
-              position={line.destCoords}
-              icon={L.divIcon({
-                className: 'event-label-marker',
-                html: '<div></div>', // invisible marker
-                iconSize: [1, 1],
-                iconAnchor: [0, 0],
-              })}
-              interactive={false}
-              zIndexOffset={1000}
-            >
-              <Tooltip
-                direction="top"
-                offset={[0, -18]}
-                permanent
-                className="event-label-tooltip"
-                opacity={1}
+          idx === currentLineIdx && line.dests && line.eventTitle && (
+            line.dests.map((dest, dIdx) => (
+              <Marker
+                key={idx + '-' + dIdx}
+                position={dest.coords}
+                icon={L.divIcon({
+                  className: 'event-label-marker',
+                  html: '<div></div>', // invisible marker
+                  iconSize: [1, 1],
+                  iconAnchor: [0, 0],
+                })}
+                interactive={false}
+                zIndexOffset={1000}
               >
-                <span style={{
-                  color: '#fff',
-                  background: 'rgba(24,24,32,0.85)',
-                  borderRadius: 8,
-                  padding: '2px 10px',
-                  fontWeight: 700,
-                  fontSize: 16,
-                  boxShadow: '0 2px 8px #0008',
-                  border: '1px solid #f472b6',
-                  textShadow: '0 1px 4px #000a',
-                  whiteSpace: 'nowrap',
-                }}>{line.eventTitle} {line.year ? `(${line.year} ${line.dateType || ''})` : ''}</span>
-              </Tooltip>
-            </Marker>
+                <Tooltip
+                  direction="top"
+                  offset={[0, -18]}
+                  permanent
+                  className="event-label-tooltip"
+                  opacity={1}
+                >
+                  <span style={{
+                    color: '#fff',
+                    background: 'rgba(24,24,32,0.85)',
+                    borderRadius: 8,
+                    padding: '2px 10px',
+                    fontWeight: 700,
+                    fontSize: 16,
+                    boxShadow: '0 2px 8px #0008',
+                    border: `1px solid ${dest.color}`,
+                    textShadow: '0 1px 4px #000a',
+                    whiteSpace: 'nowrap',
+                  }}>{line.eventTitle} {line.year ? `(${line.year} ${line.dateType || ''})` : ''}</span>
+                </Tooltip>
+              </Marker>
+            ))
           )
         ))}
       </MapContainer>
