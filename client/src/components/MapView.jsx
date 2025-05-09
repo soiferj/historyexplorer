@@ -438,7 +438,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         </button>
       </div>
       {/* Animation controls row */}
-      <div className="w-full flex justify-center mb-4 gap-2 items-center">
+      <div className="w-full flex flex-wrap justify-center mb-4 gap-2 items-center px-2 max-w-full sm:max-w-screen-sm mx-auto">
         <span className="text-white font-semibold mr-2">Animation</span>
         {/* Frame counter */}
         <span className="text-pink-200 font-mono text-sm mr-2">
@@ -492,7 +492,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           </button>
         </div>
         {/* Speed control - moved to the right of playback controls */}
-        <div className="flex items-center ml-4">
+        <div className="flex items-center ml-4 min-w-[120px] mt-2 sm:mt-0">
           <label className="text-white text-xs mr-1" htmlFor="speed-slider">Speed</label>
           <input
             id="speed-slider"
