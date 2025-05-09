@@ -235,7 +235,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
   const [currentLineIdx, setCurrentLineIdx] = React.useState(-1);
   const [linesToDraw, setLinesToDraw] = React.useState([]);
   const [paused, setPaused] = React.useState(false);
-  const [speed, setSpeed] = React.useState(900); // Animation speed in ms per frame
+  const [speed] = React.useState(1500); // Animation speed in ms per frame
   const timerRef = React.useRef(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [modalEvents, setModalEvents] = React.useState([]);
@@ -539,21 +539,6 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
             &#8594;
           </button>
         </div>
-        {/* Speed control - moved to the right of playback controls */}
-        <div className="flex items-center ml-4 min-w-[120px] mt-2 sm:mt-0">
-          <label className="text-white text-xs mr-1" htmlFor="speed-slider">Speed</label>
-          <input
-            id="speed-slider"
-            type="range"
-            min="200"
-            max="2000"
-            step="100"
-            value={speed}
-            onChange={e => setSpeed(Number(e.target.value))}
-            style={{ width: 90 }}
-          />
-          <span className="text-blue-200 text-xs ml-2">{(speed / 1000).toFixed(1)}s</span>
-        </div>
       </div>
       {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
       {error && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10 text-red-300">{error}</div>}
@@ -650,12 +635,32 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
                       borderRadius: 8,
                       padding: '2px 10px',
                       fontWeight: 700,
-                      fontSize: 16,
+                      fontSize: 11,
                       boxShadow: '0 2px 8px #0008',
                       border: `1px solid ${dest.color}`,
                       textShadow: '0 1px 4px #000a',
-                      whiteSpace: 'nowrap',
-                    }}>{line.eventTitle} {line.year ? `(${line.year} ${line.dateType || ''})` : ''}</span>
+                      whiteSpace: 'normal', // allow wrapping for date below
+                      wordBreak: 'keep-all',
+                      maxWidth: 260,
+                      lineHeight: 1.2,
+                      textAlign: 'center',
+                      overflowWrap: 'normal',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      display: 'inline-block',
+                    }}>
+                      {line.eventTitle}
+                      {line.year && (
+                        <span style={{
+                          display: 'block',
+                          fontWeight: 400,
+                          fontSize: 10,
+                          color: '#a5b4fc',
+                          marginTop: 2,
+                          letterSpacing: 0.5,
+                        }}>{line.year} {line.dateType || ''}</span>
+                      )}
+                    </span>
                   </Tooltip>
                 </Marker>
               ) : null
