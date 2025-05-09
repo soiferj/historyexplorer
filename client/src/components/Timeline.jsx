@@ -14,7 +14,7 @@ const Timeline = (props) => {
         searchTerm, setSearchTerm, dateFilter, setDateFilter, zoomLevel, setZoomLevel,
         selectedTags, setSelectedTags, selectedBooks, setSelectedBooks,
         selectedRegions, setSelectedRegions, tagSearchTerm, setTagSearchTerm, bookSearchTerm, setBookSearchTerm,
-        regionSearchTerm, setRegionSearchTerm, tagOverlapOnly, setTagOverlapOnly
+        regionSearchTerm, setRegionSearchTerm, tagOverlapOnly, setTagOverlapOnly, selectedCountries, setSelectedCountries
     } = props;
 
     const svgRef = useRef();
@@ -100,7 +100,8 @@ const Timeline = (props) => {
             event.book_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
             event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
             (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase() === searchTerm.toLowerCase())) ||
-            (Array.isArray(event.regions) && event.regions.some(region => region.toLowerCase().includes(searchTerm.toLowerCase())))
+            (Array.isArray(event.regions) && event.regions.some(region => region.toLowerCase().includes(searchTerm.toLowerCase()))) ||
+            (Array.isArray(event.countries) && event.countries.some(country => country.toLowerCase().includes(searchTerm.toLowerCase())))
         );
         // Apply region filter if set
         if (regionFilter) {
@@ -116,6 +117,10 @@ const Timeline = (props) => {
                 if (endComparable !== null && eventComparable > endComparable) return false;
                 return true;
             });
+        }
+        // Filter by selected countries
+        if (selectedCountries && selectedCountries.length > 0) {
+            filtered = filtered.filter(event => Array.isArray(event.countries) && event.countries.some(country => selectedCountries.includes(country)));
         }
         // Always sort filtered events
         return sortEvents(filtered);
@@ -783,6 +788,7 @@ const Timeline = (props) => {
                     });
                 }
             }, 400); // Wait for re-render
+            if (props.onEventsUpdated) props.onEventsUpdated();
         } catch (err) {
             setError(err.message);
         } finally {
@@ -836,6 +842,7 @@ const Timeline = (props) => {
             if (!response.ok) throw new Error(data.error || "Failed to update event");
             setEditMode(false);
             setSelectedEvent(null);
+            if (props.onEventsUpdated) props.onEventsUpdated();
         } catch (err) {
             setEditError(err.message);
         }
@@ -906,9 +913,18 @@ const Timeline = (props) => {
     const [showBookFilter, setShowBookFilter] = useState(false);
     const [showRegionFilter, setShowRegionFilter] = useState(false);
     const [showCountryFilter, setShowCountryFilter] = useState(false);
-    // Add countries filter state
-    const [selectedCountries, setSelectedCountries] = useState([]);
+    // Remove this line:
+    // const [selectedCountries, setSelectedCountries] = useState([]);
+    // Use the props version instead
     const [countrySearchTerm, setCountrySearchTerm] = useState("");
+
+    // Spinner SVG for loading indication
+    const Spinner = () => (
+      <svg className="animate-spin inline-block mr-2 text-white" style={{width: '1em', height: '1em', verticalAlign: 'middle'}} viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+      </svg>
+    );
 
     return (
         <>
@@ -955,161 +971,171 @@ const Timeline = (props) => {
                 {/* Admin Tools Modal */}
                 {isAllowed && showAdminToolsModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
-                        <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => { setShowAdminToolsModal(false); setShowDeleteConfirm(false); }} />
-                        <div className="relative glass p-8 rounded-2xl shadow-2xl border border-blue-400 w-full max-w-lg z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg">
+                        <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => { setShowAdminToolsModal(false); setShowDeleteConfirm(false); }} />
+                        <div
+                            className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
+                            style={{
+                                maxHeight: '70vh',
+                                overflow: 'hidden',
+                                margin: '1rem',
+                                boxSizing: 'border-box',
+                            }}
+                        >
                             <button
-                                className="absolute top-3 right-3 text-2xl text-blue-300 hover:text-pink-400 focus:outline-none"
+                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
                                 onClick={() => { setShowAdminToolsModal(false); setShowDeleteConfirm(false); }}
                                 aria-label="Close admin tools modal"
                             >
                                 &times;
                             </button>
-                            <h2 className="text-2xl font-bold mb-4 text-blue-300">Admin Tools</h2>
-                            {/* Delete Tags Section */}
-                            <div className="w-full mb-8">
-                                <h3 className="text-lg font-semibold text-red-300 mb-2">Delete Tags</h3>
-                                <div className="mb-4 w-full flex flex-col items-center max-h-40 overflow-y-auto">
-                                    {getAllTags(filteredEvents).length === 0 && <div className="text-gray-400">No tags available.</div>}
-                                    {getAllTags(filteredEvents).map(tag => (
-                                        <label key={tag} className="flex items-center gap-2 mb-2 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={removalSelectedTags.includes(tag)}
-                                                onChange={e => {
-                                                    setRemovalSelectedTags(sel => e.target.checked ? [...sel, tag] : sel.filter(t => t !== tag));
-                                                }}
-                                            />
-                                            <span>{tag}</span>
-                                        </label>
-                                    ))}
+                            <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
+                                <h2 className="text-3xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Admin Tools</h2>
+                                {/* Delete Tags Section */}
+                                <div className="w-full mb-8">
+                                    <h3 className="text-lg font-semibold text-red-300 mb-2">Delete Tags</h3>
+                                    <div className="mb-4 w-full flex flex-col items-center max-h-40 overflow-y-auto">
+                                        {getAllTags(filteredEvents).length === 0 && <div className="text-gray-400">No tags available.</div>}
+                                        {getAllTags(filteredEvents).map(tag => (
+                                            <label key={tag} className="flex items-center gap-2 mb-2 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={removalSelectedTags.includes(tag)}
+                                                    onChange={e => {
+                                                        setRemovalSelectedTags(sel => e.target.checked ? [...sel, tag] : sel.filter(t => t !== tag));
+                                                    }}
+                                                />
+                                                <span>{tag}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                    {removalError && <div className="text-red-400 mb-2">{removalError}</div>}
+                                    <button
+                                        className="mt-2 px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-50"
+                                        disabled={removalSelectedTags.length === 0 || removalLoading}
+                                        onClick={() => setShowDeleteConfirm(true)}
+                                    >
+                                        Delete Selected ({removalSelectedTags.length})
+                                    </button>
                                 </div>
-                                {removalError && <div className="text-red-400 mb-2">{removalError}</div>}
-                                <button
-                                    className="mt-2 px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-50"
-                                    disabled={removalSelectedTags.length === 0 || removalLoading}
-                                    onClick={() => setShowDeleteConfirm(true)}
-                                >
-                                    Delete Selected ({removalSelectedTags.length})
-                                </button>
-                            </div>
-                            {/* Confirm Delete Modal (inside admin tools modal) */}
-                            {showDeleteConfirm && (
-                                <div className="fixed inset-0 z-60 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
-                                    <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowDeleteConfirm(false)} />
-                                    <div className="relative glass p-6 rounded-2xl shadow-2xl border border-red-400 w-full max-w-sm z-70 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#ff512f33] to-[#ff512f33] backdrop-blur-lg">
-                                        <h3 className="text-lg font-bold mb-2 text-red-300">Confirm Delete</h3>
-                                        <div className="mb-4 text-center text-red-200">
-                                            Are you sure you want to delete these tags?
-                                            <ul className="mt-2 mb-2 text-red-300 font-bold">
-                                                {removalSelectedTags.map(tag => (
-                                                    <li key={tag}>{tag}</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                        {removalError && <div className="text-red-400 mb-2">{removalError}</div>}
-                                        <div className="flex gap-4 mt-2">
-                                            <button
-                                                className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
-                                                onClick={() => setShowDeleteConfirm(false)}
-                                                disabled={removalLoading}
-                                            >
-                                                Cancel
-                                            </button>
-                                            <button
-                                                className="px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-50"
-                                                disabled={removalLoading}
-                                                onClick={async () => {
-                                                    setRemovalLoading(true);
-                                                    setRemovalError("");
-                                                    try {
-                                                        for (const tag of removalSelectedTags) {
-                                                            const response = await fetch(`${apiUrl}/events/remove-tag`, {
-                                                                method: "POST",
-                                                                headers: {
-                                                                    "Content-Type": "application/json",
-                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                                                                },
-                                                                body: JSON.stringify({ tag })
-                                                            });
-                                                            if (!response.ok) throw new Error(`Failed to delete tag: ${tag}`);
+                                {/* Confirm Delete Modal (inside admin tools modal) */}
+                                {showDeleteConfirm && (
+                                    <div className="fixed inset-0 z-60 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+                                        <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowDeleteConfirm(false)} />
+                                        <div className="relative glass p-6 rounded-2xl shadow-2xl border border-red-400 w-full max-w-sm z-70 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#ff512f33] to-[#ff512f33] backdrop-blur-lg">
+                                            <h3 className="text-lg font-bold mb-2 text-red-300">Confirm Delete</h3>
+                                            <div className="mb-4 text-center text-red-200">
+                                                Are you sure you want to delete these tags?
+                                                <ul className="mt-2 mb-2 text-red-300 font-bold">
+                                                    {removalSelectedTags.map(tag => (
+                                                        <li key={tag}>{tag}</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                            {removalError && <div className="text-red-400 mb-2">{removalError}</div>}
+                                            <div className="flex gap-4 mt-2">
+                                                <button
+                                                    className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
+                                                    onClick={() => setShowDeleteConfirm(false)}
+                                                    disabled={removalLoading}
+                                                >
+                                                    Cancel
+                                                </button>
+                                                <button
+                                                    className="px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-50"
+                                                    disabled={removalLoading}
+                                                    onClick={async () => {
+                                                        setRemovalLoading(true);
+                                                        setRemovalError("");
+                                                        try {
+                                                            for (const tag of removalSelectedTags) {
+                                                                const response = await fetch(`${apiUrl}/events/remove-tag`, {
+                                                                    method: "POST",
+                                                                    headers: {
+                                                                        "Content-Type": "application/json",
+                                                                        ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                                    },
+                                                                    body: JSON.stringify({ tag })
+                                                                });
+                                                                if (!response.ok) throw new Error(`Failed to delete tag: ${tag}`);
+                                                            }
+                                                            setShowDeleteConfirm(false);
+                                                            setShowAdminToolsModal(false);
+                                                        } catch (err) {
+                                                            setRemovalError(err.message);
+                                                        } finally {
+                                                            setRemovalLoading(false);
                                                         }
-                                                        setShowDeleteConfirm(false);
-                                                        setShowAdminToolsModal(false);
-                                                    } catch (err) {
-                                                        setRemovalError(err.message);
-                                                    } finally {
-                                                        setRemovalLoading(false);
-                                                    }
-                                                }}
-                                            >
-                                                {removalLoading ? "Deleting..." : "Confirm Delete"}
-                                            </button>
+                                                    }}
+                                                >
+                                                    {removalLoading ? "Deleting..." : "Confirm Delete"}
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
+                                )}
+                                <hr className="my-6 border-blue-400/40" />
+                                <h3 className="text-lg font-semibold text-blue-300 mb-2">Regions Backfill</h3>
+                                <div className="w-full flex flex-col items-center">
+                                  <button
+                                    className="px-4 py-2 rounded bg-blue-700 text-white font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-50"
+                                    disabled={backfillRegionsLoading}
+                                    onClick={() => setShowBackfillRegionsModal(true)}
+                                  >
+                                    {backfillRegionsLoading ? "Generating..." : "Regenerate All Regions and Countries"}
+                                  </button>
+                                  {backfillRegionsResult && (
+                                    <div className="mt-2 text-blue-200 text-sm">{backfillRegionsResult}</div>
+                                  )}
                                 </div>
-                            )}
-                            <hr className="my-6 border-blue-400/40" />
-                            <h3 className="text-lg font-semibold text-blue-300 mb-2">Regions Backfill</h3>
-                            <div className="w-full flex flex-col items-center">
-                              <button
-                                className="px-4 py-2 rounded bg-blue-700 text-white font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-50"
-                                disabled={backfillRegionsLoading}
-                                onClick={() => setShowBackfillRegionsModal(true)}
-                              >
-                                {backfillRegionsLoading ? "Generating..." : "Regenerate All Regions and Countries"}
-                              </button>
-                              {backfillRegionsResult && (
-                                <div className="mt-2 text-blue-200 text-sm">{backfillRegionsResult}</div>
-                              )}
-                            </div>
-                            {/* Modal for confirmation */}
-                            {showBackfillRegionsModal && (
-                              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
-                                <div className="bg-gray-900 p-6 rounded-xl shadow-xl max-w-md w-full border border-blue-400">
-                                  <h2 className="text-lg font-bold text-red-400 mb-2">Warning</h2>
-                                  <p className="text-blue-100 mb-4">This will <span className="font-bold text-red-300">overwrite all existing regions and countries</span> for every event in the database. This action cannot be undone. Are you sure you want to continue?</p>
-                                  <div className="flex gap-4 justify-end">
-                                    <button
-                                      className="px-4 py-2 rounded bg-gray-700 text-white font-semibold border border-gray-500 hover:bg-gray-600"
-                                      onClick={() => setShowBackfillRegionsModal(false)}
-                                    >
-                                      Cancel
-                                    </button>
-                                    <button
-                                      className="px-4 py-2 rounded bg-red-700 text-white font-bold border border-red-400 hover:bg-red-800 disabled:opacity-60"
-                                      disabled={backfillRegionsLoading}
-                                      onClick={async () => {
-                                        setBackfillRegionsLoading(true);
-                                        setBackfillRegionsResult("");
-                                        try {
-                                          const response = await fetch(`${apiUrl}/events/backfill-regions`, {
-                                            method: "POST",
-                                            headers: {
-                                              ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                {/* Modal for confirmation */}
+                                {showBackfillRegionsModal && (
+                                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+                                    <div className="bg-gray-900 p-6 rounded-xl shadow-xl max-w-md w-full border border-blue-400">
+                                      <h2 className="text-lg font-bold text-red-400 mb-2">Warning</h2>
+                                      <p className="text-blue-100 mb-4">This will <span className="font-bold text-red-300">overwrite all existing regions and countries</span> for every event in the database. This action cannot be undone. Are you sure you want to continue?</p>
+                                      <div className="flex gap-4 justify-end">
+                                        <button
+                                          className="px-4 py-2 rounded bg-gray-700 text-white font-semibold border border-gray-500 hover:bg-gray-600"
+                                          onClick={() => setShowBackfillRegionsModal(false)}
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          className="px-4 py-2 rounded bg-red-700 text-white font-bold border border-red-400 hover:bg-red-800 disabled:opacity-60"
+                                          disabled={backfillRegionsLoading}
+                                          onClick={async () => {
+                                            setBackfillRegionsLoading(true);
+                                            setBackfillRegionsResult("");
+                                            try {
+                                              const response = await fetch(`${apiUrl}/events/backfill-regions`, {
+                                                method: "POST",
+                                                headers: {
+                                                  ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                }
+                                              });
+                                              const data = await response.json();
+                                              if (response.ok) {
+                                                setBackfillRegionsResult(`Regions generated for ${data.updated} events.`);
+                                                setShowBackfillRegionsModal(false);
+                                                setShowDeleteConfirm(false);
+                                                setShowAdminToolsModal(false);
+                                              } else {
+                                                setBackfillRegionsResult(data.error || "Failed to backfill regions.");
+                                              }
+                                            } catch (err) {
+                                              setBackfillRegionsResult("Failed to backfill regions.");
+                                            } finally {
+                                              setBackfillRegionsLoading(false);
                                             }
-                                          });
-                                          const data = await response.json();
-                                          if (response.ok) {
-                                            setBackfillRegionsResult(`Regions generated for ${data.updated} events.`);
-                                            setShowBackfillRegionsModal(false);
-                                            setShowDeleteConfirm(false);
-                                            setShowAdminToolsModal(false);
-                                          } else {
-                                            setBackfillRegionsResult(data.error || "Failed to backfill regions.");
-                                          }
-                                        } catch (err) {
-                                          setBackfillRegionsResult("Failed to backfill regions.");
-                                        } finally {
-                                          setBackfillRegionsLoading(false);
-                                        }
-                                      }}
-                                    >
-                                      {backfillRegionsLoading ? "Generating..." : "Yes, Overwrite All"}
-                                    </button>
+                                          }}
+                                        >
+                                          {backfillRegionsLoading ? "Generating..." : "Yes, Overwrite All"}
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
-                              </div>
-                            )}
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1184,6 +1210,7 @@ const Timeline = (props) => {
                             <div style={{width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)'}}>
                                 <form onSubmit={handleFormSubmit} className="w-full flex flex-col gap-8 items-center">
                                     <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Add New Event</h2>
+                                    {/* Only show Title, Year, Date Type, and Book fields in Add Event modal */}
                                     <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                         <label className="font-semibold text-blue-200" htmlFor="title">Title</label>
                                         <input id="title" name="title" value={form.title} onChange={handleFormChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
@@ -1205,16 +1232,9 @@ const Timeline = (props) => {
                                         <label className="font-semibold text-blue-200" htmlFor="book_reference">Book</label>
                                         <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                     </div>
-                                    <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                        <label className="font-semibold text-blue-200" htmlFor="regions">Regions</label>
-                                        <input id="regions" name="regions" value={form.regions} onChange={handleFormChange} placeholder="Regions (comma separated, e.g. europe, east asia)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
-                                    </div>
-                                    <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                        <label className="font-semibold text-blue-200" htmlFor="countries">Countries</label>
-                                        <input id="countries" name="countries" value={form.countries} onChange={handleFormChange} placeholder="Countries (comma separated, e.g. france, germany)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
-                                    </div>
-                                    <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto tracking-wide">
-                                        {submitting ? "Adding..." : "Add Event"}
+                                    {/* Removed Tags, Regions, Countries, and Description fields from Add Event modal */}
+                                    <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto tracking-wide" disabled={submitting}>
+                                      {submitting ? (<><Spinner />Adding...</>) : "Add Event"}
                                     </button>
                                 </form>
                             </div>
@@ -1224,265 +1244,267 @@ const Timeline = (props) => {
 
                 {/* Filters Modal/Popover */}
                 {showFilters && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
                         {/* Modal overlay */}
-                        <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowFilters(false)} />
+                        <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => setShowFilters(false)} />
                         {/* Modal content */}
                         <div
-                            className="relative glass p-8 rounded-2xl shadow-2xl border border-blue-400 w-full max-w-md z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#00c6ff33] to-[#ff512f33] backdrop-blur-lg overflow-y-auto"
+                            className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
                             style={{
-                                maxHeight: '90vh',
-                                overflowY: 'auto',
-                                margin: '4rem 1rem 1rem 1rem',
+                                maxHeight: '70vh',
+                                overflow: 'hidden',
+                                margin: '1rem',
                                 boxSizing: 'border-box',
                             }}
                         >
                             <button
-                                className="absolute top-3 right-3 text-2xl text-blue-300 hover:text-pink-400 focus:outline-none"
+                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
                                 onClick={() => setShowFilters(false)}
                                 aria-label="Close filters"
                             >
                                 &times;
                             </button>
-                            <h2 className="text-xl font-bold mb-4 text-blue-300">Filters</h2>
-                            {/* Search Bar */}
-                            <input
-                                type="text"
-                                placeholder="Search anything..."
-                                className="mb-4 p-3 w-64 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md"
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                            />
-                            {/* Date Range Filter */}
-                            <div className="mb-4 w-full flex flex-col items-center">
-                                <h3 className="text-lg font-semibold text-blue-200 mb-2">Date Filter</h3>
-                                <div className="flex flex-wrap justify-center gap-4 z-10">
-                                    <div className="flex items-center gap-2">
-                                        <label className="text-blue-200 font-semibold">From</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="9999"
-                                            value={dateFilter.startYear}
-                                            onChange={e => setDateFilter(f => ({ ...f, startYear: e.target.value }))}
-                                            placeholder="Year"
-                                            className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
-                                        />
-                                        <select
-                                            value={dateFilter.startEra}
-                                            onChange={e => setDateFilter(f => ({ ...f, startEra: e.target.value }))}
-                                            className="p-2 rounded bg-gray-800 text-white border border-blue-400"
-                                        >
-                                            <option value="BCE">BCE</option>
-                                            <option value="CE">CE</option>
-                                        </select>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <label className="text-blue-200 font-semibold">To</label>
-                                        <input
-                                            type="number"
-                                            min="1"
-                                            max="9999"
-                                            value={dateFilter.endYear}
-                                            onChange={e => setDateFilter(f => ({ ...f, endYear: e.target.value }))}
-                                            placeholder="Year"
-                                            className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
-                                        />
-                                        <select
-                                            value={dateFilter.endEra}
-                                            onChange={e => setDateFilter(f => ({ ...f, endEra: e.target.value }))}
-                                            className="p-2 rounded bg-gray-800 text-white border border-blue-400"
-                                        >
-                                            <option value="BCE">BCE</option>
-                                            <option value="CE">CE</option>
-                                        </select>
+                            <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
+                                <h2 className="text-3xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Filters</h2>
+                                {/* Search Bar */}
+                                <input
+                                    type="text"
+                                    placeholder="Search anything..."
+                                    className="mb-4 p-3 w-64 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md"
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                />
+                                {/* Date Range Filter */}
+                                <div className="mb-4 w-full flex flex-col items-center">
+                                    <h3 className="text-lg font-semibold text-blue-200 mb-2">Date Filter</h3>
+                                    <div className="flex flex-wrap justify-center gap-4 z-10">
+                                        <div className="flex items-center gap-2">
+                                            <label className="text-blue-200 font-semibold">From</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="9999"
+                                                value={dateFilter.startYear}
+                                                onChange={e => setDateFilter(f => ({ ...f, startYear: e.target.value }))}
+                                                placeholder="Year"
+                                                className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
+                                            />
+                                            <select
+                                                value={dateFilter.startEra}
+                                                onChange={e => setDateFilter(f => ({ ...f, startEra: e.target.value }))}
+                                                className="p-2 rounded bg-gray-800 text-white border border-blue-400"
+                                            >
+                                                <option value="BCE">BCE</option>
+                                                <option value="CE">CE</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <label className="text-blue-200 font-semibold">To</label>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                max="9999"
+                                                value={dateFilter.endYear}
+                                                onChange={e => setDateFilter(f => ({ ...f, endYear: e.target.value }))}
+                                                placeholder="Year"
+                                                className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
+                                            />
+                                            <select
+                                                value={dateFilter.endEra}
+                                                onChange={e => setDateFilter(f => ({ ...f, endEra: e.target.value }))}
+                                                className="p-2 rounded bg-gray-800 text-white border border-blue-400"
+                                            >
+                                                <option value="BCE">BCE</option>
+                                                <option value="CE">CE</option>
+                                            </select>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            {/* Filter by Tag */}
-                            <div className="mb-4 w-full flex flex-col items-center">
-                              <div className="w-full flex justify-between items-center">
-                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowTagFilter(v => !v)}>
-                                  <span>Filter by Tag{!showTagFilter && selectedTags.length > 0 ? ` (${selectedTags.length} selected)` : ''}</span>
-                                  <span>{showTagFilter ? '▲' : '▼'}</span>
-                                </button>
-                                {selectedTags.length > 0 && (
-                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedTags([])}>Clear</button>
-                                )}
-                              </div>
-                              {showTagFilter && (
-                                <>
-                                  <input
-                                    type="text"
-                                    placeholder="Search tags..."
-                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                                    value={tagSearchTerm}
-                                    onChange={e => setTagSearchTerm(e.target.value)}
-                                  />
-                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                                    {getAllTags(allEvents)
-                                      .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
-                                      .map((tag) => {
-                                        const isSelected = selectedTags.includes(tag);
-                                        const color = isSelected ? colorPalette[selectedTags.indexOf(tag) % colorPalette.length] : '#2563eb';
-                                        return (
-                                          <button
-                                            key={tag}
-                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                            onClick={() => setSelectedTags(tags => tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag])}
-                                          >
-                                            {tag}
-                                          </button>
-                                        );
-                                      })}
+                                {/* Filter by Tag */}
+                                <div className="mb-4 w-full flex flex-col items-center">
+                                  <div className="w-full flex justify-between items-center">
+                                    <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowTagFilter(v => !v)}>
+                                      <span>Filter by Tag{!showTagFilter && selectedTags.length > 0 ? ` (${selectedTags.length} selected)` : ''}</span>
+                                      <span>{showTagFilter ? '▲' : '▼'}</span>
+                                    </button>
+                                    {selectedTags.length > 0 && (
+                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedTags([])}>Clear</button>
+                                    )}
                                   </div>
-                                </>
-                              )}
-                            </div>
-                            {/* Filter by Region */}
-                            <div className="mb-4 w-full flex flex-col items-center">
-                              <div className="w-full flex justify-between items-center">
-                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowRegionFilter(v => !v)}>
-                                  <span>Filter by Region{!showRegionFilter && selectedRegions.length > 0 ? ` (${selectedRegions.length} selected)` : ''}</span>
-                                  <span>{showRegionFilter ? '▲' : '▼'}</span>
-                                </button>
-                                {selectedRegions.length > 0 && (
-                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedRegions([])}>Clear</button>
-                                )}
-                              </div>
-                              {showRegionFilter && (
-                                <>
-                                  <input
-                                    type="text"
-                                    placeholder="Search regions..."
-                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                                    value={regionSearchTerm}
-                                    onChange={e => setRegionSearchTerm(e.target.value)}
-                                  />
-                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                                    {getAllRegions(allEvents)
-                                      .filter(region => region.toLowerCase().includes(regionSearchTerm.toLowerCase()))
-                                      .map((region) => {
-                                        const isSelected = selectedRegions.includes(region);
-                                        const color = isSelected ? colorPalette[selectedRegions.indexOf(region) % colorPalette.length] : '#2563eb';
-                                        return (
-                                          <button
-                                            key={region}
-                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                            onClick={() => setSelectedRegions(regions => regions.includes(region) ? regions.filter(r => r !== region) : [...regions, region])}
-                                          >
-                                            {region}
-                                          </button>
-                                        );
-                                      })}
+                                  {showTagFilter && (
+                                    <>
+                                      <input
+                                        type="text"
+                                        placeholder="Search tags..."
+                                        className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
+                                        value={tagSearchTerm}
+                                        onChange={e => setTagSearchTerm(e.target.value)}
+                                      />
+                                      <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
+                                        {getAllTags(allEvents)
+                                          .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
+                                          .map((tag) => {
+                                            const isSelected = selectedTags.includes(tag);
+                                            const color = isSelected ? colorPalette[selectedTags.indexOf(tag) % colorPalette.length] : '#2563eb';
+                                            return (
+                                              <button
+                                                key={tag}
+                                                className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                                style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                                onClick={() => setSelectedTags(tags => tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag])}
+                                              >
+                                                {tag}
+                                              </button>
+                                            );
+                                          })}
+                                    </div>
+                                    </>
+                                  )}
+                                </div>
+                                {/* Filter by Region */}
+                                <div className="mb-4 w-full flex flex-col items-center">
+                                  <div className="w-full flex justify-between items-center">
+                                    <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowRegionFilter(v => !v)}>
+                                      <span>Filter by Region{!showRegionFilter && selectedRegions.length > 0 ? ` (${selectedRegions.length} selected)` : ''}</span>
+                                      <span>{showRegionFilter ? '▲' : '▼'}</span>
+                                    </button>
+                                    {selectedRegions.length > 0 && (
+                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedRegions([])}>Clear</button>
+                                    )}
                                   </div>
-                                </>
-                              )}
-                            </div>
-                            {/* Filter by Country */}
-                            <div className="mb-4 w-full flex flex-col items-center">
-                              <div className="w-full flex justify-between items-center">
-                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowCountryFilter(v => !v)}>
-                                  <span>Filter by Country{!showCountryFilter && selectedCountries.length > 0 ? ` (${selectedCountries.length} selected)` : ''}</span>
-                                  <span>{showCountryFilter ? '▲' : '▼'}</span>
-                                </button>
-                                {selectedCountries.length > 0 && (
-                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedCountries([])}>Clear</button>
-                                )}
-                              </div>
-                              {showCountryFilter && (
-                                <>
-                                  <input
-                                    type="text"
-                                    placeholder="Search countries..."
-                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                                    value={countrySearchTerm}
-                                    onChange={e => setCountrySearchTerm(e.target.value)}
-                                  />
-                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                                    {getAllCountries(allEvents)
-                                      .filter(country => country.toLowerCase().includes(countrySearchTerm.toLowerCase()))
-                                      .map((country) => {
-                                        const isSelected = selectedCountries.includes(country);
-                                        const color = isSelected ? colorPalette[selectedCountries.indexOf(country) % colorPalette.length] : '#2563eb';
-                                        return (
-                                          <button
-                                            key={country}
-                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                            onClick={() => setSelectedCountries(countries => countries.includes(country) ? countries.filter(c => c !== country) : [...countries, country])}
-                                          >
-                                            {country}
-                                          </button>
-                                        );
-                                      })}
+                                  {showRegionFilter && (
+                                    <>
+                                      <input
+                                        type="text"
+                                        placeholder="Search regions..."
+                                        className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
+                                        value={regionSearchTerm}
+                                        onChange={e => setRegionSearchTerm(e.target.value)}
+                                      />
+                                      <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
+                                        {getAllRegions(allEvents)
+                                          .filter(region => region.toLowerCase().includes(regionSearchTerm.toLowerCase()))
+                                          .map((region) => {
+                                            const isSelected = selectedRegions.includes(region);
+                                            const color = isSelected ? colorPalette[selectedRegions.indexOf(region) % colorPalette.length] : '#2563eb';
+                                            return (
+                                              <button
+                                                key={region}
+                                                className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                                style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                                onClick={() => setSelectedRegions(regions => regions.includes(region) ? regions.filter(r => r !== region) : [...regions, region])}
+                                              >
+                                                {region}
+                                              </button>
+                                            );
+                                          })}
+                                    </div>
+                                    </>
+                                  )}
+                                </div>
+                                {/* Filter by Country */}
+                                <div className="mb-4 w-full flex flex-col items-center">
+                                  <div className="w-full flex justify-between items-center">
+                                    <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowCountryFilter(v => !v)}>
+                                      <span>Filter by Country{!showCountryFilter && selectedCountries.length > 0 ? ` (${selectedCountries.length} selected)` : ''}</span>
+                                      <span>{showCountryFilter ? '▲' : '▼'}</span>
+                                    </button>
+                                    {selectedCountries.length > 0 && (
+                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedCountries([])}>Clear</button>
+                                    )}
                                   </div>
-                                </>
-                              )}
-                            </div>
-                            {/* Filter by Book */}
-                            <div className="mb-4 w-full flex flex-col items-center">
-                              <div className="w-full flex justify-between items-center">
-                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowBookFilter(v => !v)}>
-                                  <span>Filter by Book{!showBookFilter && selectedBooks.length > 0 ? ` (${selectedBooks.length} selected)` : ''}</span>
-                                  <span>{showBookFilter ? '▲' : '▼'}</span>
-                                </button>
-                                {selectedBooks.length > 0 && (
-                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedBooks([])}>Clear</button>
-                                )}
-                              </div>
-                              {showBookFilter && (
-                                <>
-                                  <input
-                                    type="text"
-                                    placeholder="Search books..."
-                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                                    value={bookSearchTerm}
-                                    onChange={e => setBookSearchTerm(e.target.value)}
-                                  />
-                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                                    {getAllBooks(allEvents)
-                                      .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
-                                      .map((book) => {
-                                        const isSelected = selectedBooks.includes(book);
-                                        const color = isSelected ? colorPalette[selectedBooks.indexOf(book) % colorPalette.length] : '#2563eb';
-                                        return (
-                                          <button
-                                            key={book}
-                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                            onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
-                                          >
-                                            {book}
-                                          </button>
-                                        );
-                                      })}
+                                  {showCountryFilter && (
+                                    <>
+                                      <input
+                                        type="text"
+                                        placeholder="Search countries..."
+                                        className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
+                                        value={countrySearchTerm}
+                                        onChange={e => setCountrySearchTerm(e.target.value)}
+                                      />
+                                      <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
+                                        {getAllCountries(allEvents)
+                                          .filter(country => country.toLowerCase().includes(countrySearchTerm.toLowerCase()))
+                                          .map((country) => {
+                                            const isSelected = selectedCountries.includes(country);
+                                            const color = isSelected ? colorPalette[selectedCountries.indexOf(country) % colorPalette.length] : '#2563eb';
+                                            return (
+                                              <button
+                                                key={country}
+                                                className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                                style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                                onClick={() => setSelectedCountries(countries => countries.includes(country) ? countries.filter(c => c !== country) : [...countries, country])}
+                                              >
+                                                {country}
+                                              </button>
+                                            );
+                                          })}
+                                    </div>
+                                    </>
+                                  )}
+                                </div>
+                                {/* Filter by Book */}
+                                <div className="mb-4 w-full flex flex-col items-center">
+                                  <div className="w-full flex justify-between items-center">
+                                    <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowBookFilter(v => !v)}>
+                                      <span>Filter by Book{!showBookFilter && selectedBooks.length > 0 ? ` (${selectedBooks.length} selected)` : ''}</span>
+                                      <span>{showBookFilter ? '▲' : '▼'}</span>
+                                    </button>
+                                    {selectedBooks.length > 0 && (
+                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedBooks([])}>Clear</button>
+                                    )}
                                   </div>
-                                </>
-                              )}
+                                  {showBookFilter && (
+                                    <>
+                                      <input
+                                        type="text"
+                                        placeholder="Search books..."
+                                        className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
+                                        value={bookSearchTerm}
+                                        onChange={e => setBookSearchTerm(e.target.value)}
+                                      />
+                                      <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
+                                        {getAllBooks(allEvents)
+                                          .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
+                                          .map((book) => {
+                                            const isSelected = selectedBooks.includes(book);
+                                            const color = isSelected ? colorPalette[selectedBooks.indexOf(book) % colorPalette.length] : '#2563eb';
+                                            return (
+                                              <button
+                                                key={book}
+                                                className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                                style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                                onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
+                                              >
+                                                {book}
+                                              </button>
+                                            );
+                                          })}
+                                    </div>
+                                    </>
+                                  )}
+                                </div>
+                                {/* Move Clear button to bottom and clear all filters */}
+                                <button
+                                    className="mt-8 px-6 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition w-full"
+                                    onClick={() => {
+                                        setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' });
+                                        setSearchTerm('');
+                                        setSelectedTags([]);
+                                        setSelectedBooks([]);
+                                        setSelectedRegions([]);
+                                        setSelectedCountries([]);
+                                        setTagSearchTerm('');
+                                        setBookSearchTerm('');
+                                        setRegionSearchTerm('');
+                                        setCountrySearchTerm('');
+                                        setTagOverlapOnly(false);
+                                    }}
+                                    type="button"
+                                >
+                                    Clear All Filters
+                                </button>
                             </div>
-                            {/* Move Clear button to bottom and clear all filters */}
-                            <button
-                                className="mt-8 px-6 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition w-full"
-                                onClick={() => {
-                                    setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' });
-                                    setSearchTerm('');
-                                    setSelectedTags([]);
-                                    setSelectedBooks([]);
-                                    setSelectedRegions([]);
-                                    setSelectedCountries([]);
-                                    setTagSearchTerm('');
-                                    setBookSearchTerm('');
-                                    setRegionSearchTerm('');
-                                    setCountrySearchTerm('');
-                                    setTagOverlapOnly(false);
-                                }}
-                                type="button"
-                            >
-                                Clear All Filters
-                            </button>
                         </div>
                     </div>
                 )}
@@ -1708,7 +1730,9 @@ const Timeline = (props) => {
                                                 </button>
                                             </div>
                                             <div className="flex gap-2 mt-2 justify-center w-full max-w-md mx-auto">
-                                                <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-1/2">Save</button>
+                                                <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-1/2" disabled={submitting}>
+                                                  {submitting ? (<><Spinner />Saving...</>) : "Save"}
+                                                </button>
                                                 <button type="button" className="bg-gray-400 text-white px-4 py-2 rounded-xl font-bold w-1/2" onClick={() => setEditMode(false)}>Cancel</button>
                                             </div>
                                         </form>

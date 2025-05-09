@@ -26,34 +26,32 @@ function App() {
     const [regionSearchTerm, setRegionSearchTerm] = useState("");
     const [tagOverlapOnly, setTagOverlapOnly] = useState(false);
 
+    // Fetch events function for use in Timeline
+    const fetchEvents = async () => {
+        setEventsLoading(true);
+        setEventsError(null);
+        try {
+            const apiUrl = process.env.REACT_APP_API_URL;
+            const response = await fetch(`${apiUrl}/events`);
+            if (!response.ok) throw new Error("Failed to fetch events");
+            const data = await response.json();
+            setEvents(data);
+            setEventsLoading(false);
+        } catch (err) {
+            setEvents([]);
+            setEventsError(err.message);
+            setEventsLoading(true);
+        }
+    };
+
     // Fetch events once
     useEffect(() => {
-        let isMounted = true;
         let retryTimeout;
-        const fetchEvents = async () => {
-            setEventsLoading(true);
-            setEventsError(null);
-            try {
-                const apiUrl = process.env.REACT_APP_API_URL;
-                const response = await fetch(`${apiUrl}/events`);
-                if (!response.ok) throw new Error("Failed to fetch events");
-                const data = await response.json();
-                if (isMounted) {
-                    setEvents(data);
-                    setEventsLoading(false);
-                }
-            } catch (err) {
-                if (isMounted) {
-                    setEvents([]);
-                    setEventsError(err.message);
-                    setEventsLoading(true);
-                    retryTimeout = setTimeout(fetchEvents, 5000);
-                }
-            }
+        const initialFetch = async () => {
+            await fetchEvents();
         };
-        fetchEvents();
+        initialFetch();
         return () => {
-            isMounted = false;
             if (retryTimeout) clearTimeout(retryTimeout);
         };
     }, []);
@@ -200,6 +198,7 @@ function App() {
                         setRegionSearchTerm={setRegionSearchTerm}
                         tagOverlapOnly={tagOverlapOnly}
                         setTagOverlapOnly={setTagOverlapOnly}
+                        onEventsUpdated={fetchEvents}
                     />
                 )}
             </div>
