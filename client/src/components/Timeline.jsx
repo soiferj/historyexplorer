@@ -117,7 +117,8 @@ const Timeline = (props) => {
                 return true;
             });
         }
-        return filtered;
+        // Always sort filtered events
+        return sortEvents(filtered);
     })();
 
     // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically (case-insensitive)
@@ -886,9 +887,11 @@ const Timeline = (props) => {
     const [regenDescriptionLoading, setRegenDescriptionLoading] = useState(false);
     const [regenTagsLoading, setRegenTagsLoading] = useState(false);
     const [regenRegionsLoading, setRegenRegionsLoading] = useState(false);
+    const [regenCountriesLoading, setRegenCountriesLoading] = useState(false);
     const [showAdminToolsModal, setShowAdminToolsModal] = useState(false);
     const [backfillRegionsLoading, setBackfillRegionsLoading] = useState(false);
     const [backfillRegionsResult, setBackfillRegionsResult] = useState("");
+    const [showBackfillRegionsModal, setShowBackfillRegionsModal] = useState(false);
 
     // Helper to convert year/era to comparable number
     function yearEraToComparable(year, era) {
@@ -1047,38 +1050,65 @@ const Timeline = (props) => {
                             )}
                             <hr className="my-6 border-blue-400/40" />
                             <h3 className="text-lg font-semibold text-blue-300 mb-2">Regions Backfill</h3>
-                            <button
+                            <div className="w-full flex flex-col items-center">
+                              <button
                                 className="px-4 py-2 rounded bg-blue-700 text-white font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-50"
                                 disabled={backfillRegionsLoading}
-                                onClick={async () => {
-                                    setBackfillRegionsLoading(true);
-                                    setBackfillRegionsResult("");
-                                    try {
-                                        const response = await fetch(`${apiUrl}/events/backfill-regions`, {
+                                onClick={() => setShowBackfillRegionsModal(true)}
+                              >
+                                {backfillRegionsLoading ? "Generating..." : "Regenerate All Regions and Countries"}
+                              </button>
+                              {backfillRegionsResult && (
+                                <div className="mt-2 text-blue-200 text-sm">{backfillRegionsResult}</div>
+                              )}
+                            </div>
+                            {/* Modal for confirmation */}
+                            {showBackfillRegionsModal && (
+                              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+                                <div className="bg-gray-900 p-6 rounded-xl shadow-xl max-w-md w-full border border-blue-400">
+                                  <h2 className="text-lg font-bold text-red-400 mb-2">Warning</h2>
+                                  <p className="text-blue-100 mb-4">This will <span className="font-bold text-red-300">overwrite all existing regions and countries</span> for every event in the database. This action cannot be undone. Are you sure you want to continue?</p>
+                                  <div className="flex gap-4 justify-end">
+                                    <button
+                                      className="px-4 py-2 rounded bg-gray-700 text-white font-semibold border border-gray-500 hover:bg-gray-600"
+                                      onClick={() => setShowBackfillRegionsModal(false)}
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      className="px-4 py-2 rounded bg-red-700 text-white font-bold border border-red-400 hover:bg-red-800 disabled:opacity-60"
+                                      disabled={backfillRegionsLoading}
+                                      onClick={async () => {
+                                        setBackfillRegionsLoading(true);
+                                        setBackfillRegionsResult("");
+                                        try {
+                                          const response = await fetch(`${apiUrl}/events/backfill-regions`, {
                                             method: "POST",
                                             headers: {
-                                                ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                              ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                                             }
-                                        });
-                                        const data = await response.json();
-                                        if (response.ok) {
+                                          });
+                                          const data = await response.json();
+                                          if (response.ok) {
                                             setBackfillRegionsResult(`Regions generated for ${data.updated} events.`);
+                                            setShowBackfillRegionsModal(false);
                                             setShowDeleteConfirm(false);
                                             setShowAdminToolsModal(false);
-                                        } else {
+                                          } else {
                                             setBackfillRegionsResult(data.error || "Failed to backfill regions.");
+                                          }
+                                        } catch (err) {
+                                          setBackfillRegionsResult("Failed to backfill regions.");
+                                        } finally {
+                                          setBackfillRegionsLoading(false);
                                         }
-                                    } catch (err) {
-                                        setBackfillRegionsResult("Failed to backfill regions.");
-                                    } finally {
-                                        setBackfillRegionsLoading(false);
-                                    }
-                                }}
-                            >
-                                {backfillRegionsLoading ? "Generating..." : "Regenerate All Regions and Countries"}
-                            </button>
-                            {backfillRegionsResult && (
-                                <div className="mt-2 text-blue-200 text-sm">{backfillRegionsResult}</div>
+                                      }}
+                                    >
+                                      {backfillRegionsLoading ? "Generating..." : "Yes, Overwrite All"}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
                             )}
                         </div>
                     </div>
@@ -1310,47 +1340,6 @@ const Timeline = (props) => {
                                 </>
                               )}
                             </div>
-                            {/* Filter by Book */}
-                            <div className="mb-4 w-full flex flex-col items-center">
-                              <div className="w-full flex justify-between items-center">
-                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowBookFilter(v => !v)}>
-                                  <span>Filter by Book{!showBookFilter && selectedBooks.length > 0 ? ` (${selectedBooks.length} selected)` : ''}</span>
-                                  <span>{showBookFilter ? '▲' : '▼'}</span>
-                                </button>
-                                {selectedBooks.length > 0 && (
-                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedBooks([])}>Clear</button>
-                                )}
-                              </div>
-                              {showBookFilter && (
-                                <>
-                                  <input
-                                    type="text"
-                                    placeholder="Search books..."
-                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                                    value={bookSearchTerm}
-                                    onChange={e => setBookSearchTerm(e.target.value)}
-                                  />
-                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                                    {getAllBooks(allEvents)
-                                      .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
-                                      .map((book) => {
-                                        const isSelected = selectedBooks.includes(book);
-                                        const color = isSelected ? colorPalette[selectedBooks.indexOf(book) % colorPalette.length] : '#2563eb';
-                                        return (
-                                          <button
-                                            key={book}
-                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                            onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
-                                          >
-                                            {book}
-                                          </button>
-                                        );
-                                      })}
-                                  </div>
-                                </>
-                              )}
-                            </div>
                             {/* Filter by Region */}
                             <div className="mb-4 w-full flex flex-col items-center">
                               <div className="w-full flex justify-between items-center">
@@ -1426,6 +1415,47 @@ const Timeline = (props) => {
                                             onClick={() => setSelectedCountries(countries => countries.includes(country) ? countries.filter(c => c !== country) : [...countries, country])}
                                           >
                                             {country}
+                                          </button>
+                                        );
+                                      })}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            {/* Filter by Book */}
+                            <div className="mb-4 w-full flex flex-col items-center">
+                              <div className="w-full flex justify-between items-center">
+                                <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowBookFilter(v => !v)}>
+                                  <span>Filter by Book{!showBookFilter && selectedBooks.length > 0 ? ` (${selectedBooks.length} selected)` : ''}</span>
+                                  <span>{showBookFilter ? '▲' : '▼'}</span>
+                                </button>
+                                {selectedBooks.length > 0 && (
+                                  <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedBooks([])}>Clear</button>
+                                )}
+                              </div>
+                              {showBookFilter && (
+                                <>
+                                  <input
+                                    type="text"
+                                    placeholder="Search books..."
+                                    className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
+                                    value={bookSearchTerm}
+                                    onChange={e => setBookSearchTerm(e.target.value)}
+                                  />
+                                  <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
+                                    {getAllBooks(allEvents)
+                                      .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
+                                      .map((book) => {
+                                        const isSelected = selectedBooks.includes(book);
+                                        const color = isSelected ? colorPalette[selectedBooks.indexOf(book) % colorPalette.length] : '#2563eb';
+                                        return (
+                                          <button
+                                            key={book}
+                                            className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
+                                            style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
+                                            onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
+                                          >
+                                            {book}
                                           </button>
                                         );
                                       })}
@@ -1643,10 +1673,10 @@ const Timeline = (props) => {
                                                 <button
                                                     type="button"
                                                     className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
-                                                    disabled={regenRegionsLoading}
+                                                    disabled={regenCountriesLoading}
                                                     onClick={async () => {
                                                         setEditError("");
-                                                        setRegenRegionsLoading(true);
+                                                        setRegenCountriesLoading(true);
                                                         try {
                                                             const response = await fetch(`${apiUrl}/events/enrich-tags`, {
                                                                 method: "POST",
@@ -1670,11 +1700,11 @@ const Timeline = (props) => {
                                                         } catch (err) {
                                                             setEditError("Failed to regenerate countries");
                                                         } finally {
-                                                            setRegenRegionsLoading(false);
+                                                            setRegenCountriesLoading(false);
                                                         }
                                                     }}
                                                 >
-                                                    {regenRegionsLoading ? "Regenerating..." : "Regenerate Countries"}
+                                                    {regenCountriesLoading ? "Regenerating..." : "Regenerate Countries"}
                                                 </button>
                                             </div>
                                             <div className="flex gap-2 mt-2 justify-center w-full max-w-md mx-auto">

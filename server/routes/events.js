@@ -159,16 +159,13 @@ router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
         if (error) return res.status(500).json({ error: error.message });
         let updated = 0;
         for (const event of events) {
-            // Only backfill if either regions or countries are missing or empty
-            if ((Array.isArray(event.regions) && event.regions.length > 0) && (Array.isArray(event.countries) && event.countries.length > 0)) continue;
+            // Always regenerate and overwrite regions and countries
             const enrichment = await enrichEventWithLLM({ title: event.title, date: event.date });
             const updateObj = {};
-            if (enrichment.regions && enrichment.regions.length > 0) updateObj.regions = enrichment.regions;
-            if (enrichment.countries && enrichment.countries.length > 0) updateObj.countries = enrichment.countries;
-            if (Object.keys(updateObj).length > 0) {
-                await supabase.from("events").update(updateObj).eq("id", event.id);
-                updated++;
-            }
+            updateObj.regions = enrichment.regions || [];
+            updateObj.countries = enrichment.countries || [];
+            await supabase.from("events").update(updateObj).eq("id", event.id);
+            updated++;
         }
         res.json({ success: true, updated });
     } catch (e) {
