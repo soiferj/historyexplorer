@@ -1,5 +1,5 @@
 import React from "react";
-import { MapContainer, TileLayer, CircleMarker, Tooltip, Polyline, Marker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Tooltip, Marker } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 // Use the same color palette as Timeline
@@ -229,12 +229,13 @@ const countryCoords = {
 
 const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedCountries, loading, error, onBackToTimeline }) => {
   // Toggle state: 'region' or 'country'
-  const [viewMode, setViewMode] = React.useState('region');
+  const [viewMode, setViewMode] = React.useState('country');
   // Animation state
   const [animating, setAnimating] = React.useState(false);
   const [currentLineIdx, setCurrentLineIdx] = React.useState(-1);
   const [linesToDraw, setLinesToDraw] = React.useState([]);
   const [paused, setPaused] = React.useState(false);
+  const [speed, setSpeed] = React.useState(900); // Animation speed in ms per frame
   const timerRef = React.useRef(null);
 
   // Group events by region
@@ -295,33 +296,55 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     // Use sorted events for animation order
     const sortedEvents = sortEvents(events);
     sortedEvents.forEach(ev => {
+      const year = ev.date ? new Date(ev.date).getFullYear() : undefined;
+      const dateType = ev.date_type || '';
       if (viewMode === 'region' && ev.regions && ev.regions.length > 1) {
-        let points = [];
+        // Animate label for each region in the event
         ev.regions.forEach(region => {
           const coords = regionCoords[region.toLowerCase()];
-          if (coords) points.push(coords);
+          if (!coords) {
+            console.warn(`Region not found in regionCoords: '${region}' (event: ${ev.title})`);
+          }
+          if (coords) {
+            lines.push({ points: [], color: regionColor[region] || '#f472b6', eventTitle: ev.title, destCoords: coords, year, dateType });
+          }
         });
-        if (points.length > 1) {
-          lines.push({ points, color: regionColor[ev.regions?.[0]] || '#f472b6', eventTitle: ev.title, destCoords: points[points.length - 1] });
-        }
       } else if (viewMode === 'country' && ev.countries && ev.countries.length > 1) {
         // Draw a line for every unique pair of countries
         for (let i = 0; i < ev.countries.length; i++) {
-          const base = ev.countries[i];
-          const baseCoords = countryCoords[base.toLowerCase()];
+          const base = ev.countries[i].trim().toLowerCase();
+          const baseCoords = countryCoords[base];
+          if (!baseCoords) {
+            console.warn(`Country not found in countryCoords: '${ev.countries[i]}' (event: ${ev.title})`);
+          }
           for (let j = i + 1; j < ev.countries.length; j++) {
-            const other = ev.countries[j];
-            const otherCoords = countryCoords[other.toLowerCase()];
+            const other = ev.countries[j].trim().toLowerCase();
+            const otherCoords = countryCoords[other];
+            if (!otherCoords) {
+              console.warn(`Country not found in countryCoords: '${ev.countries[j]}' (event: ${ev.title})`);
+            }
             if (baseCoords && otherCoords) {
-              lines.push({ points: [baseCoords, otherCoords], color: countryColor[base] || '#f472b6', eventTitle: ev.title, destCoords: otherCoords });
+              lines.push({ points: [baseCoords, otherCoords], color: countryColor[ev.countries[i]] || '#f472b6', eventTitle: ev.title, destCoords: otherCoords, year, dateType });
             }
           }
         }
       } else if (viewMode === 'country' && ev.countries && ev.countries.length === 1) {
         // Animate label for single-country event
         const coords = countryCoords[ev.countries[0].toLowerCase()];
+        if (!coords) {
+          console.warn(`Country not found in countryCoords: '${ev.countries[0]}' (event: ${ev.title})`);
+        }
         if (coords) {
-          lines.push({ points: [], color: countryColor[ev.countries[0]] || '#f472b6', eventTitle: ev.title, destCoords: coords });
+          lines.push({ points: [], color: countryColor[ev.countries[0]] || '#f472b6', eventTitle: ev.title, destCoords: coords, year, dateType });
+        }
+      } else if (viewMode === 'region' && ev.regions && ev.regions.length === 1) {
+        // Animate label for single-region event
+        const coords = regionCoords[ev.regions[0].toLowerCase()];
+        if (!coords) {
+          console.warn(`Region not found in regionCoords: '${ev.regions[0]}' (event: ${ev.title})`);
+        }
+        if (coords) {
+          lines.push({ points: [], color: regionColor[ev.regions[0]] || '#f472b6', eventTitle: ev.title, destCoords: coords, year, dateType });
         }
       }
     });
@@ -329,7 +352,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     setCurrentLineIdx(-1);
     setPaused(false);
     if (timerRef.current) clearTimeout(timerRef.current);
-  }, [events, viewMode]);
+  }, [events, viewMode, countryColor, regionColor]);
 
   // Animation effect: step through linesToDraw
   React.useEffect(() => {
@@ -347,9 +370,9 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         return nextIdx;
       });
     };
-    timerRef.current = setTimeout(step, 900);
+    timerRef.current = setTimeout(step, speed);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [animating, paused, currentLineIdx, linesToDraw]);
+  }, [animating, paused, currentLineIdx, linesToDraw, speed]);
 
   // Stop animation
   const handleStop = () => {
@@ -432,9 +455,9 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         </button>
         <button
           className="px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-green-400 text-white bg-gray-700 hover:bg-green-700"
-          onClick={() => setViewMode(viewMode === 'region' ? 'country' : 'region')}
+          onClick={() => setViewMode(viewMode === 'country' ? 'region' : 'country')}
         >
-          {viewMode === 'region' ? 'Show by Country' : 'Show by Region'}
+          {viewMode === 'country' ? 'Show by Region' : 'Show by Country'}
         </button>
       </div>
       {/* Animation controls row */}
@@ -491,6 +514,21 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
             &#8594;
           </button>
         </div>
+        {/* Speed control - moved to the right of playback controls */}
+        <div className="flex items-center ml-4">
+          <label className="text-white text-xs mr-1" htmlFor="speed-slider">Speed</label>
+          <input
+            id="speed-slider"
+            type="range"
+            min="200"
+            max="2000"
+            step="100"
+            value={speed}
+            onChange={e => setSpeed(Number(e.target.value))}
+            style={{ width: 90 }}
+          />
+          <span className="text-blue-200 text-xs ml-2">{(speed / 1000).toFixed(1)}s</span>
+        </div>
       </div>
       {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
       {error && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10 text-red-300">{error}</div>}
@@ -543,43 +581,41 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         })}
         {/* Animated lines */}
         {linesToDraw.slice(0, currentLineIdx + 1).map((line, idx) => (
-          <React.Fragment key={idx}>
-            <Polyline positions={line.points} color={line.color} weight={5} opacity={0.7} />
-            {idx === currentLineIdx && line.destCoords && line.eventTitle && (
-              <Marker
-                position={line.destCoords}
-                icon={L.divIcon({
-                  className: 'event-label-marker',
-                  html: '<div></div>', // invisible marker
-                  iconSize: [1, 1],
-                  iconAnchor: [0, 0],
-                })}
-                interactive={false}
-                zIndexOffset={1000}
+          idx === currentLineIdx && line.destCoords && line.eventTitle && (
+            <Marker
+              key={idx}
+              position={line.destCoords}
+              icon={L.divIcon({
+                className: 'event-label-marker',
+                html: '<div></div>', // invisible marker
+                iconSize: [1, 1],
+                iconAnchor: [0, 0],
+              })}
+              interactive={false}
+              zIndexOffset={1000}
+            >
+              <Tooltip
+                direction="top"
+                offset={[0, -18]}
+                permanent
+                className="event-label-tooltip"
+                opacity={1}
               >
-                <Tooltip
-                  direction="top"
-                  offset={[0, -18]}
-                  permanent
-                  className="event-label-tooltip"
-                  opacity={1}
-                >
-                  <span style={{
-                    color: '#fff',
-                    background: 'rgba(24,24,32,0.85)',
-                    borderRadius: 8,
-                    padding: '2px 10px',
-                    fontWeight: 700,
-                    fontSize: 16,
-                    boxShadow: '0 2px 8px #0008',
-                    border: '1px solid #f472b6',
-                    textShadow: '0 1px 4px #000a',
-                    whiteSpace: 'nowrap',
-                  }}>{line.eventTitle}</span>
-                </Tooltip>
-              </Marker>
-            )}
-          </React.Fragment>
+                <span style={{
+                  color: '#fff',
+                  background: 'rgba(24,24,32,0.85)',
+                  borderRadius: 8,
+                  padding: '2px 10px',
+                  fontWeight: 700,
+                  fontSize: 16,
+                  boxShadow: '0 2px 8px #0008',
+                  border: '1px solid #f472b6',
+                  textShadow: '0 1px 4px #000a',
+                  whiteSpace: 'nowrap',
+                }}>{line.eventTitle} {line.year ? `(${line.year} ${line.dateType || ''})` : ''}</span>
+              </Tooltip>
+            </Marker>
+          )
         ))}
       </MapContainer>
     </div>
