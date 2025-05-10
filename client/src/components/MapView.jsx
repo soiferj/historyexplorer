@@ -562,8 +562,8 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
       <MapContainer center={[20, 0]} zoom={2} style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1 }} scrollWheelZoom={true}>
         <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://carto.com/attributions">CARTO</a> | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
         />
         {viewMode === 'region' && regionList.map((region, idx) => {
           const coords = regionCoords[region.toLowerCase()];
