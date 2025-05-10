@@ -1,5 +1,5 @@
 import React from "react";
-import { MapContainer, TileLayer, CircleMarker, Tooltip, Marker } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Tooltip, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 // Use the same color palette as Timeline
@@ -430,6 +430,23 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     setModalOpen(true);
   };
 
+  // Helper component to animate map view on event change
+  function MapAnimator({ currentLine, animating }) {
+    const map = useMap();
+    React.useEffect(() => {
+      if (!currentLine || !animating) return;
+      if (!currentLine.dests || currentLine.dests.length === 0) return;
+      const coordsList = currentLine.dests.map(dest => dest.coords).filter(Boolean);
+      if (coordsList.length === 1) {
+        map.setView(coordsList[0], 4, { animate: true }); // Zoom in on single country/region
+      } else if (coordsList.length > 1) {
+        const bounds = L.latLngBounds(coordsList);
+        map.fitBounds(bounds, { padding: [60, 60], animate: true, maxZoom: 5 });
+      }
+    }, [currentLine, animating, map]);
+    return null;
+  }
+
   return (
     <div className="w-full h-[500px] relative">
       {/* Modal for timeline of events in selected region/country */}
@@ -543,6 +560,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
       {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
       {error && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10 text-red-300">{error}</div>}
       <MapContainer center={[20, 0]} zoom={2} style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1 }} scrollWheelZoom={true}>
+        <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
