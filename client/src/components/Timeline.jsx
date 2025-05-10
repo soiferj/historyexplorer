@@ -315,12 +315,12 @@ const Timeline = (props) => {
                 .style("cursor", "pointer")
                 .on("click", (event, d) => {
                     setZoomLevel(1);
-                    // Scroll to the first century of this millennium after zoom in
                     setTimeout(() => {
                         if (!timelineContainerRef.current) return;
-                        // Find the index of the first event of this millennium in filteredEvents
+                        // Use d.events[0] to scroll to the first event in this millennium
                         const firstEvent = d.events[0];
-                        const idx = filteredEvents.findIndex(ev => ev === firstEvent);
+                        // Use validEvents instead of filteredEvents for findIndex
+                        const idx = validEvents.findIndex(ev => ev === firstEvent);
                         if (idx >= 0) {
                             const itemHeight = isMobile ? 80 : 100;
                             timelineContainerRef.current.scrollTo({
@@ -345,7 +345,7 @@ const Timeline = (props) => {
                     setTimeout(() => {
                         if (!timelineContainerRef.current) return;
                         const firstEvent = d.events[0];
-                        const idx = filteredEvents.findIndex(ev => ev === firstEvent);
+                        const idx = validEvents.findIndex(ev => ev === firstEvent);
                         if (idx >= 0) {
                             const itemHeight = isMobile ? 80 : 100;
                             timelineContainerRef.current.scrollTo({
@@ -409,7 +409,7 @@ const Timeline = (props) => {
                     setTimeout(() => {
                         if (!timelineContainerRef.current) return;
                         const firstEvent = d.events[0];
-                        const idx = filteredEvents.findIndex(ev => ev === firstEvent);
+                        const idx = validEvents.findIndex(ev => ev === firstEvent);
                         if (idx >= 0) {
                             const itemHeight = isMobile ? 80 : 100;
                             timelineContainerRef.current.scrollTo({
@@ -434,7 +434,7 @@ const Timeline = (props) => {
                     setTimeout(() => {
                         if (!timelineContainerRef.current) return;
                         const firstEvent = d.events[0];
-                        const idx = filteredEvents.findIndex(ev => ev === firstEvent);
+                        const idx = validEvents.findIndex(ev => ev === firstEvent);
                         if (idx >= 0) {
                             const itemHeight = isMobile ? 80 : 100;
                             timelineContainerRef.current.scrollTo({
@@ -963,6 +963,30 @@ const Timeline = (props) => {
     return (
         <>
             <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
+                {/* Zoom controls above the timeline */}
+                {(
+                  <div className="w-full flex justify-center mb-2 gap-2">
+                    <button
+                      className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 hover:bg-blue-700 transition-all duration-200 ${zoomLevel === 2 ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      onClick={() => setZoomLevel(z => Math.min(2, z + 1))}
+                      disabled={zoomLevel === 2}
+                      aria-label="Zoom Out"
+                    >
+                      Zoom -
+                    </button>
+                    <span className="px-2 py-1 text-blue-200 font-semibold select-none">
+                      {zoomLevel === 2 ? 'Millennium' : zoomLevel === 1 ? 'Century' : 'Event'}
+                    </span>
+                    <button
+                      className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 hover:bg-blue-700 transition-all duration-200 ${zoomLevel === 0 ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      onClick={() => setZoomLevel(z => Math.max(0, z - 1))}
+                      disabled={zoomLevel === 0}
+                      aria-label="Zoom In"
+                    >
+                      Zoom +
+                    </button>
+                  </div>
+                )}
                 {/* World Map button at the top of timeline controls */}
                 {!hideControls && (
                   <div className="w-full flex justify-center mb-4 gap-4">
