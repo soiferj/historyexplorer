@@ -505,9 +505,9 @@ const Timeline = (props) => {
                 colorMap[`${f.type}:${key}`] = colorPalette[idx % colorPalette.length];
             });
 
-            // Multi-tag circle rendering
-            if (selectedTags.length > 1) {
-                // Remove any previous circles
+            // Multi-filter (multi-segment) circle rendering
+            // Build all matching filters for each event, in the same order as allFilters
+            if ((selectedTags.length + selectedBooks.length + selectedRegions.length + selectedCountries.length) > 1) {
                 svg.selectAll("g.event-multitag").remove();
                 svg.selectAll("g.event-multitag")
                     .data(renderData)
@@ -517,33 +517,30 @@ const Timeline = (props) => {
                     .attr("transform", (d, i) => `translate(${timelineX},${yScale(i)})`)
                     .each(function (d, i) {
                         const g = d3.select(this);
-                        // Sort matchingTags by selectedTags order for consistent color order
-                        let matchingTags = Array.isArray(d.tags)
-                            ? selectedTags
-                                .map(sel => d.tags.find(tag => sel.toLowerCase() === tag.toLowerCase()))
-                                .filter(Boolean)
-                            : [];
-                        if (matchingTags.length === 0) matchingTags = [null];
-                        // Deduplicate matchingTags by lowercased value, preserving first original-case
-                        const seen = new Set();
-                        matchingTags = matchingTags.filter(tag => {
-                            const lower = tag ? tag.toLowerCase() : '';
-                            if (seen.has(lower)) return false;
-                            seen.add(lower);
-                            return true;
+                        // Find all matching filters for this event, in allFilters order
+                        let matchingFilters = allFilters.filter(f => {
+                            if (f.type === 'Tag' && Array.isArray(d.tags)) return d.tags.some(tag => tag.toLowerCase() === f.value.toLowerCase());
+                            if (f.type === 'Book' && d.book_reference) return d.book_reference === f.value;
+                            if (f.type === 'Region' && Array.isArray(d.regions)) return d.regions.some(region => region.toLowerCase() === f.value.toLowerCase());
+                            if (f.type === 'Country' && Array.isArray(d.countries)) return d.countries.some(country => country.toLowerCase() === f.value.toLowerCase());
+                            return false;
                         });
+                        if (matchingFilters.length === 0) matchingFilters = [null];
                         const r = isMobile ? 10 : 14;
-                        const arc = d3.arc()
-                            .innerRadius(0)
-                            .outerRadius(r);
-                        const n = matchingTags.length;
-                        matchingTags.forEach((tag, idx) => {
+                        const arc = d3.arc().innerRadius(0).outerRadius(r);
+                        const n = matchingFilters.length;
+                        matchingFilters.forEach((filt, idx) => {
                             const startAngle = (2 * Math.PI * idx) / n;
                             const endAngle = (2 * Math.PI * (idx + 1)) / n;
-                            const lower = tag ? tag.toLowerCase() : '';
+                            let color = '#3B82F6';
+                            if (filt) {
+                                let key = filt.value;
+                                if (["Tag", "Region", "Country"].includes(filt.type)) key = key.toLowerCase();
+                                color = colorMap[`${filt.type}:${key}`] || color;
+                            }
                             g.append("path")
                                 .attr("d", arc({ startAngle, endAngle }))
-                                .attr("fill", tag ? colorMap['Tag:' + lower] || "#3B82F6" : "#3B82F6")
+                                .attr("fill", color)
                                 .attr("stroke", "#222")
                                 .attr("stroke-width", 1.5);
                         });
@@ -567,9 +564,8 @@ const Timeline = (props) => {
                             .on("click", (event) => setSelectedEvent(d));
                     });
             } else {
-                // Multi-filter (multi-segment) circle rendering
-                // Build all matching filters for each event, in the same order as allFilters
-                if ((selectedTags.length + selectedBooks.length + selectedRegions.length + selectedCountries.length) > 1) {
+                // Multi-tag circle rendering (only if multiple tags and no other filters)
+                if (selectedTags.length > 1) {
                     svg.selectAll("g.event-multitag").remove();
                     svg.selectAll("g.event-multitag")
                         .data(renderData)
@@ -579,30 +575,33 @@ const Timeline = (props) => {
                         .attr("transform", (d, i) => `translate(${timelineX},${yScale(i)})`)
                         .each(function (d, i) {
                             const g = d3.select(this);
-                            // Find all matching filters for this event, in allFilters order
-                            let matchingFilters = allFilters.filter(f => {
-                                if (f.type === 'Tag' && Array.isArray(d.tags)) return d.tags.some(tag => tag.toLowerCase() === f.value.toLowerCase());
-                                if (f.type === 'Book' && d.book_reference) return d.book_reference === f.value;
-                                if (f.type === 'Region' && Array.isArray(d.regions)) return d.regions.some(region => region.toLowerCase() === f.value.toLowerCase());
-                                if (f.type === 'Country' && Array.isArray(d.countries)) return d.countries.some(country => country.toLowerCase() === f.value.toLowerCase());
-                                return false;
+                            // Sort matchingTags by selectedTags order for consistent color order
+                            let matchingTags = Array.isArray(d.tags)
+                                ? selectedTags
+                                    .map(sel => d.tags.find(tag => sel.toLowerCase() === tag.toLowerCase()))
+                                    .filter(Boolean)
+                                : [];
+                            if (matchingTags.length === 0) matchingTags = [null];
+                            // Deduplicate matchingTags by lowercased value, preserving first original-case
+                            const seen = new Set();
+                            matchingTags = matchingTags.filter(tag => {
+                                const lower = tag ? tag.toLowerCase() : '';
+                                if (seen.has(lower)) return false;
+                                seen.add(lower);
+                                return true;
                             });
-                            if (matchingFilters.length === 0) matchingFilters = [null];
                             const r = isMobile ? 10 : 14;
-                            const arc = d3.arc().innerRadius(0).outerRadius(r);
-                            const n = matchingFilters.length;
-                            matchingFilters.forEach((filt, idx) => {
+                            const arc = d3.arc()
+                                .innerRadius(0)
+                                .outerRadius(r);
+                            const n = matchingTags.length;
+                            matchingTags.forEach((tag, idx) => {
                                 const startAngle = (2 * Math.PI * idx) / n;
                                 const endAngle = (2 * Math.PI * (idx + 1)) / n;
-                                let color = '#3B82F6';
-                                if (filt) {
-                                    let key = filt.value;
-                                    if (["Tag", "Region", "Country"].includes(filt.type)) key = key.toLowerCase();
-                                    color = colorMap[`${filt.type}:${key}`] || color;
-                                }
+                                const lower = tag ? tag.toLowerCase() : '';
                                 g.append("path")
                                     .attr("d", arc({ startAngle, endAngle }))
-                                    .attr("fill", color)
+                                    .attr("fill", tag ? colorMap['Tag:' + lower] || "#3B82F6" : "#3B82F6")
                                     .attr("stroke", "#222")
                                     .attr("stroke-width", 1.5);
                             });
@@ -1227,7 +1226,7 @@ const Timeline = (props) => {
                             }}
                         >
                             <button
-                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none transition-colors duration-200"
+                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
                                 onClick={() => { setSelectedEvent(null); setEditMode(false); }}
                                 aria-label="Close modal"
                             >
