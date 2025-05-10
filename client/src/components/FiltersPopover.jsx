@@ -294,6 +294,10 @@ function FiltersPopover({
                     setBookSearchTerm('');
                     setRegionSearchTerm('');
                     setTagOverlapOnly(false);
+                    setTagOpen(false);
+                    setBookOpen(false);
+                    setRegionOpen(false);
+                    setCountryOpen(false);
                 }}
                 type="button"
             >

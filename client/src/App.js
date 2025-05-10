@@ -247,6 +247,9 @@ function App() {
                     </svg>
                     Filters
                 </button>
+                <span className="ml-2 px-3 py-1 rounded-full bg-gray-800 text-gray-200 text-xs sm:text-sm font-semibold border border-gray-500/60 shadow-sm min-w-[2.5rem] text-center inline-flex items-center" title="Number of events shown">
+                    {filteredEvents.length} events
+                </span>
             </div>
             {/* Timeline/Map toggle and region filter below controls */}
             <div className="w-full flex justify-center mb-4 gap-4">
