@@ -735,7 +735,14 @@ const Timeline = (props) => {
                             .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
                             .attr("text-anchor", "start")
                             .attr("dominant-baseline", "middle")
-                            .text(truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
+                            // Split label: year/date_type (less prominent), title (more prominent)
+                            .html(function(d) {
+                                const year = new Date(d.date).getFullYear();
+                                const dateType = d.date_type;
+                                const title = d.title;
+                                // Use tspan for styling
+                                return `<tspan class='event-year' style='font-size:13px; fill:#ccc;'>${year} ${dateType} – </tspan><tspan class='event-title' style='font-size:18px; font-weight:bold; fill:white;'>${truncateText(title, maxTextWidth)}</tspan>`;
+                            });
                     }
                 });
     }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, selectedRegions, setZoomLevel, timelineSize]); // added setZoomLevel to deps
@@ -1463,7 +1470,7 @@ const Timeline = (props) => {
                                       <span>{showBookFilter ? '▲' : '▼'}</span>
                                     </button>
                                     {selectedBooks.length > 0 && (
-                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedBooks([])}>Clear</button>
+                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 textwhite text-xs border border-blue-400" onClick={() => setSelectedBooks([])}>Clear</button>
                                     )}
                                   </div>
                                   {showBookFilter && (
