@@ -291,6 +291,16 @@ const Timeline = (props) => {
     }
 
     // D3 rendering effect, depends on filteredEvents
+    const [timelineSize, setTimelineSize] = useState({ width: window.innerWidth, height: window.innerHeight });
+
+    useEffect(() => {
+        function handleResize() {
+            setTimelineSize({ width: window.innerWidth, height: window.innerHeight });
+        }
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     useEffect(() => {
         if (!renderData || renderData.length === 0) {
             d3.select(svgRef.current).selectAll("*").remove();
@@ -307,9 +317,8 @@ const Timeline = (props) => {
 
         const svg = d3.select(svgRef.current);
         svg.selectAll("*").remove(); // Clear previous render
-        svg.attr("width", "100%")
-            .attr("height", svgHeight)
-            .attr("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
+        svg.attr("width", svgWidth)
+           .attr("height", svgHeight);
 
         if (renderData.length === 0) return;
 
@@ -726,7 +735,7 @@ const Timeline = (props) => {
                             .text(truncateText(`${new Date(d.date).getFullYear()} ${d.date_type} – ${d.title}`, maxTextWidth));
                     }
                 });
-    }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, selectedRegions, setZoomLevel]); // added setZoomLevel to deps
+    }}, [renderData, zoomLevel, filteredEvents, selectedTags, selectedBooks, selectedRegions, setZoomLevel, timelineSize]); // added setZoomLevel to deps
 
     // Helper to pad year to 4 digits
     function padYear(year) {
@@ -1465,7 +1474,7 @@ const Timeline = (props) => {
                                       />
                                       <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                                         {getAllBooks(allEvents)
-                                          .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
+                                          .filter(book => book.toLowerCase(bookSearchTerm.toLowerCase()))
                                           .map((book) => {
                                             const isSelected = selectedBooks.includes(book);
                                             const color = isSelected ? colorPalette[selectedBooks.indexOf(book) % colorPalette.length] : '#2563eb';
