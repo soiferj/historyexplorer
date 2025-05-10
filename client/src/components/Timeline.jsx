@@ -11,14 +11,16 @@ const Timeline = (props) => {
     const {
         user, accessToken, events, allEvents, eventsLoading, eventsError,
         showMap, setShowMap, regionFilter, clearRegionFilter,
-        searchTerm, setSearchTerm, dateFilter, setDateFilter, zoomLevel, setZoomLevel,
+        selectedEvent, setSelectedEvent,
+        editMode, setEditMode, editForm, setEditForm, editError, setEditError,
+        filteredEvents, setFilteredEvents, zoomLevel, setZoomLevel,
         selectedTags, setSelectedTags, selectedBooks, setSelectedBooks,
         selectedRegions, setSelectedRegions, tagSearchTerm, setTagSearchTerm, bookSearchTerm, setBookSearchTerm,
-        regionSearchTerm, setRegionSearchTerm, tagOverlapOnly, setTagOverlapOnly, selectedCountries, setSelectedCountries
+        regionSearchTerm, setRegionSearchTerm, tagOverlapOnly, setTagOverlapOnly, selectedCountries, setSelectedCountries,
+        hideControls // <-- add this prop
     } = props;
 
     const svgRef = useRef();
-    const [selectedEvent, setSelectedEvent] = useState(null);
     // New state for form fields and loading
     const [form, setForm] = useState({
         title: "",
@@ -32,11 +34,10 @@ const Timeline = (props) => {
     });
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
-    const [showForm, setShowForm] = useState(false);
     // Edit mode states
-    const [editMode, setEditMode] = useState(false);
-    const [editForm, setEditForm] = useState({ title: '', description: '', book_reference: '', year: '', tags: '', date_type: 'CE', regions: '', countries: '' });
-    const [editError, setEditError] = useState("");
+    const [localEditMode, setLocalEditMode] = useState(false);
+    const [localEditForm, setLocalEditForm] = useState({ title: '', description: '', book_reference: '', year: '', tags: '', date_type: 'CE', regions: '', countries: '' });
+    const [localEditError, setLocalEditError] = useState("");
 
     const apiUrl = process.env.REACT_APP_API_URL;
 
@@ -93,38 +94,7 @@ const Timeline = (props) => {
     }
 
     // Calculate filtered events (all matching events)
-    const filteredEvents = (() => {
-        if (!events || events.length === 0) return [];
-        let filtered = events.filter(event =>
-            event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            event.book_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase() === searchTerm.toLowerCase())) ||
-            (Array.isArray(event.regions) && event.regions.some(region => region.toLowerCase().includes(searchTerm.toLowerCase()))) ||
-            (Array.isArray(event.countries) && event.countries.some(country => country.toLowerCase().includes(searchTerm.toLowerCase())))
-        );
-        // Apply region filter if set
-        if (regionFilter) {
-            filtered = filtered.filter(event => Array.isArray(event.regions) && event.regions.includes(regionFilter));
-        }
-        const startComparable = yearEraToComparable(dateFilter.startYear, dateFilter.startEra);
-        const endComparable = yearEraToComparable(dateFilter.endYear, dateFilter.endEra);
-        if (startComparable !== null || endComparable !== null) {
-            filtered = filtered.filter(event => {
-                const eventYear = event.date ? parseInt(event.date.split("-")[0], 10) : null;
-                const eventComparable = event.date_type === 'BCE' ? -eventYear : eventYear;
-                if (startComparable !== null && eventComparable < startComparable) return false;
-                if (endComparable !== null && eventComparable > endComparable) return false;
-                return true;
-            });
-        }
-        // Filter by selected countries
-        if (selectedCountries && selectedCountries.length > 0) {
-            filtered = filtered.filter(event => Array.isArray(event.countries) && event.countries.some(country => selectedCountries.includes(country)));
-        }
-        // Always sort filtered events
-        return sortEvents(filtered);
-    })();
+    // const filteredEvents = (() => { ... })(); // <-- REMOVE THIS BLOCK
 
     // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically (case-insensitive)
     function getAllTags(events) {
@@ -229,7 +199,6 @@ const Timeline = (props) => {
     }
 
     // Use grouped or flat data for rendering, and filter by selected tags/books if set
-    let renderData;
     // Helper: filter for tag overlap
     function filterTagOverlap(events, selectedTags) {
         // Only include events that have at least 2 of the selected tags (case-insensitive)
@@ -243,51 +212,40 @@ const Timeline = (props) => {
             return false;
         });
     }
+    // Always use the events prop for rendering
+    // Ensure events are sorted before any grouping or rendering
+    const validEvents = sortEvents(Array.isArray(events) ? events : []);
+    let renderData;
     if (zoomLevel === 2) {
-        // Millennium grouping
         if (regionFilter && selectedRegions.length > 0) {
-            renderData = groupEventsByMillennium(filteredEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region))));
+            renderData = groupEventsByMillennium(validEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region))));
         } else if (selectedTags.length > 0) {
-            let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
+            let tagFiltered = validEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
             if (tagOverlapOnly && selectedTags.length > 1) {
                 tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
             }
             renderData = groupEventsByMillennium(tagFiltered);
         } else if (selectedBooks.length > 0) {
-            renderData = groupEventsByMillennium(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
+            renderData = groupEventsByMillennium(validEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
-            renderData = groupEventsByMillennium(filteredEvents);
+            renderData = groupEventsByMillennium(validEvents);
         }
     } else if (zoomLevel === 1) {
-        // Century grouping
         if (regionFilter && selectedRegions.length > 0) {
-            renderData = groupEventsByCentury(filteredEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region))));
+            renderData = groupEventsByCentury(validEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region))));
         } else if (selectedTags.length > 0) {
-            let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
+            let tagFiltered = validEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
             if (tagOverlapOnly && selectedTags.length > 1) {
                 tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
             }
             renderData = groupEventsByCentury(tagFiltered);
         } else if (selectedBooks.length > 0) {
-            renderData = groupEventsByCentury(filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
+            renderData = groupEventsByCentury(validEvents.filter(ev => selectedBooks.includes(ev.book_reference)));
         } else {
-            renderData = groupEventsByCentury(filteredEvents);
+            renderData = groupEventsByCentury(validEvents);
         }
     } else {
-        // Per-event
-        if (regionFilter && selectedRegions.length > 0) {
-            renderData = filteredEvents.filter(ev => Array.isArray(ev.regions) && ev.regions.some(region => selectedRegions.includes(region)));
-        } else if (selectedTags.length > 0) {
-            let tagFiltered = filteredEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.some(tag => selectedTags.map(t => t.toLowerCase()).includes(tag.toLowerCase())));
-            if (tagOverlapOnly && selectedTags.length > 1) {
-                tagFiltered = filterTagOverlap(tagFiltered, selectedTags);
-            }
-            renderData = tagFiltered;
-        } else if (selectedBooks.length > 0) {
-            renderData = filteredEvents.filter(ev => selectedBooks.includes(ev.book_reference));
-        } else {
-            renderData = filteredEvents;
-        }
+        renderData = validEvents;
     }
 
     // D3 rendering effect, depends on filteredEvents
@@ -721,8 +679,7 @@ const Timeline = (props) => {
                                 .attr("y", 8 + idx * 15)
                                 .attr("fill", "white")
                                 .attr("font-size", fontSize)
-                                .attr("font-family", fontFamily)
-                                .attr("font-weight", "bold")
+                                .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
                                 .attr("text-anchor", "start")
                                 .attr("dominant-baseline", "middle")
                                 .text(line);
@@ -784,7 +741,6 @@ const Timeline = (props) => {
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to add event");
             setForm({ title: "", description: "", book_reference: "", year: "", tags: "", date_type: "CE", regions: "", countries: "" });
-            setShowForm(false); // Close the modal after successful creation
             // Refetch events
             const eventsRes = await fetch(`${apiUrl}/events`);
             const newEvents = await eventsRes.json();
@@ -817,7 +773,7 @@ const Timeline = (props) => {
 
     const startEditEvent = () => {
         if (!selectedEvent) return;
-        setEditForm({
+        setLocalEditForm({
             title: selectedEvent.title || '',
             description: selectedEvent.description || '',
             book_reference: selectedEvent.book_reference || '',
@@ -827,22 +783,22 @@ const Timeline = (props) => {
             regions: selectedEvent.regions ? selectedEvent.regions.join(", ") : '',
             countries: selectedEvent.countries ? selectedEvent.countries.join(", ") : '',
         });
-        setEditMode(true);
-        setEditError("");
+        if (typeof setEditMode === 'function') setEditMode(true);
+        setLocalEditError("");
     };
 
     const handleEditChange = (e) => {
         const { name, value } = e.target;
-        setEditForm(f => ({ ...f, [name]: value }));
+        setLocalEditForm(f => ({ ...f, [name]: value }));
     };
 
     const handleEditSubmit = async (e) => {
         e.preventDefault();
-        setEditError("");
+        setLocalEditError("");
         try {
-            const paddedYear = padYear(editForm.year);
-            const regionsArr = editForm.regions.split(",").map(r => r.trim()).filter(Boolean);
-            const countriesArr = editForm.countries.split(",").map(r => r.trim()).filter(Boolean);
+            const paddedYear = padYear(localEditForm.year);
+            const regionsArr = localEditForm.regions.split(",").map(r => r.trim()).filter(Boolean);
+            const countriesArr = localEditForm.countries.split(",").map(r => r.trim()).filter(Boolean);
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "PUT",
                 headers: {
@@ -850,20 +806,20 @@ const Timeline = (props) => {
                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                 },
                 body: JSON.stringify({
-                    ...editForm,
+                    ...localEditForm,
                     date: paddedYear ? `${paddedYear}-01-01` : undefined,
-                    tags: editForm.tags.split(",").map(t => t.trim()).filter(Boolean),
+                    tags: localEditForm.tags.split(",").map(t => t.trim()).filter(Boolean),
                     regions: regionsArr,
                     countries: countriesArr,
                 })
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to update event");
-            setEditMode(false);
+            setLocalEditMode(false);
             setSelectedEvent(null);
             if (props.onEventsUpdated) props.onEventsUpdated();
         } catch (err) {
-            setEditError(err.message);
+            setLocalEditError(err.message);
         }
     };
 
@@ -871,19 +827,23 @@ const Timeline = (props) => {
         if (!selectedEvent) return;
         if (!window.confirm("Are you sure you want to delete this event?")) return;
         try {
-            console.log('Deleting event:', selectedEvent.id);
-            const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
+            const response = await fetch(`${apiUrl}/events/${selectedEvent._id || selectedEvent.id}`, {
                 method: "DELETE",
                 headers: {
                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                 }
             });
-            console.log('Delete event response:', response);
             if (!response.ok) throw new Error("Failed to delete event");
             setSelectedEvent(null);
+            // Refetch events and update timeline
+            const eventsRes = await fetch(`${apiUrl}/events`);
+            const newEvents = await eventsRes.json();
+            const sortedEvents = sortEvents(newEvents);
+            if (props.onEventsUpdated) props.onEventsUpdated(sortedEvents);
+            // If you use setFilteredEvents, update it as well
+            if (setFilteredEvents) setFilteredEvents(sortedEvents);
         } catch (err) {
-            console.error('Error deleting event:', err);
-            alert(err.message);
+            alert("Error deleting event: " + (err.message || err));
         }
     };
 
@@ -893,15 +853,6 @@ const Timeline = (props) => {
     const [showFilters, setShowFilters] = useState(false);
     // Add a ref for the scrollable timeline container
     const timelineContainerRef = useRef();
-
-    useEffect(() => {
-        if (showForm) setError("");
-    }, [showForm]);
-
-    useEffect(() => {
-        // Reset edit mode when a new event is selected
-        setEditMode(false);
-    }, [selectedEvent]);
 
     // State for Delete Tags modal
     const [removalSelectedTags, setRemovalSelectedTags] = useState([]);
@@ -949,7 +900,8 @@ const Timeline = (props) => {
         <>
             <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
                 {/* World Map button at the top of timeline controls */}
-                <div className="w-full flex justify-center mb-4 gap-4">
+                {!hideControls && (
+                  <div className="w-full flex justify-center mb-4 gap-4">
                     <button
                         className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
                         onClick={() => setShowMap(true)}
@@ -970,7 +922,8 @@ const Timeline = (props) => {
                             Clear Region Filter
                         </button>
                     )}
-                </div>
+                  </div>
+                )}
                 {/* Loading overlay for events or allowed emails */}
                 {(eventsLoading || allowedEmailsLoading) && (
                     <div className="absolute inset-0 flex items-center justify-center z-50 bg-black bg-opacity-60">
@@ -1158,376 +1111,6 @@ const Timeline = (props) => {
                         </div>
                     </div>
                 )}
-                {/* Add Event and Filters Button (in a single row) */}
-                <div className="w-full flex flex-wrap justify-center z-10 mb-4 gap-3 flex-row items-center">
-                    {isAllowed && (
-                        <>
-                            <button
-                                className="px-2 py-1 text-sm sm:px-4 sm:py-2 sm:text-base rounded bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 font-bold text-white shadow transition-all duration-200 glow border border-white/20"
-                                onClick={() => setShowForm(true)}
-                            >
-                                Add New Event
-                            </button>
-                            <button
-                                className="px-2 py-1 text-sm sm:px-4 sm:py-2 sm:text-base rounded bg-gradient-to-r from-blue-700 to-pink-700 hover:from-blue-800 hover:to-pink-800 font-bold text-white shadow transition-all duration-200 border border-white/20 ml-2"
-                                onClick={() => {
-                                    setShowAdminToolsModal(true);
-                                    setRemovalSelectedTags([]);
-                                    setRemovalError("");
-                                }}
-                            >
-                                Admin Tools
-                            </button>
-                        </>
-                    )}
-                    <button
-                        className="flex items-center gap-1 px-2 py-1 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base rounded bg-gray-800/80 text-white border border-blue-400 hover:bg-blue-600 transition shadow-md"
-                        onClick={() => setShowFilters(true)}
-                        aria-label="Show filters"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h18m-16.5 6.75h15m-13.5 6.75h12" />
-                        </svg>
-                        Filters
-                    </button>
-                </div>
-                {/* Event count display */}
-                <div className="w-full flex justify-center mb-2">
-                    <span className="inline-block bg-gray-900/80 text-blue-200 rounded-full px-4 py-1 text-xs sm:text-sm font-semibold border border-blue-400 shadow">
-                        {zoomLevel === 0
-                            ? `${renderData.length} event${renderData.length !== 1 ? 's' : ''} shown`
-                            : `${renderData.length} group${renderData.length !== 1 ? 's' : ''} shown (${renderData.reduce((sum, g) => sum + (g.events ? g.events.length : 0), 0)} events)`
-                        }
-                    </span>
-                </div>
-
-                {/* Add Event Modal */}
-                {showForm && isAllowed && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
-                        {/* Modal overlay */}
-                        <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => setShowForm(false)} />
-                        {/* Modal content */}
-                        <div
-                            className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
-                            style={{
-                                maxHeight: '70vh',
-                                overflow: 'hidden',
-                                margin: '1rem',
-                                boxSizing: 'border-box',
-                            }}
-                        >
-                            <button
-                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
-                                onClick={() => setShowForm(false)}
-                                aria-label="Close modal"
-                            >
-                                &times;
-                            </button>
-                            {/* Error at the top */}
-                            {error && <div className="text-red-400 mb-4 text-center w-full max-w-md mx-auto font-semibold">{error}</div>}
-                            {/* Scrollable form wrapper */}
-                            <div style={{width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)'}}>
-                                <form onSubmit={handleFormSubmit} className="w-full flex flex-col gap-8 items-center">
-                                    <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Add New Event</h2>
-                                    {/* Only show Title, Year, Date Type, and Book fields in Add Event modal */}
-                                    <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                        <label className="font-semibold text-blue-200" htmlFor="title">Title</label>
-                                        <input id="title" name="title" value={form.title} onChange={handleFormChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
-                                    </div>
-                                    <div className="flex flex-row gap-4 w-full max-w-md mx-auto">
-                                        <div className="flex flex-col gap-2 text-left w-1/2">
-                                            <label className="font-semibold text-blue-200" htmlFor="year">Year</label>
-                                            <input id="year" name="year" value={form.year} onChange={handleFormChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" maxLength={4} />
-                                        </div>
-                                        <div className="flex flex-col gap-2 text-left w-1/2">
-                                            <label className="font-semibold text-blue-200" htmlFor="date_type">Date Type</label>
-                                            <select id="date_type" name="date_type" value={form.date_type} onChange={handleFormChange} className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner">
-                                                <option value="BCE">BCE</option>
-                                                <option value="CE">CE</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                        <label className="font-semibold text-blue-200" htmlFor="book_reference">Book</label>
-                                        <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
-                                    </div>
-                                    {/* Removed Tags, Regions, Countries, and Description fields from Add Event modal */}
-                                    <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto tracking-wide" disabled={submitting}>
-                                      {submitting ? (<><Spinner />Adding...</>) : "Add Event"}
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Filters Modal/Popover */}
-                {showFilters && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
-                        {/* Modal overlay */}
-                        <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => setShowFilters(false)} />
-                        {/* Modal content */}
-                        <div
-                            className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
-                            style={{
-                                maxHeight: '70vh',
-                                overflow: 'hidden',
-                                margin: '1rem',
-                                boxSizing: 'border-box',
-                            }}
-                        >
-                            <button
-                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
-                                onClick={() => setShowFilters(false)}
-                                aria-label="Close filters"
-                            >
-                                &times;
-                            </button>
-                            <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
-                                <h2 className="text-3xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Filters</h2>
-                                {/* Search Bar */}
-                                <input
-                                    type="text"
-                                    placeholder="Search anything..."
-                                    className="mb-4 p-3 w-64 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md"
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                                {/* Date Range Filter */}
-                                <div className="mb-4 w-full flex flex-col items-center">
-                                    <h3 className="text-lg font-semibold text-blue-200 mb-2">Date Filter</h3>
-                                    <div className="flex flex-wrap justify-center gap-4 z-10">
-                                        <div className="flex items-center gap-2">
-                                            <label className="text-blue-200 font-semibold">From</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="9999"
-                                                value={dateFilter.startYear}
-                                                onChange={e => setDateFilter(f => ({ ...f, startYear: e.target.value }))}
-                                                placeholder="Year"
-                                                className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
-                                            />
-                                            <select
-                                                value={dateFilter.startEra}
-                                                onChange={e => setDateFilter(f => ({ ...f, startEra: e.target.value }))}
-                                                className="p-2 rounded bg-gray-800 text-white border border-blue-400"
-                                            >
-                                                <option value="BCE">BCE</option>
-                                                <option value="CE">CE</option>
-                                            </select>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <label className="text-blue-200 font-semibold">To</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="9999"
-                                                value={dateFilter.endYear}
-                                                onChange={e => setDateFilter(f => ({ ...f, endYear: e.target.value }))}
-                                                placeholder="Year"
-                                                className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
-                                            />
-                                            <select
-                                                value={dateFilter.endEra}
-                                                onChange={e => setDateFilter(f => ({ ...f, endEra: e.target.value }))}
-                                                className="p-2 rounded bg-gray-800 text-white border border-blue-400"
-                                            >
-                                                <option value="BCE">BCE</option>
-                                                <option value="CE">CE</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                                {/* Filter by Tag */}
-                                <div className="mb-4 w-full flex flex-col items-center">
-                                  <div className="w-full flex justify-between items-center">
-                                    <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowTagFilter(v => !v)}>
-                                      <span>Filter by Tag{!showTagFilter && selectedTags.length > 0 ? ` (${selectedTags.length} selected)` : ''}</span>
-                                      <span>{showTagFilter ? '▲' : '▼'}</span>
-                                    </button>
-                                    {selectedTags.length > 0 && (
-                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedTags([])}>Clear</button>
-                                    )}
-                                  </div>
-                                  {showTagFilter && (
-                                    <>
-                                      <input
-                                        type="text"
-                                        placeholder="Search tags..."
-                                        className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                                        value={tagSearchTerm}
-                                        onChange={e => setTagSearchTerm(e.target.value)}
-                                      />
-                                      <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                                        {getAllTags(allEvents)
-                                          .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
-                                          .map((tag) => {
-                                            const isSelected = selectedTags.includes(tag);
-                                            const color = isSelected ? colorPalette[selectedTags.indexOf(tag) % colorPalette.length] : '#2563eb';
-                                            return (
-                                              <button
-                                                key={tag}
-                                                className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                                style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                                onClick={() => setSelectedTags(tags => tags.includes(tag) ? tags.filter(t => t !== tag) : [...tags, tag])}
-                                              >
-                                                {tag}
-                                              </button>
-                                            );
-                                          })}
-                                    </div>
-                                    </>
-                                  )}
-                                </div>
-                                {/* Filter by Region */}
-                                <div className="mb-4 w-full flex flex-col items-center">
-                                  <div className="w-full flex justify-between items-center">
-                                    <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowRegionFilter(v => !v)}>
-                                      <span>Filter by Region{!showRegionFilter && selectedRegions.length > 0 ? ` (${selectedRegions.length} selected)` : ''}</span>
-                                      <span>{showRegionFilter ? '▲' : '▼'}</span>
-                                    </button>
-                                    {selectedRegions.length > 0 && (
-                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedRegions([])}>Clear</button>
-                                    )}
-                                  </div>
-                                  {showRegionFilter && (
-                                    <>
-                                      <input
-                                        type="text"
-                                        placeholder="Search regions..."
-                                        className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                                        value={regionSearchTerm}
-                                        onChange={e => setRegionSearchTerm(e.target.value)}
-                                      />
-                                      <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                                        {getAllRegions(allEvents)
-                                          .filter(region => region.toLowerCase().includes(regionSearchTerm.toLowerCase()))
-                                          .map((region) => {
-                                            const isSelected = selectedRegions.includes(region);
-                                            const color = isSelected ? colorPalette[selectedRegions.indexOf(region) % colorPalette.length] : '#2563eb';
-                                            return (
-                                              <button
-                                                key={region}
-                                                className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                                style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                                onClick={() => setSelectedRegions(regions => regions.includes(region) ? regions.filter(r => r !== region) : [...regions, region])}
-                                              >
-                                                {region}
-                                              </button>
-                                            );
-                                          })}
-                                    </div>
-                                    </>
-                                  )}
-                                </div>
-                                {/* Filter by Country */}
-                                <div className="mb-4 w-full flex flex-col items-center">
-                                  <div className="w-full flex justify-between items-center">
-                                    <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowCountryFilter(v => !v)}>
-                                      <span>Filter by Country{!showCountryFilter && selectedCountries.length > 0 ? ` (${selectedCountries.length} selected)` : ''}</span>
-                                      <span>{showCountryFilter ? '▲' : '▼'}</span>
-                                    </button>
-                                    {selectedCountries.length > 0 && (
-                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={() => setSelectedCountries([])}>Clear</button>
-                                    )}
-                                  </div>
-                                  {showCountryFilter && (
-                                    <>
-                                      <input
-                                        type="text"
-                                        placeholder="Search countries..."
-                                        className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                                        value={countrySearchTerm}
-                                        onChange={e => setCountrySearchTerm(e.target.value)}
-                                      />
-                                      <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                                        {getAllCountries(allEvents)
-                                          .filter(country => country.toLowerCase().includes(countrySearchTerm.toLowerCase()))
-                                          .map((country) => {
-                                            const isSelected = selectedCountries.includes(country);
-                                            const color = isSelected ? colorPalette[selectedCountries.indexOf(country) % colorPalette.length] : '#2563eb';
-                                            return (
-                                              <button
-                                                key={country}
-                                                className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                                style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                                onClick={() => setSelectedCountries(countries => countries.includes(country) ? countries.filter(c => c !== country) : [...countries, country])}
-                                              >
-                                                {country}
-                                              </button>
-                                            );
-                                          })}
-                                    </div>
-                                    </>
-                                  )}
-                                </div>
-                                {/* Filter by Book */}
-                                <div className="mb-4 w-full flex flex-col items-center">
-                                  <div className="w-full flex justify-between items-center">
-                                    <button className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400" onClick={() => setShowBookFilter(v => !v)}>
-                                      <span>Filter by Book{!showBookFilter && selectedBooks.length > 0 ? ` (${selectedBooks.length} selected)` : ''}</span>
-                                      <span>{showBookFilter ? '▲' : '▼'}</span>
-                                    </button>
-                                    {selectedBooks.length > 0 && (
-                                      <button className="ml-2 px-2 py-1 rounded bg-gray-700 textwhite text-xs border border-blue-400" onClick={() => setSelectedBooks([])}>Clear</button>
-                                    )}
-                                  </div>
-                                  {showBookFilter && (
-                                    <>
-                                      <input
-                                        type="text"
-                                        placeholder="Search books..."
-                                        className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                                        value={bookSearchTerm}
-                                        onChange={e => setBookSearchTerm(e.target.value)}
-                                      />
-                                      <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                                        {getAllBooks(allEvents)
-                                          .filter(book => book.toLowerCase(bookSearchTerm.toLowerCase()))
-                                          .map((book) => {
-                                            const isSelected = selectedBooks.includes(book);
-                                            const color = isSelected ? colorPalette[selectedBooks.indexOf(book) % colorPalette.length] : '#2563eb';
-                                            return (
-                                              <button
-                                                key={book}
-                                                className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
-                                                style={{ background: color, border: isSelected ? `2px solid ${color}` : undefined }}
-                                                onClick={() => setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book])}
-                                              >
-                                                {book}
-                                              </button>
-                                            );
-                                          })}
-                                    </div>
-                                    </>
-                                  )}
-                                </div>
-                                {/* Move Clear button to bottom and clear all filters */}
-                                <button
-                                    className="mt-8 px-6 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition w-full"
-                                    onClick={() => {
-                                        setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' });
-                                        setSearchTerm('');
-                                        setSelectedTags([]);
-                                        setSelectedBooks([]);
-                                        setSelectedRegions([]);
-                                        setSelectedCountries([]);
-                                        setTagSearchTerm('');
-                                        setBookSearchTerm('');
-                                        setRegionSearchTerm('');
-                                        setCountrySearchTerm('');
-                                        setTagOverlapOnly(false);
-                                    }}
-                                    type="button"
-                                >
-                                    Clear All Filters
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {/* Scrollable timeline container */}
                 <div
                     ref={timelineContainerRef}
@@ -1569,16 +1152,16 @@ const Timeline = (props) => {
                                             <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Edit Event</h2>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                                                                <label className="font-semibold text-blue-200" htmlFor="edit-title">Title</label>
-                                                <input id="edit-title" name="title" value={editForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                <input id="edit-title" name="title" value={localEditForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                             </div>
                                             <div className="flex flex-row gap-4 w-full max-w-md mx-auto">
                                                 <div className="flex flex-col gap-2 text-left w-1/2">
                                                     <label className="font-semibold text-blue-200" htmlFor="edit-year">Year</label>
-                                                    <input id="edit-year" name="year" value={editForm.year} onChange={handleEditChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" maxLength={4} />
+                                                    <input id="edit-year" name="year" value={localEditForm.year} onChange={handleEditChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" maxLength={4} />
                                                 </div>
                                                 <div className="flex flex-col gap-2 text-left w-1/2">
                                                     <label className="font-semibold text-blue-200" htmlFor="edit-date_type">Date Type</label>
-                                                    <select id="edit-date_type" name="date_type" value={editForm.date_type} onChange={handleEditChange} className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner">
+                                                    <select id="edit-date_type" name="date_type" value={localEditForm.date_type} onChange={handleEditChange} className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner">
                                                         <option value="BCE">BCE</option>
                                                         <option value="CE">CE</option>
                                                     </select>
@@ -1586,11 +1169,11 @@ const Timeline = (props) => {
                                             </div>
                                             <div className="flex flexcol gap-2 text-left w-full max-w-md mx-auto">
                                                 <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book</label>
-                                                <input id="edit-book_reference" name="book_reference" value={editForm.book_reference} onChange={handleEditChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                <input id="edit-book_reference" name="book_reference" value={localEditForm.book_reference} onChange={handleEditChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                                                                <label className="font-semibold text-blue-200" htmlFor="edit-description">Description</label>
-                                                <textarea id="edit-description" name="description" value={editForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner min-h-[80px] resize-vertical placeholder:text-gray-400" />
+                                                <textarea id="edit-description" name="description" value={localEditForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner min-h-[80px] resize-vertical placeholder:text-gray-400" />
                                                 <button
                                                     type="button"
                                                     className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1606,13 +1189,13 @@ const Timeline = (props) => {
                                                                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                                                                 },
                                                                 body: JSON.stringify({
-                                                                    title: editForm.title,
-                                                                    date: editForm.year ? `${editForm.year.padStart(4, "0")}-01-01` : undefined
+                                                                    title: localEditForm.title,
+                                                                    date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
                                                                 })
                                                             });
                                                             const data = await response.json();
                                                             if (data && data.description) {
-                                                                setEditForm(f => ({ ...f, description: data.description }));
+                                                                setLocalEditForm(f => ({ ...f, description: data.description }));
                                                             } else if (data && data.error) {
                                                                 setEditError("Failed to regenerate description: " + data.error);
                                                             } else {
@@ -1630,7 +1213,7 @@ const Timeline = (props) => {
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                 <label className="font-semibold text-blue-200" htmlFor="edit-tags">Tags</label>
-                                                <input id="edit-tags" name="tags" value={editForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                <input id="edit-tags" name="tags" value={localEditForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                                 <button
                                                     type="button"
                                                     className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1646,13 +1229,13 @@ const Timeline = (props) => {
                                                                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                                                                 },
                                                                 body: JSON.stringify({
-                                                                    title: editForm.title,
-                                                                    date: editForm.year ? `${editForm.year.padStart(4, "0")}-01-01` : undefined
+                                                                    title: localEditForm.title,
+                                                                    date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
                                                                 })
                                                             });
                                                             const data = await response.json();
                                                             if (data && data.tags) {
-                                                                setEditForm(f => ({ ...f, tags: data.tags.join(", ") }));
+                                                                setLocalEditForm(f => ({ ...f, tags: data.tags.join(", ") }));
                                                             } else if (data && data.error) {
                                                                 setEditError("Failed to regenerate tags: " + data.error);
                                                             } else {
@@ -1670,7 +1253,7 @@ const Timeline = (props) => {
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                 <label className="font-semibold text-blue-200" htmlFor="edit-regions">Regions</label>
-                                                <input id="edit-regions" name="regions" value={editForm.regions} onChange={handleEditChange} placeholder="Regions (comma separated, e.g. europe, east asia)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                <input id="edit-regions" name="regions" value={localEditForm.regions} onChange={handleEditChange} placeholder="Regions (comma separated, e.g. europe, east asia)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                                 <button
                                                     type="button"
                                                     className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1686,13 +1269,13 @@ const Timeline = (props) => {
                                                                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                                                                 },
                                                                 body: JSON.stringify({
-                                                                    title: editForm.title,
-                                                                    date: editForm.year ? `${editForm.year.padStart(4, "0")}-01-01` : undefined
+                                                                    title: localEditForm.title,
+                                                                    date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
                                                                 })
                                                             });
                                                             const data = await response.json();
                                                             if (data && Array.isArray(data.regions)) {
-                                                                setEditForm(f => ({ ...f, regions: data.regions.join(", ") }));
+                                                                setLocalEditForm(f => ({ ...f, regions: data.regions.join(", ") }));
                                                             } else if (data && data.error) {
                                                                 setEditError("Failed to regenerate regions: " + data.error);
                                                             } else {
@@ -1710,7 +1293,7 @@ const Timeline = (props) => {
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                 <label className="font-semibold text-blue-200" htmlFor="edit-countries">Countries</label>
-                                                <input id="edit-countries" name="countries" value={editForm.countries} onChange={handleEditChange} placeholder="Countries (comma separated, e.g. france, germany)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                <input id="edit-countries" name="countries" value={localEditForm.countries} onChange={handleEditChange} placeholder="Countries (comma separated, e.g. france, germany)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                                                 <button
                                                     type="button"
                                                     className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1726,13 +1309,13 @@ const Timeline = (props) => {
                                                                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                                                                 },
                                                                 body: JSON.stringify({
-                                                                    title: editForm.title,
-                                                                    date: editForm.year ? `${editForm.year.padStart(4, "0")}-01-01` : undefined
+                                                                    title: localEditForm.title,
+                                                                    date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
                                                                 })
                                                             });
                                                             const data = await response.json();
                                                             if (data && Array.isArray(data.countries)) {
-                                                                setEditForm(f => ({ ...f, countries: data.countries.join(", ") }));
+                                                                setLocalEditForm(f => ({ ...f, countries: data.countries.join(", ") }));
                                                             } else if (data && data.error) {
                                                                 setEditError("Failed to regenerate countries: " + data.error);
                                                             } else {
@@ -1749,10 +1332,9 @@ const Timeline = (props) => {
                                                 </button>
                                             </div>
                                             <div className="flex gap-2 mt-2 justify-center w-full max-w-md mx-auto">
-                                                <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-1/2" disabled={submitting}>
+                                                <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-full" disabled={submitting}>
                                                   {submitting ? (<><Spinner />Saving...</>) : "Save"}
                                                 </button>
-                                                <button type="button" className="bg-gray-400 text-white px-4 py-2 rounded-xl font-bold w-1/2" onClick={() => setEditMode(false)}>Cancel</button>
                                             </div>
                                         </form>
                                     </div>

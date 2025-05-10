@@ -36,6 +36,10 @@ function App() {
     const [removalLoading, setRemovalLoading] = useState(false);
     const [removalError, setRemovalError] = useState("");
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    // Add state for selectedEvent and setSelectedEvent
+    const [selectedEvent, setSelectedEvent] = useState(null);
+    // Add state for editMode and setEditMode
+    const [editMode, setEditMode] = useState(false);
 
     // Fetch events function for use in Timeline
     const fetchEvents = async () => {
@@ -415,6 +419,10 @@ function App() {
                         tagOverlapOnly={tagOverlapOnly}
                         setTagOverlapOnly={setTagOverlapOnly}
                         onEventsUpdated={fetchEvents}
+                        selectedEvent={selectedEvent}
+                        setSelectedEvent={setSelectedEvent}
+                        editMode={editMode}
+                        setEditMode={setEditMode}
                         // Remove the controls from Timeline itself
                         hideControls={true}
                     />

@@ -490,12 +490,6 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
       )}
       <div className="w-full flex justify-center mb-4 gap-4">
         <button
-          className="px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white bg-gray-700 hover:bg-blue-700"
-          onClick={onBackToTimeline}
-        >
-          Timeline
-        </button>
-        <button
           className="px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-green-400 text-white bg-gray-700 hover:bg-green-700"
           onClick={() => setViewMode(viewMode === 'country' ? 'region' : 'country')}
         >
