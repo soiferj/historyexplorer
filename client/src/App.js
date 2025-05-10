@@ -100,7 +100,7 @@ function App() {
         if (isNaN(y)) return null;
         return era === 'BCE' ? -y : y;
     }
-    // Apply all filters (AND logic for tags, books, regions)
+    // Apply all filters (AND/OR logic for tags, books, regions, countries)
     const filteredEvents = (() => {
         if (!events || events.length === 0) return [];
         let filtered = events.filter(event =>
@@ -123,17 +123,35 @@ function App() {
                 return true;
             });
         }
-        // Apply tag filter (all selected tags must be present)
-        if (selectedTags.length > 0) {
-            filtered = filtered.filter(event => Array.isArray(event.tags) && selectedTags.every(tag => event.tags.includes(tag)));
-        }
-        // Apply book filter (event must match one of the selected books)
-        if (selectedBooks.length > 0) {
-            filtered = filtered.filter(event => selectedBooks.includes(event.book_reference));
-        }
-        // Apply region filter (event must match one of the selected regions)
-        if (selectedRegions.length > 0) {
-            filtered = filtered.filter(event => Array.isArray(event.regions) && event.regions.some(region => selectedRegions.includes(region)));
+        // --- Main filter logic for tag/book/region/country ---
+        const hasTag = selectedTags.length > 0;
+        const hasBook = selectedBooks.length > 0;
+        const hasRegion = selectedRegions.length > 0;
+        const hasCountry = selectedCountries.length > 0;
+        if (hasTag || hasBook || hasRegion || hasCountry) {
+            if (tagOverlapOnly) {
+                // INTERSECTION: event must match ALL selected filters
+                filtered = filtered.filter(event => {
+                    // Tag: must have ALL selected tags (case-insensitive)
+                    const tagOk = !hasTag || (Array.isArray(event.tags) && selectedTags.every(tag => event.tags.some(evTag => evTag.toLowerCase() === tag.toLowerCase())));
+                    // Book: must match one of the selected books
+                    const bookOk = !hasBook || selectedBooks.includes(event.book_reference);
+                    // Region: must match one of the selected regions (case-insensitive)
+                    const regionOk = !hasRegion || (Array.isArray(event.regions) && selectedRegions.every(region => event.regions.some(evRegion => evRegion.toLowerCase() === region.toLowerCase())));
+                    // Country: must match one of the selected countries (case-insensitive)
+                    const countryOk = !hasCountry || (Array.isArray(event.countries) && selectedCountries.every(country => event.countries.some(evCountry => evCountry.toLowerCase() === country.toLowerCase())));
+                    return tagOk && bookOk && regionOk && countryOk;
+                });
+            } else {
+                // UNION: event matches ANY selected filter
+                filtered = filtered.filter(event => {
+                    const tagMatch = hasTag && Array.isArray(event.tags) && event.tags.some(evTag => selectedTags.some(tag => evTag.toLowerCase() === tag.toLowerCase()));
+                    const bookMatch = hasBook && selectedBooks.includes(event.book_reference);
+                    const regionMatch = hasRegion && Array.isArray(event.regions) && event.regions.some(evRegion => selectedRegions.some(region => evRegion.toLowerCase() === region.toLowerCase()));
+                    const countryMatch = hasCountry && Array.isArray(event.countries) && event.countries.some(evCountry => selectedCountries.some(country => evCountry.toLowerCase() === country.toLowerCase()));
+                    return tagMatch || bookMatch || regionMatch || countryMatch;
+                });
+            }
         }
         return filtered;
     })();
