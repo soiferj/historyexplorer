@@ -685,40 +685,43 @@ const Timeline = (props) => {
                         g.append("text")
                             .attr("y", -10)
                             .attr("fill", "#93c5fd")
-                            .attr("font-size", 16)
+                            .attr("font-size", 13)
                             .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
                             .attr("text-anchor", "start")
                             .attr("dominant-baseline", "middle")
                             .text(`${new Date(d.date).getFullYear()} ${d.date_type}`);
-                        // Wrap title text for mobile
+                        // Improved word wrapping for mobile, smaller font, unlimited lines, bigger right margin
                         const title = d.title;
                         const words = title.split(' ');
                         const lines = [];
                         let currentLine = words[0] || '';
+                        const fontSize = 13;
+                        const fontFamily = 'Orbitron, Segoe UI, Arial, sans-serif';
+                        // Use a much smaller maxTextWidth for margin (e.g. 80px instead of 40)
+                        const wrapWidth = maxTextWidth - 80;
                         for (let i = 1; i < words.length; i++) {
                             const testLine = currentLine + ' ' + words[i];
-                            // Use a temp SVG text to measure width
                             const tempSvg = d3.select(document.body).append("svg").attr("style", "position:absolute;left:-9999px;top:-9999px;");
                             const tempText = tempSvg.append("text")
-                                .attr("font-size", 18)
-                                .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                                .attr("font-size", fontSize)
+                                .attr("font-family", fontFamily)
                                 .text(testLine);
                             const width = tempText.node().getComputedTextLength();
                             tempSvg.remove();
-                            if (width > maxTextWidth) {
+                            if (width > wrapWidth) {
                                 lines.push(currentLine);
                                 currentLine = words[i];
                             } else {
                                 currentLine = testLine;
                             }
                         }
-                        lines.push(currentLine);
+                        if (currentLine) lines.push(currentLine);
                         lines.forEach((line, idx) => {
                             g.append("text")
-                                .attr("y", 14 + idx * 20)
+                                .attr("y", 8 + idx * 15)
                                 .attr("fill", "white")
-                                .attr("font-size", 18)
-                                .attr("font-family", "Orbitron, Segoe UI, Arial, sans-serif")
+                                .attr("font-size", fontSize)
+                                .attr("font-family", fontFamily)
                                 .attr("font-weight", "bold")
                                 .attr("text-anchor", "start")
                                 .attr("dominant-baseline", "middle")
