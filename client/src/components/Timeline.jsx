@@ -1111,6 +1111,69 @@ const Timeline = (props) => {
                         </div>
                     </div>
                 )}
+                {/* Filter Legend */}
+                {(selectedTags?.length > 0 || selectedBooks?.length > 0 || selectedRegions?.length > 0 || selectedCountries?.length > 0) && (
+                  <div className="flex flex-wrap gap-4 justify-center mb-4 w-full max-w-4xl mx-auto">
+                    {/* Tag filters - use same color assignment as timeline circles */}
+                    {selectedTags && selectedTags.map((tag, idx) => {
+                      // Color assignment matches D3: order in selectedTags, case-insensitive
+                      const colorPalette = [
+                        '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
+                      ];
+                      // Find the index in canonical tag order (case-insensitive, first original-case wins)
+                      const lowerToOriginal = {};
+                      selectedTags.forEach(t => { const lower = t.toLowerCase(); if (!lowerToOriginal[lower]) lowerToOriginal[lower] = t; });
+                      const canonicalTags = Object.values(lowerToOriginal);
+                      const tagIdx = canonicalTags.findIndex(t => t.toLowerCase() === tag.toLowerCase());
+                      const color = colorPalette[tagIdx % colorPalette.length];
+                      return (
+                        <div key={tag} className="flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full inline-block" style={{ background: color }}></span>
+                          <span className="text-blue-200 text-sm font-semibold">Tag: {tag}</span>
+                        </div>
+                      );
+                    })}
+                    {/* Book filters - color by order in selectedBooks */}
+                    {selectedBooks && selectedBooks.map((book, idx) => {
+                      const colorPalette = [
+                        '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
+                      ];
+                      const color = colorPalette[idx % colorPalette.length];
+                      return (
+                        <div key={book} className="flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full inline-block" style={{ background: color }}></span>
+                          <span className="text-pink-200 text-sm font-semibold">Book: {book}</span>
+                        </div>
+                      );
+                    })}
+                    {/* Region filters - color by order in selectedRegions */}
+                    {selectedRegions && selectedRegions.map((region, idx) => {
+                      const colorPalette = [
+                        '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
+                      ];
+                      const color = colorPalette[idx % colorPalette.length];
+                      return (
+                        <div key={region} className="flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full inline-block" style={{ background: color }}></span>
+                          <span className="text-green-200 text-sm font-semibold">Region: {region}</span>
+                        </div>
+                      );
+                    })}
+                    {/* Country filters - color by order in selectedCountries */}
+                    {selectedCountries && selectedCountries.map((country, idx) => {
+                      const colorPalette = [
+                        '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
+                      ];
+                      const color = colorPalette[idx % colorPalette.length];
+                      return (
+                        <div key={country} className="flex items-center gap-2">
+                          <span className="w-4 h-4 rounded-full inline-block" style={{ background: color }}></span>
+                          <span className="text-yellow-200 text-sm font-semibold">Country: {country}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
                 {/* Scrollable timeline container */}
                 <div
                     ref={timelineContainerRef}
