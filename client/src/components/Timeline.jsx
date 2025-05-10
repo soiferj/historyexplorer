@@ -486,23 +486,24 @@ const Timeline = (props) => {
                 .duration(500)
                 .style("opacity", 1);
 
-            // Color mapping for tags/books (use same as above)
-            let colorMap = {};
-            if (selectedTags.length > 0) {
-                // Build a canonical tag list (case-insensitive, first original-case wins)
-                const lowerToOriginal = {};
-                selectedTags.forEach(tag => {
-                    const lower = tag.toLowerCase();
-                    if (!lowerToOriginal[lower]) lowerToOriginal[lower] = tag;
-                });
-                // Assign colors by order of first appearance in selectedTags (case-insensitive)
-                const canonicalTags = Object.values(lowerToOriginal);
-                canonicalTags.forEach((tag, idx) => {
-                    colorMap[tag.toLowerCase()] = colorPalette[idx % colorPalette.length];
-                });
-            } else if (selectedBooks.length > 0) {
-                selectedBooks.forEach((book, idx) => { colorMap[book] = colorPalette[idx % colorPalette.length]; });
-            }
+            // Build global filter color map (same as legend)
+            const filterTypes = [
+                { type: 'Tag', values: selectedTags || [] },
+                { type: 'Book', values: selectedBooks || [] },
+                { type: 'Region', values: selectedRegions || [] },
+                { type: 'Country', values: selectedCountries || [] },
+            ];
+            const allFilters = filterTypes.flatMap(ft => ft.values.map(v => ({ type: ft.type, value: v })));
+            const colorPalette = [
+                '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
+            ];
+            // Map filter value (case-insensitive for tags/regions/countries) to color
+            const colorMap = {};
+            allFilters.forEach((f, idx) => {
+                let key = f.value;
+                if (['Tag', 'Region', 'Country'].includes(f.type)) key = key.toLowerCase();
+                colorMap[`${f.type}:${key}`] = colorPalette[idx % colorPalette.length];
+            });
 
             // Multi-tag circle rendering
             if (selectedTags.length > 1) {
@@ -542,7 +543,7 @@ const Timeline = (props) => {
                             const lower = tag ? tag.toLowerCase() : '';
                             g.append("path")
                                 .attr("d", arc({ startAngle, endAngle }))
-                                .attr("fill", tag ? colorMap[lower] || "#3B82F6" : "#3B82F6")
+                                .attr("fill", tag ? colorMap['Tag:' + lower] || "#3B82F6" : "#3B82F6")
                                 .attr("stroke", "#222")
                                 .attr("stroke-width", 1.5);
                         });
@@ -566,50 +567,114 @@ const Timeline = (props) => {
                             .on("click", (event) => setSelectedEvent(d));
                     });
             } else {
-                svg.selectAll("circle")
-                    .data(renderData)
-                    .enter()
-                    .append("circle")
-                    .attr("cx", timelineX)
-                    .attr("cy", (d, i) => yScale(i))
-                    .attr("r", isMobile ? 10 : 14)
-                    .attr("fill", d => {
-                        if (selectedTags.length > 0 && Array.isArray(d.tags)) {
-                            // Find the first matching tag (case-insensitive) in selectedTags
-                            const match = d.tags.find(tag => selectedTags.some(sel => sel.toLowerCase() === tag.toLowerCase()));
-                            if (match) {
-                                // Always use the color of the canonical tag (first in selectedTags with same lowercased value)
-                                const lower = match.toLowerCase();
-                                return colorMap[lower] || "#3B82F6";
+                // Multi-filter (multi-segment) circle rendering
+                // Build all matching filters for each event, in the same order as allFilters
+                if ((selectedTags.length + selectedBooks.length + selectedRegions.length + selectedCountries.length) > 1) {
+                    svg.selectAll("g.event-multitag").remove();
+                    svg.selectAll("g.event-multitag")
+                        .data(renderData)
+                        .enter()
+                        .append("g")
+                        .attr("class", "event-multitag")
+                        .attr("transform", (d, i) => `translate(${timelineX},${yScale(i)})`)
+                        .each(function (d, i) {
+                            const g = d3.select(this);
+                            // Find all matching filters for this event, in allFilters order
+                            let matchingFilters = allFilters.filter(f => {
+                                if (f.type === 'Tag' && Array.isArray(d.tags)) return d.tags.some(tag => tag.toLowerCase() === f.value.toLowerCase());
+                                if (f.type === 'Book' && d.book_reference) return d.book_reference === f.value;
+                                if (f.type === 'Region' && Array.isArray(d.regions)) return d.regions.some(region => region.toLowerCase() === f.value.toLowerCase());
+                                if (f.type === 'Country' && Array.isArray(d.countries)) return d.countries.some(country => country.toLowerCase() === f.value.toLowerCase());
+                                return false;
+                            });
+                            if (matchingFilters.length === 0) matchingFilters = [null];
+                            const r = isMobile ? 10 : 14;
+                            const arc = d3.arc().innerRadius(0).outerRadius(r);
+                            const n = matchingFilters.length;
+                            matchingFilters.forEach((filt, idx) => {
+                                const startAngle = (2 * Math.PI * idx) / n;
+                                const endAngle = (2 * Math.PI * (idx + 1)) / n;
+                                let color = '#3B82F6';
+                                if (filt) {
+                                    let key = filt.value;
+                                    if (["Tag", "Region", "Country"].includes(filt.type)) key = key.toLowerCase();
+                                    color = colorMap[`${filt.type}:${key}`] || color;
+                                }
+                                g.append("path")
+                                    .attr("d", arc({ startAngle, endAngle }))
+                                    .attr("fill", color)
+                                    .attr("stroke", "#222")
+                                    .attr("stroke-width", 1.5);
+                            });
+                            g.style("cursor", "pointer")
+                                .on("mouseover", function (event) {
+                                    if (!isMobile) {
+                                        g.selectAll("path")
+                                            .transition()
+                                            .duration(150)
+                                            .attr("d", arc.outerRadius(22));
+                                    }
+                                })
+                                .on("mouseout", function (event) {
+                                    if (!isMobile) {
+                                        g.selectAll("path")
+                                            .transition()
+                                            .duration(150)
+                                            .attr("d", arc.outerRadius(r));
+                                    }
+                                })
+                                .on("click", (event) => setSelectedEvent(d));
+                        });
+                } else {
+                    svg.selectAll("circle")
+                        .data(renderData)
+                        .enter()
+                        .append("circle")
+                        .attr("cx", timelineX)
+                        .attr("cy", (d, i) => yScale(i))
+                        .attr("r", isMobile ? 10 : 14)
+                        .attr("fill", d => {
+                            // Priority: tag, book, region, country (first match)
+                            if (selectedTags.length > 0 && Array.isArray(d.tags)) {
+                                const match = d.tags.find(tag => selectedTags.some(sel => sel.toLowerCase() === tag.toLowerCase()));
+                                if (match) return colorMap[`Tag:${match.toLowerCase()}`] || "#3B82F6";
+                            }
+                            if (selectedBooks.length > 0 && d.book_reference) {
+                                if (selectedBooks.includes(d.book_reference)) return colorMap[`Book:${d.book_reference}`] || "#3B82F6";
+                            }
+                            if (selectedRegions.length > 0 && Array.isArray(d.regions)) {
+                                const match = d.regions.find(region => selectedRegions.some(sel => sel.toLowerCase() === region.toLowerCase()));
+                                if (match) return colorMap[`Region:${match.toLowerCase()}`] || "#3B82F6";
+                            }
+                            if (selectedCountries.length > 0 && Array.isArray(d.countries)) {
+                                const match = d.countries.find(country => selectedCountries.some(sel => sel.toLowerCase() === country.toLowerCase()));
+                                if (match) return colorMap[`Country:${match.toLowerCase()}`] || "#3B82F6";
                             }
                             return "#3B82F6";
-                        } else if (selectedBooks.length > 0) {
-                            return colorMap[d.book_reference] || "#3B82F6";
-                        }
-                        return "#3B82F6";
-                    })
-                    .style("cursor", "pointer")
-                    .on("mouseover", function (event, d) {
-                        if (!isMobile) {
-                            d3.select(this)
-                                .transition()
-                                .duration(150)
-                                .attr("r", 22);
-                        }
-                    })
-                    .on("mouseout", function (event, d) {
-                        if (!isMobile) {
-                            d3.select(this)
-                                .transition()
-                                .duration(150)
-                                .attr("r", 14);
-                        }
-                    })
-                    .on("click", (event, d) => setSelectedEvent(d))
-                    .style("opacity", 0)
-                    .transition()
-                    .duration(500)
-                    .style("opacity", 1);
+                        })
+                        .style("cursor", "pointer")
+                        .on("mouseover", function (event, d) {
+                            if (!isMobile) {
+                                d3.select(this)
+                                    .transition()
+                                    .duration(150)
+                                    .attr("r", 22);
+                            }
+                        })
+                        .on("mouseout", function (event, d) {
+                            if (!isMobile) {
+                                d3.select(this)
+                                    .transition()
+                                    .duration(150)
+                                    .attr("r", 14);
+                            }
+                        })
+                        .on("click", (event, d) => setSelectedEvent(d))
+                        .style("opacity", 0)
+                        .transition()
+                        .duration(500)
+                        .style("opacity", 1);
+                }
             }
             // Helper for truncating text with ellipsis
             function truncateText(text, maxWidth, fontSize = 16, fontFamily = 'Orbitron, Segoe UI, Arial, sans-serif') {
@@ -1113,66 +1178,30 @@ const Timeline = (props) => {
                 )}
                 {/* Filter Legend */}
                 {(selectedTags?.length > 0 || selectedBooks?.length > 0 || selectedRegions?.length > 0 || selectedCountries?.length > 0) && (
-                  <div className="flex flex-wrap gap-4 justify-center mb-4 w-full max-w-4xl mx-auto">
-                    {/* Tag filters - use same color assignment as timeline circles */}
-                    {selectedTags && selectedTags.map((tag, idx) => {
-                      // Color assignment matches D3: order in selectedTags, case-insensitive
-                      const colorPalette = [
-                        '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
-                      ];
-                      // Find the index in canonical tag order (case-insensitive, first original-case wins)
-                      const lowerToOriginal = {};
-                      selectedTags.forEach(t => { const lower = t.toLowerCase(); if (!lowerToOriginal[lower]) lowerToOriginal[lower] = t; });
-                      const canonicalTags = Object.values(lowerToOriginal);
-                      const tagIdx = canonicalTags.findIndex(t => t.toLowerCase() === tag.toLowerCase());
-                      const color = colorPalette[tagIdx % colorPalette.length];
-                      return (
-                        <div key={tag} className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full inline-block" style={{ background: color }}></span>
-                          <span className="text-blue-200 text-sm font-semibold">Tag: {tag}</span>
-                        </div>
-                      );
-                    })}
-                    {/* Book filters - color by order in selectedBooks */}
-                    {selectedBooks && selectedBooks.map((book, idx) => {
-                      const colorPalette = [
-                        '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
-                      ];
-                      const color = colorPalette[idx % colorPalette.length];
-                      return (
-                        <div key={book} className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full inline-block" style={{ background: color }}></span>
-                          <span className="text-pink-200 text-sm font-semibold">Book: {book}</span>
-                        </div>
-                      );
-                    })}
-                    {/* Region filters - color by order in selectedRegions */}
-                    {selectedRegions && selectedRegions.map((region, idx) => {
-                      const colorPalette = [
-                        '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
-                      ];
-                      const color = colorPalette[idx % colorPalette.length];
-                      return (
-                        <div key={region} className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full inline-block" style={{ background: color }}></span>
-                          <span className="text-green-200 text-sm font-semibold">Region: {region}</span>
-                        </div>
-                      );
-                    })}
-                    {/* Country filters - color by order in selectedCountries */}
-                    {selectedCountries && selectedCountries.map((country, idx) => {
-                      const colorPalette = [
-                        '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
-                      ];
-                      const color = colorPalette[idx % colorPalette.length];
-                      return (
-                        <div key={country} className="flex items-center gap-2">
-                          <span className="w-4 h-4 rounded-full inline-block" style={{ background: color }}></span>
-                          <span className="text-yellow-200 text-sm font-semibold">Country: {country}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  (() => {
+                    // Build a global list of all selected filter values, preserving order by type
+                    const filterTypes = [
+                      { type: 'Tag', values: selectedTags || [], colorClass: 'text-blue-200' },
+                      { type: 'Book', values: selectedBooks || [], colorClass: 'text-pink-200' },
+                      { type: 'Region', values: selectedRegions || [], colorClass: 'text-green-200' },
+                      { type: 'Country', values: selectedCountries || [], colorClass: 'text-yellow-200' },
+                    ];
+                    // Flatten to [{type, value, colorClass}]
+                    const allFilters = filterTypes.flatMap(ft => ft.values.map(v => ({ type: ft.type, value: v, colorClass: ft.colorClass })));
+                    const colorPalette = [
+                      '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
+                    ];
+                    return (
+                      <div className="flex flex-wrap gap-4 justify-center mb-4 w-full max-w-4xl mx-auto">
+                        {allFilters.map((filter, idx) => (
+                          <div key={filter.type + ':' + filter.value} className="flex items-center gap-2">
+                            <span className="w-4 h-4 rounded-full inline-block" style={{ background: colorPalette[idx % colorPalette.length] }}></span>
+                            <span className={`${filter.colorClass} text-sm font-semibold`}>{filter.type}: {filter.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()
                 )}
                 {/* Scrollable timeline container */}
                 <div

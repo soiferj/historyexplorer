@@ -566,11 +566,15 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
             isActive = linesToDraw[currentLineIdx].dests.some(dest => dest.name === region);
           }
+          // Responsive circle size
+          const isMobile = window.innerWidth < 640;
+          const baseRadius = isMobile ? 12 : 18;
+          const activeRadius = isMobile ? 22 : 32;
           return (
             <CircleMarker
               key={region}
               center={coords}
-              radius={isActive ? 32 : 18}
+              radius={isActive ? activeRadius : baseRadius}
               fillColor={regionColor[region]}
               color={isActive ? '#fff' : '#222'}
               weight={isActive ? 10 : 2}
@@ -595,11 +599,15 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
             isActive = linesToDraw[currentLineIdx].dests.some(dest => dest.name === country);
           }
+          // Responsive circle size
+          const isMobile = window.innerWidth < 640;
+          const baseRadius = isMobile ? 8 : 12;
+          const activeRadius = isMobile ? 14 : 22;
           return (
             <CircleMarker
               key={country}
               center={coords}
-              radius={isActive ? 22 : 12}
+              radius={isActive ? activeRadius : baseRadius}
               fillColor={countryColor[country]}
               color={isActive ? '#fff' : '#222'}
               weight={isActive ? 10 : 2}

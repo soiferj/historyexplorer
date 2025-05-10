@@ -149,39 +149,39 @@ function FiltersPopover({
                     </>
                 )}
             </div>
-            {/* Book Filter */}
+            {/* Country Filter */}
             <div className="mb-4 w-full flex flex-col items-center">
-                <button type="button" className="w-full flex justify-between items-center cursor-pointer focus:outline-none" onClick={() => setBookOpen(o => !o)}>
+                <button type="button" className="w-full flex justify-between items-center cursor-pointer focus:outline-none" onClick={() => setCountryOpen(o => !o)}>
                     <span className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400">
-                        <span>Filter by Book{selectedBooks.length > 0 ? ` (${selectedBooks.length} selected)` : ''}</span>
-                        <span className="ml-2">{bookOpen ? '▲' : '▼'}</span>
+                        <span>Filter by Country{selectedCountries.length > 0 ? ` (${selectedCountries.length} selected)` : ''}</span>
+                        <span className="ml-2">{countryOpen ? '▲' : '▼'}</span>
                     </span>
-                    {selectedBooks.length > 0 && (
-                        <button type="button" className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={e => { e.stopPropagation(); setSelectedBooks([]); }}>Clear</button>
+                    {selectedCountries.length > 0 && (
+                        <button type="button" className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={e => { e.stopPropagation(); setSelectedCountries([]); }}>Clear</button>
                     )}
                 </button>
-                {bookOpen && (
+                {countryOpen && (
                     <>
                         <input
                             type="text"
-                            placeholder="Search books..."
+                            placeholder="Search countries..."
                             className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                            value={bookSearchTerm}
-                            onChange={e => setBookSearchTerm(e.target.value)}
+                            value={regionSearchTerm}
+                            onChange={e => setRegionSearchTerm(e.target.value)}
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                            {getAllBooks(allEvents)
-                                .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
-                                .map((book) => {
-                                    const isSelected = selectedBooks.includes(book);
+                            {getAllCountries(allEvents)
+                                .filter(country => country.toLowerCase().includes(regionSearchTerm.toLowerCase()))
+                                .map((country) => {
+                                    const isSelected = selectedCountries.includes(country);
                                     return (
                                         <button
-                                            key={book}
+                                            key={country}
                                             className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
                                             style={{ background: isSelected ? '#2563eb' : '#374151', border: isSelected ? `2px solid #2563eb` : undefined }}
-                                            onClick={e => { e.stopPropagation(); setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book]); }}
+                                            onClick={e => { e.stopPropagation(); setSelectedCountries(countries => countries.includes(country) ? countries.filter(c => c !== country) : [...countries, country]); }}
                                         >
-                                            {book}
+                                            {country}
                                         </button>
                                     );
                                 })}
@@ -229,39 +229,39 @@ function FiltersPopover({
                     </>
                 )}
             </div>
-            {/* Country Filter */}
+            {/* Book Filter */}
             <div className="mb-4 w-full flex flex-col items-center">
-                <button type="button" className="w-full flex justify-between items-center cursor-pointer focus:outline-none" onClick={() => setCountryOpen(o => !o)}>
+                <button type="button" className="w-full flex justify-between items-center cursor-pointer focus:outline-none" onClick={() => setBookOpen(o => !o)}>
                     <span className="flex-1 flex justify-between items-center px-2 py-2 bg-gray-800 rounded text-blue-200 font-semibold mb-1 border border-blue-400">
-                        <span>Filter by Country{selectedCountries.length > 0 ? ` (${selectedCountries.length} selected)` : ''}</span>
-                        <span className="ml-2">{countryOpen ? '▲' : '▼'}</span>
+                        <span>Filter by Book{selectedBooks.length > 0 ? ` (${selectedBooks.length} selected)` : ''}</span>
+                        <span className="ml-2">{bookOpen ? '▲' : '▼'}</span>
                     </span>
-                    {selectedCountries.length > 0 && (
-                        <button type="button" className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={e => { e.stopPropagation(); setSelectedCountries([]); }}>Clear</button>
+                    {selectedBooks.length > 0 && (
+                        <button type="button" className="ml-2 px-2 py-1 rounded bg-gray-700 text-white text-xs border border-blue-400" onClick={e => { e.stopPropagation(); setSelectedBooks([]); }}>Clear</button>
                     )}
                 </button>
-                {countryOpen && (
+                {bookOpen && (
                     <>
                         <input
                             type="text"
-                            placeholder="Search countries..."
+                            placeholder="Search books..."
                             className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                            value={regionSearchTerm}
-                            onChange={e => setRegionSearchTerm(e.target.value)}
+                            value={bookSearchTerm}
+                            onChange={e => setBookSearchTerm(e.target.value)}
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
-                            {getAllCountries(allEvents)
-                                .filter(country => country.toLowerCase().includes(regionSearchTerm.toLowerCase()))
-                                .map((country) => {
-                                    const isSelected = selectedCountries.includes(country);
+                            {getAllBooks(allEvents)
+                                .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
+                                .map((book) => {
+                                    const isSelected = selectedBooks.includes(book);
                                     return (
                                         <button
-                                            key={country}
+                                            key={book}
                                             className={`px-3 py-1 rounded-full text-white text-xs font-semibold shadow transition ${isSelected ? '' : 'hover:bg-pink-500'}`}
                                             style={{ background: isSelected ? '#2563eb' : '#374151', border: isSelected ? `2px solid #2563eb` : undefined }}
-                                            onClick={e => { e.stopPropagation(); setSelectedCountries(countries => countries.includes(country) ? countries.filter(c => c !== country) : [...countries, country]); }}
+                                            onClick={e => { e.stopPropagation(); setSelectedBooks(books => books.includes(book) ? books.filter(b => b !== book) : [...books, book]); }}
                                         >
-                                            {country}
+                                            {book}
                                         </button>
                                     );
                                 })}
