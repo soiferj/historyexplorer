@@ -967,7 +967,7 @@ const Timeline = (props) => {
                 {(
                   <div className="w-full flex justify-center mb-2 gap-2">
                     <button
-                      className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 hover:bg-blue-700 transition-all duration-200 ${zoomLevel === 2 ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 transition-all duration-200 ${zoomLevel === 2 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
                       onClick={() => setZoomLevel(z => Math.min(2, z + 1))}
                       disabled={zoomLevel === 2}
                       aria-label="Zoom Out"
@@ -978,7 +978,7 @@ const Timeline = (props) => {
                       {zoomLevel === 2 ? 'Millennium' : zoomLevel === 1 ? 'Century' : 'Event'}
                     </span>
                     <button
-                      className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 hover:bg-blue-700 transition-all duration-200 ${zoomLevel === 0 ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 transition-all duration-200 ${zoomLevel === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
                       onClick={() => setZoomLevel(z => Math.max(0, z - 1))}
                       disabled={zoomLevel === 0}
                       aria-label="Zoom In"
