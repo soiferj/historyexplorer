@@ -137,7 +137,7 @@ export default function TagEvolutionChart({ events, selectedTags, tagColors }) {
       </div>
       {/* Chart container with horizontal scroll on mobile and custom, auto-hiding thin scrollbar */}
       <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-blue-700 scrollbar-track-blue-300/10 scrollbar-hide">
-        <div className="w-full max-w-2xl bg-gray-900 rounded-xl p-4 shadow-lg relative min-w-[350px]">
+        <div className="min-w-[700px] w-full max-w-4xl bg-gray-900 rounded-xl p-4 shadow-lg relative">
           {allTags.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
               <div className="bg-gray-900 bg-opacity-80 px-4 py-2 rounded text-center text-sm text-gray-300 font-medium shadow-lg">
