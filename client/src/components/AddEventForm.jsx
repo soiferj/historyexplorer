@@ -113,12 +113,13 @@ function AddEventForm({ onClose, onEventAdded, accessToken, allEvents = [] }) {
                 </div>
                 <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                     <label className="font-semibold text-blue-200" htmlFor="book_reference">Book</label>
-                    <div className="flex gap-4 items-center mb-2">
+                    <div className="flex gap-0 items-center mb-2">
                         <button
                             type="button"
                             className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${bookMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
                             onClick={() => setBookMode('existing')}
                             aria-pressed={bookMode === 'existing'}
+                            style={{ marginRight: '-1px', zIndex: bookMode === 'existing' ? 2 : 1 }}
                         >
                             Existing Book
                         </button>
@@ -127,6 +128,7 @@ function AddEventForm({ onClose, onEventAdded, accessToken, allEvents = [] }) {
                             className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${bookMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
                             onClick={() => setBookMode('new')}
                             aria-pressed={bookMode === 'new'}
+                            style={{ marginLeft: '-1px', zIndex: bookMode === 'new' ? 2 : 1 }}
                         >
                             New Book
                         </button>
