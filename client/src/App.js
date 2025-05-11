@@ -5,6 +5,7 @@ import MapView from "./components/MapView";
 import AddEventForm from "./components/AddEventForm";
 import FiltersPopover from "./components/FiltersPopover";
 import AdminToolsModal from "./components/AdminToolsModal";
+import TagEvolutionChart from "./components/TagEvolutionChart";
 import "./index.css";
 
 function App() {
@@ -40,6 +41,8 @@ function App() {
     const [selectedEvent, setSelectedEvent] = useState(null);
     // Add state for editMode and setEditMode
     const [editMode, setEditMode] = useState(false);
+    // Tag Evolution view toggle
+    const [showTagEvolution, setShowTagEvolution] = useState(false);
 
     // Fetch events function for use in Timeline
     const fetchEvents = async () => {
@@ -263,19 +266,25 @@ function App() {
                     {filteredEvents.length} events
                 </span>
             </div>
-            {/* Timeline/Map toggle and region filter below controls */}
+            {/* Timeline/Map/Tag Evolution toggle and region filter below controls */}
             <div className="w-full flex justify-center mb-4 gap-4">
                 <button
                     className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                    onClick={() => setShowMap(true)}
+                    onClick={() => { setShowMap(true); setShowTagEvolution(false); }}
                 >
                     World Map
                 </button>
                 <button
-                    className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${!showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                    onClick={() => setShowMap(false)}
+                    className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${!showMap && !showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                    onClick={() => { setShowMap(false); setShowTagEvolution(false); }}
                 >
                     Timeline
+                </button>
+                <button
+                    className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                    onClick={() => { setShowMap(false); setShowTagEvolution(true); }}
+                >
+                    Tag Evolution
                 </button>
                 {regionFilter && (
                     <button
@@ -414,6 +423,22 @@ function App() {
                         loading={eventsLoading}
                         error={eventsError}
                         onBackToTimeline={() => setShowMap(false)}
+                    />
+                ) : showTagEvolution ? (
+                    <TagEvolutionChart
+                        events={filteredEvents}
+                        selectedTags={selectedTags}
+                        tagColors={(() => {
+                          // Build tag color map as in Timeline
+                          const colorPalette = [
+                            '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
+                          ];
+                          const tagMap = {};
+                          (selectedTags || []).forEach((tag, idx) => {
+                            tagMap[tag] = colorPalette[idx % colorPalette.length];
+                          });
+                          return tagMap;
+                        })()}
                     />
                 ) : (
                     <Timeline
