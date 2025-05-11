@@ -24,6 +24,10 @@ const regionCoords = {
   "oceania": [-22, 140],
   "southeast asia": [10, 105],
   "caribbean": [18, -75],
+  "north europe": [60, 20], // Added
+  "east europe": [54, 30], // Added
+  "north asia": [65, 100], // Added
+  "south europe": [41, 15], // Added
   // Add more as needed
 };
 

@@ -269,19 +269,19 @@ function App() {
             {/* Timeline/Map/Tag Evolution toggle and region filter below controls */}
             <div className="w-full flex justify-center mb-4 gap-4">
                 <button
-                    className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                    className={`px-2 py-1 sm:px-4 sm:py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white text-sm sm:text-base ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
                     onClick={() => { setShowMap(true); setShowTagEvolution(false); }}
                 >
                     World Map
                 </button>
                 <button
-                    className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${!showMap && !showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                    className={`px-2 py-1 sm:px-4 sm:py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white text-sm sm:text-base ${!showMap && !showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
                     onClick={() => { setShowMap(false); setShowTagEvolution(false); }}
                 >
                     Timeline
                 </button>
                 <button
-                    className={`px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white ${showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                    className={`px-2 py-1 sm:px-4 sm:py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white text-sm sm:text-base ${showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
                     onClick={() => { setShowMap(false); setShowTagEvolution(true); }}
                 >
                     Tag Evolution
