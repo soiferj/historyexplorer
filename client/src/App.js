@@ -156,6 +156,18 @@ function App() {
         return filtered;
     })();
 
+    // Compute if any filter is set (for Filters button highlight)
+    const anyFilterSet = (
+        searchTerm.trim() !== '' ||
+        dateFilter.startYear !== '' ||
+        dateFilter.endYear !== '' ||
+        selectedTags.length > 0 ||
+        selectedBooks.length > 0 ||
+        selectedRegions.length > 0 ||
+        selectedCountries.length > 0 ||
+        tagOverlapOnly
+    );
+
     // World/Timeline toggle and region select
     const handleRegionSelect = (region) => {
         setRegionFilter(region);
@@ -238,7 +250,7 @@ function App() {
                     </>
                 )}
                 <button
-                    className="flex items-center gap-1 px-2 py-1 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base rounded bg-gray-800/80 text-white border border-blue-400 hover:bg-blue-600 transition shadow-md"
+                    className={`flex items-center gap-1 px-2 py-1 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base rounded border transition shadow-md ${anyFilterSet ? 'bg-green-600 border-green-400 text-white hover:bg-green-700' : 'bg-gray-800/80 text-white border-blue-400 hover:bg-blue-600'}`}
                     onClick={() => setShowFilters(true)}
                     aria-label="Show filters"
                 >
