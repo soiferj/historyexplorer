@@ -64,8 +64,13 @@ function AddEventForm({ onClose, onEventAdded, accessToken, allEvents = [] }) {
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to add event");
+            if (!data || !data.id) {
+                setError("Failed to add event: No event ID returned from server.");
+                setSubmitting(false);
+                return;
+            }
             setForm({ title: "", description: "", book_reference: "", year: "", tags: "", date_type: "CE", regions: "", countries: "" });
-            if (onEventAdded) onEventAdded();
+            if (onEventAdded) onEventAdded(data); // Pass the new event to the callback
             onClose();
         } catch (err) {
             setError(err.message);

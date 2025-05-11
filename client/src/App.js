@@ -329,6 +329,9 @@ function App() {
                             onEventAdded={async (newEvent) => {
                                 await fetchEvents();
                                 setShowForm(false);
+                                // Always switch to timeline view after adding
+                                setShowMap(false);
+                                setShowTagEvolution(false);
                                 // Find the new event in the refreshed events list by id
                                 const latestEvent = (events || []).find(e => e.id === newEvent.id);
                                 setSelectedEvent(latestEvent || newEvent); // fallback to newEvent if not found

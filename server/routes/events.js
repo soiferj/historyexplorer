@@ -64,10 +64,12 @@ router.post("/", verifyAllowedUser, async (req, res) => {
     }
     const { data, error } = await supabase
         .from("events")
-        .insert([{ title, description: enrichedDescription, book_reference, date, tags: enrichedTags, date_type, regions: enrichedRegions, countries: enrichedCountries }]);
+        .insert([{ title, description: enrichedDescription, book_reference, date, tags: enrichedTags, date_type, regions: enrichedRegions, countries: enrichedCountries }])
+        .select(); // Ensure the inserted row(s) are returned
 
     if (error) return res.status(400).json({ error: error.message });
-    res.json(data);
+    // Return the first inserted event object (data is an array)
+    res.json(data && data[0]);
 });
 
 // Get all events
