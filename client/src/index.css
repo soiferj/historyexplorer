@@ -109,3 +109,29 @@ code {
 .timeline-scroll::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Modern thin, auto-hiding horizontal scrollbar for TagEvolutionChart */
+.scrollbar-hide {
+  scrollbar-width: thin;
+  scrollbar-color: #2563eb22 transparent;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  height: 5px;
+  background: transparent;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.scrollbar-hide:hover::-webkit-scrollbar {
+  opacity: 1;
+}
+.scrollbar-hide::-webkit-scrollbar-thumb {
+  background: #2563ebcc;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.scrollbar-hide::-webkit-scrollbar-thumb:hover {
+  background: #1d4ed8;
+}
+.scrollbar-hide::-webkit-scrollbar-track {
+  background: transparent;
+}

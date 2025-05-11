@@ -135,67 +135,70 @@ export default function TagEvolutionChart({ events, selectedTags, tagColors }) {
           ))}
         </div>
       </div>
-      <div className="w-full max-w-2xl bg-gray-900 rounded-xl p-4 shadow-lg relative">
-        {allTags.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-            <div className="bg-gray-900 bg-opacity-80 px-4 py-2 rounded text-center text-sm text-gray-300 font-medium shadow-lg">
-              Select tags from the <i>Filters</i> to see their evolution over time
+      {/* Chart container with horizontal scroll on mobile and custom, auto-hiding thin scrollbar */}
+      <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-blue-700 scrollbar-track-blue-300/10 scrollbar-hide">
+        <div className="w-full max-w-2xl bg-gray-900 rounded-xl p-4 shadow-lg relative min-w-[350px]">
+          {allTags.length === 0 && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+              <div className="bg-gray-900 bg-opacity-80 px-4 py-2 rounded text-center text-sm text-gray-300 font-medium shadow-lg">
+                Select tags from the <i>Filters</i> to see their evolution over time
+              </div>
             </div>
-          </div>
-        )}
-        <Line
-          data={{ labels, datasets }}
-          options={{
-            responsive: true,
-            plugins: {
-              legend: { display: false },
-              title: { display: false },
-              tooltip: {
-                mode: "index",
-                intersect: false,
-                callbacks: {
-                  title: function(items) {
-                    // Show year and BCE/CE in tooltip title
-                    if (!items.length) return '';
-                    const year = Number(items[0].label);
-                    return year < 0 ? `${-year} BCE` : `${year} CE`;
-                  },
-                  labelColor: function(context) {
-                    // Use the dataset's borderColor for the tooltip color box
-                    const color = context.dataset.borderColor;
-                    return {
-                      borderColor: color,
-                      backgroundColor: color,
-                    };
-                  },
-                }
-              },
-            },
-            interaction: { mode: "nearest", axis: "x", intersect: false },
-            scales: {
-              y: {
-                beginAtZero: true,
-                title: { display: true, text: "Event Count" },
-                ticks: {
-                  precision: 0,
-                  stepSize: 1,
-                  callback: function(value) {
-                    return Number.isInteger(value) ? value : null;
+          )}
+          <Line
+            data={{ labels, datasets }}
+            options={{
+              responsive: true,
+              plugins: {
+                legend: { display: false },
+                title: { display: false },
+                tooltip: {
+                  mode: "index",
+                  intersect: false,
+                  callbacks: {
+                    title: function(items) {
+                      // Show year and BCE/CE in tooltip title
+                      if (!items.length) return '';
+                      const year = Number(items[0].label);
+                      return year < 0 ? `${-year} BCE` : `${year} CE`;
+                    },
+                    labelColor: function(context) {
+                      // Use the dataset's borderColor for the tooltip color box
+                      const color = context.dataset.borderColor;
+                      return {
+                        borderColor: color,
+                        backgroundColor: color,
+                      };
+                    },
                   }
-                }
+                },
               },
-              x: {
-                title: { display: true, text: period === "century" ? "Century (Year)" : "Decade (Year)" },
-                ticks: {
-                  callback: function(value, index, values) {
-                    const year = Number(this.getLabelForValue(value));
-                    return year < 0 ? `${-year} BCE` : `${year} CE`;
+              interaction: { mode: "nearest", axis: "x", intersect: false },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: "Event Count" },
+                  ticks: {
+                    precision: 0,
+                    stepSize: 1,
+                    callback: function(value) {
+                      return Number.isInteger(value) ? value : null;
+                    }
                   }
-                }
+                },
+                x: {
+                  title: { display: true, text: period === "century" ? "Century (Year)" : "Decade (Year)" },
+                  ticks: {
+                    callback: function(value, index, values) {
+                      const year = Number(this.getLabelForValue(value));
+                      return year < 0 ? `${-year} BCE` : `${year} CE`;
+                    }
+                  }
+                },
               },
-            },
-          }}
-        />
+            }}
+          />
+        </div>
       </div>
     </div>
   );
