@@ -32,8 +32,9 @@ function AddEventForm({ onClose, onEventAdded, accessToken, allEvents = [] }) {
         setError("");
         // Book validation
         if (bookMode === 'existing') {
-            if (!form.book_reference || !allBooks.includes(form.book_reference)) {
-                setError("Please select an existing book.");
+            // Allow empty string ("None") as valid
+            if (form.book_reference !== '' && !allBooks.includes(form.book_reference)) {
+                setError("Please select an existing book or choose 'None'.");
                 setSubmitting(false);
                 return;
             }
