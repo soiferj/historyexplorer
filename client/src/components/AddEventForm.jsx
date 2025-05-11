@@ -139,9 +139,8 @@ function AddEventForm({ onClose, onEventAdded, accessToken, allEvents = [] }) {
                             className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-base border border-blue-400/40 shadow-inner"
                             value={form.book_reference && allBooks.includes(form.book_reference) ? form.book_reference : ''}
                             onChange={e => setForm(f => ({ ...f, book_reference: e.target.value }))}
-                            required
                         >
-                            <option value="">Select existing book...</option>
+                            <option value="">None</option>
                             {allBooks.map(book => (
                                 <option key={book} value={book}>{book}</option>
                             ))}
