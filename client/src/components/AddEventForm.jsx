@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
-function AddEventForm({ onClose, onEventAdded, accessToken }) {
+function AddEventForm({ onClose, onEventAdded, accessToken, allEvents = [] }) {
     const [form, setForm] = useState({
         title: "",
         description: "",
@@ -30,6 +30,20 @@ function AddEventForm({ onClose, onEventAdded, accessToken }) {
         e.preventDefault();
         setSubmitting(true);
         setError("");
+        // Book validation
+        if (bookMode === 'existing') {
+            if (!form.book_reference || !allBooks.includes(form.book_reference)) {
+                setError("Please select an existing book.");
+                setSubmitting(false);
+                return;
+            }
+        } else if (bookMode === 'new') {
+            if (!form.book_reference || form.book_reference.trim() === "") {
+                setError("Please enter a new book name.");
+                setSubmitting(false);
+                return;
+            }
+        }
         try {
             const paddedYear = padYear(form.year);
             const regionsArr = form.regions.split(",").map(r => r.trim()).filter(Boolean);
@@ -60,6 +74,16 @@ function AddEventForm({ onClose, onEventAdded, accessToken }) {
         }
     };
 
+    // Helper to get all unique books from allEvents
+    const allBooks = useMemo(() => {
+        const bookSet = new Set();
+        (allEvents || []).forEach(ev => ev.book_reference && bookSet.add(ev.book_reference));
+        return Array.from(bookSet).sort((a, b) => a.localeCompare(b));
+    }, [allEvents]);
+
+    // Toggle for book input mode
+    const [bookMode, setBookMode] = useState('existing'); // 'existing' or 'new'
+
     return (
         <div className="w-full max-h-[70vh] overflow-y-auto flex flex-col items-center">
             <form onSubmit={handleFormSubmit} className="w-full flex flex-col gap-8 items-center">
@@ -84,7 +108,48 @@ function AddEventForm({ onClose, onEventAdded, accessToken }) {
                 </div>
                 <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                     <label className="font-semibold text-blue-200" htmlFor="book_reference">Book</label>
-                    <input id="book_reference" name="book_reference" value={form.book_reference} onChange={handleFormChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                    <div className="flex gap-4 items-center mb-2">
+                        <button
+                            type="button"
+                            className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${bookMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
+                            onClick={() => setBookMode('existing')}
+                            aria-pressed={bookMode === 'existing'}
+                        >
+                            Existing Book
+                        </button>
+                        <button
+                            type="button"
+                            className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${bookMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
+                            onClick={() => setBookMode('new')}
+                            aria-pressed={bookMode === 'new'}
+                        >
+                            New Book
+                        </button>
+                    </div>
+                    {bookMode === 'existing' ? (
+                        <select
+                            id="book_reference_select"
+                            className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-base border border-blue-400/40 shadow-inner"
+                            value={form.book_reference && allBooks.includes(form.book_reference) ? form.book_reference : ''}
+                            onChange={e => setForm(f => ({ ...f, book_reference: e.target.value }))}
+                            required
+                        >
+                            <option value="">Select existing book...</option>
+                            {allBooks.map(book => (
+                                <option key={book} value={book}>{book}</option>
+                            ))}
+                        </select>
+                    ) : (
+                        <input
+                            id="book_reference"
+                            name="book_reference"
+                            value={form.book_reference}
+                            onChange={handleFormChange}
+                            placeholder="Type new book"
+                            className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-pink-400/40 shadow-inner placeholder:text-gray-400"
+                            required
+                        />
+                    )}
                 </div>
                 {/* Optionally add tags, regions, countries, description fields here if needed */}
                 <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl mt-2 font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow text-base w-full max-w-md mx-auto tracking-wide" disabled={submitting}>

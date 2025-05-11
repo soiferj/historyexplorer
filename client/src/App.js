@@ -312,6 +312,7 @@ function App() {
                             onClose={() => setShowForm(false)}
                             onEventAdded={fetchEvents}
                             accessToken={session?.access_token}
+                            allEvents={events}
                         />
                     </div>
                 </div>
