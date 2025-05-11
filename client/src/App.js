@@ -41,6 +41,8 @@ function App() {
     const [selectedEvent, setSelectedEvent] = useState(null);
     // Add state for editMode and setEditMode
     const [editMode, setEditMode] = useState(false);
+    // Add state for editError and setEditError
+    const [editError, setEditError] = useState("");
     // Tag Evolution view toggle
     const [showTagEvolution, setShowTagEvolution] = useState(false);
 
@@ -254,7 +256,12 @@ function App() {
                 )}
                 <button
                     className={`flex items-center gap-1 px-2 py-1 text-sm sm:gap-2 sm:px-4 sm:py-2 sm:text-base rounded border transition shadow-md ${anyFilterSet ? 'bg-green-700 border-green-300 text-white hover:bg-green-800' : 'bg-gray-800/80 text-white border-blue-400 hover:bg-blue-600'}`}
-                    onClick={() => setShowFilters(true)}
+                    onClick={() => {
+                        setTagSearchTerm("");
+                        setBookSearchTerm("");
+                        setRegionSearchTerm("");
+                        setShowFilters(true);
+                    }}
                     aria-label="Show filters"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 sm:w-5 sm:h-5">
@@ -319,9 +326,16 @@ function App() {
                         {/* Add Event Form */}
                         <AddEventForm
                             onClose={() => setShowForm(false)}
-                            onEventAdded={fetchEvents}
+                            onEventAdded={async (newEvent) => {
+                                await fetchEvents();
+                                setShowForm(false);
+                                // Find the new event in the refreshed events list by id
+                                const latestEvent = (events || []).find(e => e.id === newEvent.id);
+                                setSelectedEvent(latestEvent || newEvent); // fallback to newEvent if not found
+                            }}
                             accessToken={session?.access_token}
                             allEvents={events}
+                            setSelectedEvent={setSelectedEvent} // Pass down for possible use in AddEventForm
                         />
                     </div>
                 </div>
@@ -482,6 +496,8 @@ function App() {
                         setSelectedEvent={setSelectedEvent}
                         editMode={editMode}
                         setEditMode={setEditMode}
+                        editError={editError}
+                        setEditError={setEditError}
                         // Remove the controls from Timeline itself
                         hideControls={true}
                     />
