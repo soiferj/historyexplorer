@@ -572,8 +572,8 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           }
           // Responsive circle size
           const isMobile = window.innerWidth < 640;
-          const baseRadius = isMobile ? 12 : 18;
-          const activeRadius = isMobile ? 22 : 32;
+          const baseRadius = isMobile ? 12 : 10; // smaller on desktop
+          const activeRadius = isMobile ? 22 : 16; // smaller on desktop
           return (
             <CircleMarker
               key={region}
@@ -605,8 +605,8 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           }
           // Responsive circle size
           const isMobile = window.innerWidth < 640;
-          const baseRadius = isMobile ? 8 : 12;
-          const activeRadius = isMobile ? 14 : 22;
+          const baseRadius = isMobile ? 8 : 7; // smaller on desktop
+          const activeRadius = isMobile ? 14 : 12; // smaller on desktop
           return (
             <CircleMarker
               key={country}
