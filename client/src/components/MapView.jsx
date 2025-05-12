@@ -72,7 +72,7 @@ const countryCoords = {
   "colombia": [4.5709, -74.2973],
   "comoros": [-11.6455, 43.3333],
   "congo": [-0.2280, 15.8277],
-  "congo (democratic republic)": [-4.0383, 21.7587],
+  "democratic republic of the congo": [-4.0383, 21.7587],
   "costa rica": [9.7489, -83.7534],
   "croatia": [45.1000, 15.2000],
   "cuba": [21.5218, -77.7812],
