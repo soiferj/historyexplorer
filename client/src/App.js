@@ -219,7 +219,7 @@ function App() {
                 .fancy-heading { font-family: 'Orbitron', 'Segoe UI', Arial, sans-serif; letter-spacing: 2px; text-shadow: 0 2px 16px #00c6ff99, 0 1px 0 #232526; }
             `}</style>
             {/* Header with login/logout at top right */}
-            <div className="w-full flex flex-wrap items-center justify-between px-3 sm:px-8 pt-3 sm:pt-4 z-20 gap-2">
+            <div className="w-full flex flex-wrap items-center justify-between px-3 sm:px-8 pt-3 sm:pt-4 z-60 gap-2">
                 <h1 className="fancy-heading text-xl sm:text-3xl font-extrabold text-blue-200 text-left whitespace-nowrap truncate max-w-[60vw]">History Explorer</h1>
                 <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 min-w-0">
                     {session?.user && (
