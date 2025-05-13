@@ -106,10 +106,26 @@ function AddEventForm({ onClose, onEventAdded, accessToken, allEvents = [] }) {
                     </div>
                     <div className="flex flex-col gap-2 text-left w-1/2">
                         <label className="font-semibold text-blue-200" htmlFor="date_type">Date Type</label>
-                        <select id="date_type" name="date_type" value={form.date_type} onChange={handleFormChange} className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner">
-                            <option value="BCE">BCE</option>
-                            <option value="CE">CE</option>
-                        </select>
+                        <div className="flex gap-0 items-center mb-2">
+                            <button
+                                type="button"
+                                className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${form.date_type === 'BCE' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
+                                onClick={() => setForm(f => ({ ...f, date_type: 'BCE' }))}
+                                aria-pressed={form.date_type === 'BCE'}
+                                style={{ marginRight: '-1px', zIndex: form.date_type === 'BCE' ? 2 : 1 }}
+                            >
+                                BCE
+                            </button>
+                            <button
+                                type="button"
+                                className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${form.date_type === 'CE' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
+                                onClick={() => setForm(f => ({ ...f, date_type: 'CE' }))}
+                                aria-pressed={form.date_type === 'CE'}
+                                style={{ marginLeft: '-1px', zIndex: form.date_type === 'CE' ? 2 : 1 }}
+                            >
+                                CE
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
