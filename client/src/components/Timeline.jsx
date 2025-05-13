@@ -842,10 +842,10 @@ const Timeline = (props) => {
             description: selectedEvent.description || '',
             book_reference: selectedEvent.book_reference || '',
             year: selectedEvent.date ? new Date(selectedEvent.date).getFullYear().toString() : '',
-            tags: selectedEvent.tags ? selectedEvent.tags.join(", ") : '',
+            tags: Array.isArray(selectedEvent.tags) ? selectedEvent.tags : (selectedEvent.tags ? selectedEvent.tags.split(/,\s*/) : []),
             date_type: selectedEvent.date_type || 'CE',
-            regions: selectedEvent.regions ? selectedEvent.regions.join(", ") : '',
-            countries: selectedEvent.countries ? selectedEvent.countries.join(", ") : '',
+            regions: Array.isArray(selectedEvent.regions) ? selectedEvent.regions : (selectedEvent.regions ? selectedEvent.regions.split(/,\s*/) : []),
+            countries: Array.isArray(selectedEvent.countries) ? selectedEvent.countries : (selectedEvent.countries ? selectedEvent.countries.split(/,\s*/) : []),
         });
         if (typeof setEditMode === 'function') setEditMode(true);
         setLocalEditError("");
@@ -861,8 +861,9 @@ const Timeline = (props) => {
         setLocalEditError("");
         try {
             const paddedYear = padYear(localEditForm.year);
-            const regionsArr = localEditForm.regions.split(",").map(r => r.trim()).filter(Boolean);
-            const countriesArr = localEditForm.countries.split(",").map(r => r.trim()).filter(Boolean);
+            const tagsArr = Array.isArray(localEditForm.tags) ? localEditForm.tags : (localEditForm.tags ? localEditForm.tags.split(/,\s*/) : []);
+            const regionsArr = Array.isArray(localEditForm.regions) ? localEditForm.regions : (localEditForm.regions ? localEditForm.regions.split(/,\s*/) : []);
+            const countriesArr = Array.isArray(localEditForm.countries) ? localEditForm.countries : (localEditForm.countries ? localEditForm.countries.split(/,\s*/) : []);
             const response = await fetch(`${apiUrl}/events/${selectedEvent.id}`, {
                 method: "PUT",
                 headers: {
@@ -872,14 +873,14 @@ const Timeline = (props) => {
                 body: JSON.stringify({
                     ...localEditForm,
                     date: paddedYear ? `${paddedYear}-01-01` : undefined,
-                    tags: localEditForm.tags.split(",").map(t => t.trim()).filter(Boolean),
+                    tags: tagsArr,
                     regions: regionsArr,
                     countries: countriesArr,
                 })
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || "Failed to update event");
-            setLocalEditMode(false);
+            setEditMode(false);
             setSelectedEvent(null);
             if (props.onEventsUpdated) props.onEventsUpdated();
         } catch (err) {
@@ -959,6 +960,16 @@ const Timeline = (props) => {
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
       </svg>
     );
+
+    // Add these state hooks near the top of the Timeline component, before any usage:
+    const [editBookMode, setEditBookMode] = useState("existing");
+    const [newBook, setNewBook] = useState("");
+    const [editTagMode, setEditTagMode] = useState("existing");
+    const [newTag, setNewTag] = useState("");
+    const [editRegionMode, setEditRegionMode] = useState("existing");
+    const [newRegion, setNewRegion] = useState("");
+    const [editCountryMode, setEditCountryMode] = useState("existing");
+    const [newCountry, setNewCountry] = useState("");
 
     return (
         <>
@@ -1282,9 +1293,63 @@ const Timeline = (props) => {
                                                     </select>
                                                 </div>
                                             </div>
-                                            <div className="flex flexcol gap-2 text-left w-full max-w-md mx-auto">
-                                                <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book</label>
-                                                <input id="edit-book_reference" name="book_reference" value={localEditForm.book_reference} onChange={handleEditChange} placeholder="Book" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
+                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book</label>
+                                                <div className="flex gap-2 mb-2">
+                                                  <button type="button" className={`px-2 py-1 rounded-l font-bold text-xs ${editBookMode === 'existing' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditBookMode('existing')}>Existing</button>
+                                                  <button
+                                                    type="button"
+                                                    className={`px-2 py-1 rounded-r font-bold text-xs ${editBookMode === 'new' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}${localEditForm.book_reference ? ' opacity-60 cursor-not-allowed' : ''}`}
+                                                    onClick={() => {
+                                                      if (!localEditForm.book_reference) setEditBookMode('new');
+                                                    }}
+                                                    disabled={!!localEditForm.book_reference}
+                                                    aria-disabled={!!localEditForm.book_reference}
+                                                  >New</button>
+                                                </div>
+                                                {editBookMode === 'existing' ? (
+                                                  <div className="flex flex-wrap gap-2">
+                                                    {localEditForm.book_reference ? (
+                                                      <span className="bg-pink-200 text-pink-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                                        {localEditForm.book_reference}
+                                                        <button type="button" className="ml-1 text-pink-600 hover:text-pink-800 font-bold" aria-label={`Remove book ${localEditForm.book_reference}`} onClick={() => setLocalEditForm(f => ({ ...f, book_reference: "" }))}>&times;</button>
+                                                      </span>
+                                                    ) : (
+                                                      <>
+                                                        <span className="text-gray-400 italic">No book</span>
+                                                        <select
+                                                          className="ml-2 p-1 rounded bg-gray-700 text-white border border-blue-400/40 text-xs"
+                                                          value=""
+                                                          onChange={e => {
+                                                            const val = e.target.value;
+                                                            if (val) setLocalEditForm(f => ({ ...f, book_reference: val }));
+                                                          }}
+                                                        >
+                                                          <option value="">+ Add book...</option>
+                                                          {getAllBooks(validEvents).map(book => (
+                                                            <option key={book} value={book}>{book}</option>
+                                                          ))}
+                                                        </select>
+                                                      </>
+                                                    )}
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex gap-2">
+                                                    <input type="text" value={newBook} onChange={e => setNewBook(e.target.value)} placeholder="Add book" className="p-2 rounded bg-gray-800/80 text-white border border-blue-400/40 placeholder:text-gray-400" />
+                                                    <button
+                                                      type="button"
+                                                      className="px-2 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
+                                                      disabled={!!localEditForm.book_reference || !newBook}
+                                                      onClick={() => {
+                                                        if (newBook && !localEditForm.book_reference) {
+                                                          setLocalEditForm(f => ({ ...f, book_reference: newBook }));
+                                                          setNewBook("");
+                                                          setEditBookMode('existing');
+                                                        }
+                                                      }}
+                                                    >Add</button>
+                                                  </div>
+                                                )}
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                                                                <label className="font-semibold text-blue-200" htmlFor="edit-description">Description</label>
@@ -1327,124 +1392,244 @@ const Timeline = (props) => {
                                                 </button>
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                <label className="font-semibold text-blue-200" htmlFor="edit-tags">Tags</label>
-                                                <input id="edit-tags" name="tags" value={localEditForm.tags} onChange={handleEditChange} placeholder="Tags (comma separated)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-tags">Tags</label>
+                                                <div className="flex gap-2 mb-2">
+                                                  <button type="button" className={`px-2 py-1 rounded-l font-bold text-xs ${editTagMode === 'existing' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditTagMode('existing')}>Existing</button>
+                                                  <button type="button" className={`px-2 py-1 rounded-r font-bold text-xs ${editTagMode === 'new' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditTagMode('new')}>New</button>
+                                                </div>
+                                                {editTagMode === 'existing' ? (
+                                                  <div className="flex flex-wrap gap-2">
+                                                    {(localEditForm.tags || []).map((tag, idx) => (
+                                                      <span key={tag} className="bg-blue-200 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                                        {tag}
+                                                        <button type="button" className="ml-1 text-pink-600 hover:text-pink-800 font-bold" aria-label={`Remove tag ${tag}`} onClick={() => setLocalEditForm(f => ({ ...f, tags: f.tags.filter((t, i) => i !== idx) }))}>&times;</button>
+                                                      </span>
+                                                    ))}
+                                                    {localEditForm.tags?.length === 0 && <span className="text-gray-400 italic">No tags</span>}
+                                                    <select
+                                                      className="ml-2 p-1 rounded bg-gray-700 text-white border border-blue-400/40 text-xs"
+                                                      value=""
+                                                      onChange={e => {
+                                                        const val = e.target.value;
+                                                        if (val && !localEditForm.tags.includes(val)) {
+                                                          setLocalEditForm(f => ({ ...f, tags: [...(f.tags || []), val] }));
+                                                        }
+                                                      }}
+                                                    >
+                                                      <option value="">+ Add tag...</option>
+                                                      {getAllTags(validEvents).filter(tag => !localEditForm.tags.includes(tag)).map(tag => (
+                                                        <option key={tag} value={tag}>{tag}</option>
+                                                      ))}
+                                                    </select>
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex gap-2">
+                                                    <input type="text" value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Add tag" className="p-2 rounded bg-gray-800/80 text-white border border-blue-400/40 placeholder:text-gray-400" />
+                                                    <button type="button" className="px-2 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow" onClick={() => {
+                                                      if (newTag && !localEditForm.tags.includes(newTag)) {
+                                                        setLocalEditForm(f => ({ ...f, tags: [...(f.tags || []), newTag] }));
+                                                        setNewTag("");
+                                                        setEditTagMode('existing');
+                                                      }
+                                                    }}>Add</button>
+                                                  </div>
+                                                )}
                                                 <button
                                                     type="button"
                                                     className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
                                                     disabled={regenTagsLoading}
                                                     onClick={async () => {
-                                                        setEditError("");
-                                                        setRegenTagsLoading(true);
-                                                        try {
-                                                            const response = await fetch(`${apiUrl}/events/enrich-tags`, {
-                                                                method: "POST",
-                                                                headers: {
-                                                                    "Content-Type": "application/json",
-                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                                                                },
-                                                                body: JSON.stringify({
-                                                                    title: localEditForm.title,
-                                                                    date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
-                                                                })
-                                                            });
-                                                            const data = await response.json();
-                                                            if (data && data.tags) {
-                                                                setLocalEditForm(f => ({ ...f, tags: data.tags.join(", ") }));
-                                                            } else if (data && data.error) {
-                                                                setEditError("Failed to regenerate tags: " + data.error);
-                                                            } else {
-                                                                setEditError("Failed to regenerate tags");
-                                                            }
-                                                        } catch (err) {
-                                                            setEditError("Failed to regenerate tags");
-                                                        } finally {
-                                                            setRegenTagsLoading(false);
+                                                      setEditError("");
+                                                      setRegenTagsLoading(true);
+                                                      try {
+                                                        const response = await fetch(`${apiUrl}/events/enrich-tags`, {
+                                                          method: "POST",
+                                                          headers: {
+                                                            "Content-Type": "application/json",
+                                                            ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                          },
+                                                          body: JSON.stringify({
+                                                            title: localEditForm.title,
+                                                            date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
+                                                          })
+                                                        });
+                                                        const data = await response.json();
+                                                        if (data && data.tags) {
+                                                          setLocalEditForm(f => ({ ...f, tags: data.tags }));
+                                                        } else if (data && data.error) {
+                                                          setEditError("Failed to regenerate tags: " + data.error);
+                                                        } else {
+                                                          setEditError("Failed to regenerate tags");
                                                         }
+                                                      } catch (err) {
+                                                        setEditError("Failed to regenerate tags");
+                                                      } finally {
+                                                        setRegenTagsLoading(false);
+                                                      }
                                                     }}
                                                 >
-                                                    {regenTagsLoading ? "Regenerating..." : "Regenerate Tags"}
+                                                  {regenTagsLoading ? "Regenerating..." : "Regenerate Tags"}
                                                 </button>
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                <label className="font-semibold text-blue-200" htmlFor="edit-regions">Regions</label>
-                                                <input id="edit-regions" name="regions" value={localEditForm.regions} onChange={handleEditChange} placeholder="Regions (comma separated, e.g. europe, east asia)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-regions">Regions</label>
+                                                <div className="flex gap-2 mb-2">
+                                                  <button type="button" className={`px-2 py-1 rounded-l font-bold text-xs ${editRegionMode === 'existing' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditRegionMode('existing')}>Existing</button>
+                                                  <button type="button" className={`px-2 py-1 rounded-r font-bold text-xs ${editRegionMode === 'new' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditRegionMode('new')}>New</button>
+                                                </div>
+                                                {editRegionMode === 'existing' ? (
+                                                  <div className="flex flex-wrap gap-2">
+                                                    {(localEditForm.regions || []).map((region, idx) => (
+                                                      <span key={region} className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                                        {region}
+                                                        <button type="button" className="ml-1 text-pink-600 hover:text-pink-800 font-bold" aria-label={`Remove region ${region}`} onClick={() => setLocalEditForm(f => ({ ...f, regions: f.regions.filter((r, i) => i !== idx) }))}>&times;</button>
+                                                      </span>
+                                                    ))}
+                                                    {localEditForm.regions?.length === 0 && <span className="text-gray-400 italic">No regions</span>}
+                                                    <select
+                                                      className="ml-2 p-1 rounded bg-gray-700 text-white border border-blue-400/40 text-xs"
+                                                      value=""
+                                                      onChange={e => {
+                                                        const val = e.target.value;
+                                                        if (val && !localEditForm.regions.includes(val)) {
+                                                          setLocalEditForm(f => ({ ...f, regions: [...(f.regions || []), val] }));
+                                                        }
+                                                      }}
+                                                    >
+                                                      <option value="">+ Add region...</option>
+                                                      {getAllRegions(validEvents).filter(region => !localEditForm.regions.includes(region)).map(region => (
+                                                        <option key={region} value={region}>{region}</option>
+                                                      ))}
+                                                    </select>
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex gap-2">
+                                                    <input type="text" value={newRegion} onChange={e => setNewRegion(e.target.value)} placeholder="Add region" className="p-2 rounded bg-gray-800/80 text-white border border-blue-400/40 placeholder:text-gray-400" />
+                                                    <button type="button" className="px-2 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow" onClick={() => {
+                                                      if (newRegion && !localEditForm.regions.includes(newRegion)) {
+                                                        setLocalEditForm(f => ({ ...f, regions: [...(f.regions || []), newRegion] }));
+                                                        setNewRegion("");
+                                                        setEditRegionMode('existing');
+                                                      }
+                                                    }}>Add</button>
+                                                  </div>
+                                                )}
                                                 <button
                                                     type="button"
                                                     className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
                                                     disabled={regenRegionsLoading}
                                                     onClick={async () => {
-                                                        setEditError("");
-                                                        setRegenRegionsLoading(true);
-                                                        try {
-                                                            const response = await fetch(`${apiUrl}/events/enrich-tags`, {
-                                                                method: "POST",
-                                                                headers: {
-                                                                    "Content-Type": "application/json",
-                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                                                                },
-                                                                body: JSON.stringify({
-                                                                    title: localEditForm.title,
-                                                                    date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
-                                                                })
-                                                            });
-                                                            const data = await response.json();
-                                                            if (data && Array.isArray(data.regions)) {
-                                                                setLocalEditForm(f => ({ ...f, regions: data.regions.join(", ") }));
-                                                            } else if (data && data.error) {
-                                                                setEditError("Failed to regenerate regions: " + data.error);
-                                                            } else {
-                                                                setEditError("Failed to regenerate regions");
-                                                            }
-                                                        } catch (err) {
-                                                            setEditError("Failed to regenerate regions");
-                                                        } finally {
-                                                            setRegenRegionsLoading(false);
+                                                      setEditError("");
+                                                      setRegenRegionsLoading(true);
+                                                      try {
+                                                        const response = await fetch(`${apiUrl}/events/enrich-tags`, {
+                                                          method: "POST",
+                                                          headers: {
+                                                            "Content-Type": "application/json",
+                                                            ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                          },
+                                                          body: JSON.stringify({
+                                                            title: localEditForm.title,
+                                                            date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
+                                                          })
+                                                        });
+                                                        const data = await response.json();
+                                                        if (data && Array.isArray(data.regions)) {
+                                                          setLocalEditForm(f => ({ ...f, regions: data.regions }));
+                                                        } else if (data && data.error) {
+                                                          setEditError("Failed to regenerate regions: " + data.error);
+                                                        } else {
+                                                          setEditError("Failed to regenerate regions");
                                                         }
+                                                      } catch (err) {
+                                                        setEditError("Failed to regenerate regions");
+                                                      } finally {
+                                                        setRegenRegionsLoading(false);
+                                                      }
                                                     }}
-                                                >
+                                                  >
                                                     {regenRegionsLoading ? "Regenerating..." : "Regenerate Regions"}
-                                                </button>
+                                                  </button>
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                <label className="font-semibold text-blue-200" htmlFor="edit-countries">Countries</label>
-                                                <input id="edit-countries" name="countries" value={localEditForm.countries} onChange={handleEditChange} placeholder="Countries (comma separated, e.g. france, germany)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-countries">Countries</label>
+                                                <div className="flex gap-2 mb-2">
+                                                  <button type="button" className={`px-2 py-1 rounded-l font-bold text-xs ${editCountryMode === 'existing' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditCountryMode('existing')}>Existing</button>
+                                                  <button type="button" className={`px-2 py-1 rounded-r font-bold text-xs ${editCountryMode === 'new' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditCountryMode('new')}>New</button>
+                                                </div>
+                                                {editCountryMode === 'existing' ? (
+                                                  <div className="flex flex-wrap gap-2">
+                                                    {(localEditForm.countries || []).map((country, idx) => (
+                                                      <span key={country} className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
+                                                        {country}
+                                                        <button type="button" className="ml-1 text-pink-600 hover:text-pink-800 font-bold" aria-label={`Remove country ${country}`} onClick={() => setLocalEditForm(f => ({ ...f, countries: f.countries.filter((c, i) => i !== idx) }))}>&times;</button>
+                                                      </span>
+                                                    ))}
+                                                    {localEditForm.countries?.length === 0 && <span className="text-gray-400 italic">No countries</span>}
+                                                    <select
+                                                      className="ml-2 p-1 rounded bg-gray-700 text-white border border-blue-400/40 text-xs"
+                                                      value=""
+                                                      onChange={e => {
+                                                        const val = e.target.value;
+                                                        if (val && !localEditForm.countries.includes(val)) {
+                                                          setLocalEditForm(f => ({ ...f, countries: [...(f.countries || []), val] }));
+                                                        }
+                                                      }}
+                                                    >
+                                                      <option value="">+ Add country...</option>
+                                                      {getAllCountries(validEvents).filter(country => !localEditForm.countries.includes(country)).map(country => (
+                                                        <option key={country} value={country}>{country}</option>
+                                                      ))}
+                                                    </select>
+                                                  </div>
+                                                ) : (
+                                                  <div className="flex gap-2">
+                                                    <input type="text" value={newCountry} onChange={e => setNewCountry(e.target.value)} placeholder="Add country" className="p-2 rounded bg-gray-800/80 text-white border border-blue-400/40 placeholder:text-gray-400" />
+                                                    <button type="button" className="px-2 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow" onClick={() => {
+                                                      if (newCountry && !localEditForm.countries.includes(newCountry)) {
+                                                        setLocalEditForm(f => ({ ...f, countries: [...(f.countries || []), newCountry] }));
+                                                        setNewCountry("");
+                                                        setEditCountryMode('existing');
+                                                      }
+                                                    }}>Add</button>
+                                                  </div>
+                                                )}
                                                 <button
                                                     type="button"
                                                     className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
                                                     disabled={regenCountriesLoading}
                                                     onClick={async () => {
-                                                        setEditError("");
-                                                        setRegenCountriesLoading(true);
-                                                        try {
-                                                            const response = await fetch(`${apiUrl}/events/enrich-tags`, {
-                                                                method: "POST",
-                                                                headers: {
-                                                                    "Content-Type": "application/json",
-                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                                                                },
-                                                                body: JSON.stringify({
-                                                                    title: localEditForm.title,
-                                                                    date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
-                                                                })
-                                                            });
-                                                            const data = await response.json();
-                                                            if (data && Array.isArray(data.countries)) {
-                                                                setLocalEditForm(f => ({ ...f, countries: data.countries.join(", ") }));
-                                                            } else if (data && data.error) {
-                                                                setEditError("Failed to regenerate countries: " + data.error);
-                                                            } else {
-                                                                setEditError("Failed to regenerate countries");
-                                                            }
-                                                        } catch (err) {
-                                                            setEditError("Failed to regenerate countries");
-                                                        } finally {
-                                                            setRegenCountriesLoading(false);
+                                                      setEditError("");
+                                                      setRegenCountriesLoading(true);
+                                                      try {
+                                                        const response = await fetch(`${apiUrl}/events/enrich-tags`, {
+                                                          method: "POST",
+                                                          headers: {
+                                                            "Content-Type": "application/json",
+                                                            ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                          },
+                                                          body: JSON.stringify({
+                                                            title: localEditForm.title,
+                                                            date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
+                                                          })
+                                                        });
+                                                        const data = await response.json();
+                                                        if (data && Array.isArray(data.countries)) {
+                                                          setLocalEditForm(f => ({ ...f, countries: data.countries }));
+                                                        } else if (data && data.error) {
+                                                          setEditError("Failed to regenerate countries: " + data.error);
+                                                        } else {
+                                                          setEditError("Failed to regenerate countries");
                                                         }
+                                                      } catch (err) {
+                                                        setEditError("Failed to regenerate countries");
+                                                      } finally {
+                                                        setRegenCountriesLoading(false);
+                                                      }
                                                     }}
-                                                >
+                                                  >
                                                     {regenCountriesLoading ? "Regenerating..." : "Regenerate Countries"}
-                                                </button>
+                                                  </button>
                                             </div>
                                             <div className="flex gap-2 mt-2 justify-center w-full max-w-md mx-auto">
                                                 <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-full" disabled={submitting}>
