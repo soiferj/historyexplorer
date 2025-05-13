@@ -1295,17 +1295,27 @@ const Timeline = (props) => {
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                                                                <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book</label>
-                                                <div className="flex gap-2 mb-2">
-                                                  <button type="button" className={`px-2 py-1 rounded-l font-bold text-xs ${editBookMode === 'existing' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditBookMode('existing')}>Existing</button>
+                                                <div className="flex mb-2">
+                                                  <button type="button" className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editBookMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
+                                                  onClick={() => setEditBookMode('existing')}
+                                                  aria-pressed={editBookMode === 'existing'}
+                                                  style={{ marginRight: '-1px', zIndex: editBookMode === 'existing' ? 2 : 1 }}
+                                                  disabled={!!localEditForm.book_reference}
+                                                  >
+                                                    Existing
+                                                  </button>
                                                   <button
                                                     type="button"
-                                                    className={`px-2 py-1 rounded-r font-bold text-xs ${editBookMode === 'new' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}${localEditForm.book_reference ? ' opacity-60 cursor-not-allowed' : ''}`}
+                                                    className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editBookMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40${localEditForm.book_reference ? ' opacity-60 cursor-not-allowed' : ''}`}
                                                     onClick={() => {
                                                       if (!localEditForm.book_reference) setEditBookMode('new');
                                                     }}
+                                                    aria-pressed={editBookMode === 'new'}
+                                                    style={{ marginLeft: '-1px', zIndex: editBookMode === 'new' ? 2 : 1 }}
                                                     disabled={!!localEditForm.book_reference}
-                                                    aria-disabled={!!localEditForm.book_reference}
-                                                  >New</button>
+                                                  >
+                                                    New
+                                                  </button>
                                                 </div>
                                                 {editBookMode === 'existing' ? (
                                                   <div className="flex flex-wrap gap-2">
@@ -1393,9 +1403,23 @@ const Timeline = (props) => {
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                                                                <label className="font-semibold text-blue-200" htmlFor="edit-tags">Tags</label>
-                                                <div className="flex gap-2 mb-2">
-                                                  <button type="button" className={`px-2 py-1 rounded-l font-bold text-xs ${editTagMode === 'existing' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditTagMode('existing')}>Existing</button>
-                                                  <button type="button" className={`px-2 py-1 rounded-r font-bold text-xs ${editTagMode === 'new' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditTagMode('new')}>New</button>
+                                                <div className="flex mb-2">
+                                                  <button type="button" className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editTagMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
+                                                  onClick={() => setEditTagMode('existing')}
+                                                  aria-pressed={editTagMode === 'existing'}
+                                                  style={{ marginRight: '-1px', zIndex: editTagMode === 'existing' ? 2 : 1 }}
+                                                  >
+                                                    Existing
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editTagMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
+                                                    onClick={() => setEditTagMode('new')}
+                                                    aria-pressed={editTagMode === 'new'}
+                                                    style={{ marginLeft: '-1px', zIndex: editTagMode === 'new' ? 2 : 1 }}
+                                                  >
+                                                    New
+                                                  </button>
                                                 </div>
                                                 {editTagMode === 'existing' ? (
                                                   <div className="flex flex-wrap gap-2">
@@ -1473,9 +1497,23 @@ const Timeline = (props) => {
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                                                                <label className="font-semibold text-blue-200" htmlFor="edit-regions">Regions</label>
-                                                <div className="flex gap-2 mb-2">
-                                                  <button type="button" className={`px-2 py-1 rounded-l font-bold text-xs ${editRegionMode === 'existing' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditRegionMode('existing')}>Existing</button>
-                                                  <button type="button" className={`px-2 py-1 rounded-r font-bold text-xs ${editRegionMode === 'new' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditRegionMode('new')}>New</button>
+                                                <div className="flex mb-2">
+                                                  <button type="button" className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editRegionMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
+                                                  onClick={() => setEditRegionMode('existing')}
+                                                  aria-pressed={editRegionMode === 'existing'}
+                                                  style={{ marginRight: '-1px', zIndex: editRegionMode === 'existing' ? 2 : 1 }}
+                                                  >
+                                                    Existing
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editRegionMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
+                                                    onClick={() => setEditRegionMode('new')}
+                                                    aria-pressed={editRegionMode === 'new'}
+                                                    style={{ marginLeft: '-1px', zIndex: editRegionMode === 'new' ? 2 : 1 }}
+                                                  >
+                                                    New
+                                                  </button>
                                                 </div>
                                                 {editRegionMode === 'existing' ? (
                                                   <div className="flex flex-wrap gap-2">
@@ -1553,9 +1591,23 @@ const Timeline = (props) => {
                                             </div>
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                                                                <label className="font-semibold text-blue-200" htmlFor="edit-countries">Countries</label>
-                                                <div className="flex gap-2 mb-2">
-                                                  <button type="button" className={`px-2 py-1 rounded-l font-bold text-xs ${editCountryMode === 'existing' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditCountryMode('existing')}>Existing</button>
-                                                  <button type="button" className={`px-2 py-1 rounded-r font-bold text-xs ${editCountryMode === 'new' ? 'bg-blue-700 text-white' : 'bg-gray-700 text-blue-200'}`} onClick={() => setEditCountryMode('new')}>New</button>
+                                                <div className="flex mb-2">
+                                                  <button type="button" className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editCountryMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
+                                                  onClick={() => setEditCountryMode('existing')}
+                                                  aria-pressed={editCountryMode === 'existing'}
+                                                  style={{ marginRight: '-1px', zIndex: editCountryMode === 'existing' ? 2 : 1 }}
+                                                  >
+                                                    Existing
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editCountryMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
+                                                    onClick={() => setEditCountryMode('new')}
+                                                    aria-pressed={editCountryMode === 'new'}
+                                                    style={{ marginLeft: '-1px', zIndex: editCountryMode === 'new' ? 2 : 1 }}
+                                                  >
+                                                    New
+                                                  </button>
                                                 </div>
                                                 {editCountryMode === 'existing' ? (
                                                   <div className="flex flex-wrap gap-2">
