@@ -96,6 +96,8 @@ function App() {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
+        setSession(null); // Explicitly clear session
+        window.location.reload(); // Force UI update (optional, but ensures logout everywhere)
     };
 
     // Filtering logic (same as Timeline)
