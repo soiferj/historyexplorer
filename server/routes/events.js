@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const supabase = require("../db");
+const getSupabaseClient = require("../db");
 const { verifyAllowedUser } = require("../middleware/auth");
 const { OpenAI } = require("openai");
 const fs = require("fs");
@@ -50,6 +50,8 @@ async function enrichEventWithLLM({ title, date }) {
 
 // Add an event
 router.post("/", verifyAllowedUser, async (req, res) => {
+    const accessToken = req.headers.authorization?.split(" ")[1];
+    const supabase = getSupabaseClient(accessToken);
     const { title, description, book_reference, date, tags, date_type, regions, countries } = req.body;
     let enrichedDescription = description;
     let enrichedTags = tags;
@@ -74,6 +76,8 @@ router.post("/", verifyAllowedUser, async (req, res) => {
 
 // Get all events
 router.get("/", async (req, res) => {
+    const accessToken = req.headers.authorization?.split(" ")[1];
+    const supabase = getSupabaseClient(accessToken);
     const { data, error } = await supabase.from("events").select("*");
 
     if (error) return res.status(400).json({ error: error.message });
@@ -82,6 +86,8 @@ router.get("/", async (req, res) => {
 
 // Update an event
 router.put("/:id", verifyAllowedUser, async (req, res) => {
+    const accessToken = req.headers.authorization?.split(" ")[1];
+    const supabase = getSupabaseClient(accessToken);
     const { id } = req.params;
     const { title, description, book_reference, date, tags, date_type, regions, countries } = req.body;
     const { data, error } = await supabase
@@ -95,6 +101,8 @@ router.put("/:id", verifyAllowedUser, async (req, res) => {
 
 // Delete an event
 router.delete("/:id", verifyAllowedUser, async (req, res) => {
+    const accessToken = req.headers.authorization?.split(" ")[1];
+    const supabase = getSupabaseClient(accessToken);
     const { id } = req.params;
     const { error } = await supabase
         .from("events")
@@ -106,6 +114,8 @@ router.delete("/:id", verifyAllowedUser, async (req, res) => {
 
 // Remove a tag from all events (admin only)
 router.post("/remove-tag", verifyAllowedUser, async (req, res) => {
+    const accessToken = req.headers.authorization?.split(" ")[1];
+    const supabase = getSupabaseClient(accessToken);
     const { tag } = req.body;
     if (!tag) return res.status(400).json({ error: "Tag is required" });
     try {
@@ -132,6 +142,7 @@ router.post("/remove-tag", verifyAllowedUser, async (req, res) => {
 
 // Enrich description only
 router.post("/enrich-description", verifyAllowedUser, async (req, res) => {
+    // No DB call, so no need for supabase client
     const { title, date } = req.body;
     if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
     try {
@@ -144,6 +155,7 @@ router.post("/enrich-description", verifyAllowedUser, async (req, res) => {
 
 // Enrich tags only
 router.post("/enrich-tags", verifyAllowedUser, async (req, res) => {
+    // No DB call, so no need for supabase client
     const { title, date } = req.body;
     if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
     try {
@@ -156,6 +168,8 @@ router.post("/enrich-tags", verifyAllowedUser, async (req, res) => {
 
 // POST /events/backfill-regions (admin only)
 router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
+    const accessToken = req.headers.authorization?.split(" ")[1];
+    const supabase = getSupabaseClient(accessToken);
     try {
         const { data: events, error } = await supabase.from("events").select("*");
         if (error) return res.status(500).json({ error: error.message });

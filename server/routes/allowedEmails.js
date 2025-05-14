@@ -1,10 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const supabase = require('../db');
+const getSupabaseClient = require('../db');
 
 // GET /allowed-emails - fetch allowed emails from Supabase
 router.get('/', async (req, res) => {
   try {
+    const accessToken = req.headers.authorization?.split(' ')[1];
+    const supabase = getSupabaseClient(accessToken);
     const { data, error } = await supabase
       .from('allowed_emails')
       .select('email');

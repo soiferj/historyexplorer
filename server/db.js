@@ -1,8 +1,16 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_KEY
-);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_KEY;
 
-module.exports = supabase;
+function getSupabaseClient(accessToken) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: {
+      headers: {
+        Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
+      },
+    },
+  });
+}
+
+module.exports = getSupabaseClient;

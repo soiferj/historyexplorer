@@ -52,7 +52,12 @@ function App() {
         setEventsError(null);
         try {
             const apiUrl = process.env.REACT_APP_API_URL;
-            const response = await fetch(`${apiUrl}/events`);
+            const accessToken = session?.access_token;
+            const response = await fetch(`${apiUrl}/events`, {
+                headers: {
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                }
+            });
             if (!response.ok) throw new Error("Failed to fetch events");
             const data = await response.json();
             setEvents(data);
@@ -190,9 +195,10 @@ function App() {
         const apiUrl = process.env.REACT_APP_API_URL;
         const fetchAllowedEmails = async () => {
             try {
+                const accessToken = session?.access_token;
                 const response = await fetch(`${apiUrl}/allowed-emails`, {
                     headers: {
-                        ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
+                        ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                     }
                 });
                 if (!response.ok) throw new Error("Failed to fetch allowed emails");
@@ -213,6 +219,7 @@ function App() {
             if (retryTimeout) clearTimeout(retryTimeout);
         };
     }, [session?.access_token]);
+
     const isAllowed = session?.user && allowedEmails.map(e => e.toLowerCase()).includes(session.user.email.toLowerCase());
 
     return (
@@ -331,16 +338,17 @@ function App() {
                             onEventAdded={async (newEvent) => {
                                 await fetchEvents();
                                 setShowForm(false);
-                                // Always switch to timeline view after adding
                                 setShowMap(false);
                                 setShowTagEvolution(false);
                                 // Find the new event in the refreshed events list by id
                                 const latestEvent = (events || []).find(e => e.id === newEvent.id);
-                                setSelectedEvent(latestEvent || newEvent); // fallback to newEvent if not found
+                                if (typeof setSelectedEvent === 'function') {
+                                    setSelectedEvent(latestEvent || newEvent);
+                                }
                             }}
-                            accessToken={session?.access_token}
                             allEvents={events}
-                            setSelectedEvent={setSelectedEvent} // Pass down for possible use in AddEventForm
+                            setSelectedEvent={setSelectedEvent}
+                            accessToken={session?.access_token}
                         />
                     </div>
                 </div>
@@ -476,10 +484,6 @@ function App() {
                         setSearchTerm={setSearchTerm}
                         dateFilter={dateFilter}
                         setDateFilter={setDateFilter}
-                        zoomLevel={zoomLevel}
-                        setZoomLevel={setZoomLevel}
-                        groupMode={groupMode}
-                        setGroupMode={setGroupMode}
                         selectedTags={selectedTags}
                         setSelectedTags={setSelectedTags}
                         selectedBooks={selectedBooks}
@@ -496,15 +500,18 @@ function App() {
                         setRegionSearchTerm={setRegionSearchTerm}
                         tagOverlapOnly={tagOverlapOnly}
                         setTagOverlapOnly={setTagOverlapOnly}
-                        onEventsUpdated={fetchEvents}
-                        selectedEvent={selectedEvent}
-                        setSelectedEvent={setSelectedEvent}
-                        editMode={editMode}
-                        setEditMode={setEditMode}
-                        editError={editError}
-                        setEditError={setEditError}
-                        // Remove the controls from Timeline itself
-                        hideControls={true}
+                        onEventSelect={setSelectedEvent}
+                        onEventEdit={setEditMode}
+                        onEventDelete={async (eventId) => {
+                            setRemovalSelectedTags([eventId]);
+                            setShowDeleteConfirm(true);
+                        }}
+                        zoomLevel={zoomLevel}
+                        setZoomLevel={setZoomLevel}
+                        groupMode={groupMode}
+                        setGroupMode={setGroupMode}
+                        isAllowed={isAllowed}
+                        accessToken={session?.access_token}
                     />
                 )}
             </div>
