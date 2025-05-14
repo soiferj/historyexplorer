@@ -2,6 +2,12 @@ import React from "react";
 import { MapContainer, TileLayer, CircleMarker, Tooltip, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import '@maplibre/maplibre-gl-leaflet';
+import 'maplibre-gl'; 
+import 'maplibre-gl/dist/maplibre-gl.css';
+import '@maplibre/maplibre-gl-leaflet';
+import LanguageControl from '@mapbox/mapbox-gl-language';
+
 // Use the same color palette as Timeline
 const colorPalette = [
     '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
@@ -255,26 +261,16 @@ const mapEras = [
     center: [41, 15],
     zoom: 4
   },
-  // {
-  //   label: 'Ancient World (OpenHistoricalMap)',
-  //   value: 'ancient',
-  //   url: 'https://tile.openhistoricalmap.org/ohm/{z}/{x}/{y}.png',
-  //   attribution: 'Map data © <a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a> contributors',
-  //   minZoom: 2,
-  //   maxZoom: 15,
-  //   center: [37, 20], // Eastern Mediterranean
-  //   zoom: 5
-  // },
-  // {
-  //   label: 'Medieval Europe (Pelagios)',
-  //   value: 'medieval',
-  //   url: 'https://pelagios.org/tiles/medieval/{z}/{x}/{y}.png',
-  //   attribution: 'Map data © <a href="http://pelagios.org/">Pelagios</a> Medieval project.',
-  //   minZoom: 3,
-  //   maxZoom: 7,
-  //   center: [48, 10], // Central Europe
-  //   zoom: 4
-  // }
+  {
+    label: 'OpenHistoricalMap',
+    value: 'ohm',
+    url: 'https://www.openhistoricalmap.org/map-styles/main/main.json', // Not used by TileLayer, but for reference
+    attribution: '<a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a>',
+    minZoom: 1,
+    maxZoom: 18,
+    center: [20, 0],
+    zoom: 2
+  },
   // Add more eras as needed
 ];
 
@@ -647,12 +643,16 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
       >
         <MapEraViewSetter center={selectedEraObj.center} zoom={selectedEraObj.zoom} />
         <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
-        {/* Use selected era's tile layer, add errorTileUrl for fallback */}
-        <TileLayer
-          attribution={selectedEraObj.attribution}
-          url={selectedEraObj.url}
-          errorTileUrl="https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
-        />
+        {/* Use MapLibre GL for OHM, otherwise use TileLayer */}
+        {selectedEra === 'ohm' ? (
+          <OHMMapLibreLayer enabled={true} attribution={selectedEraObj.attribution} />
+        ) : (
+          <TileLayer
+            attribution={selectedEraObj.attribution}
+            url={selectedEraObj.url}
+            errorTileUrl="https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
+          />
+        )}
         {viewMode === 'region' && regionList.map((region, idx) => {
           const coords = regionCoords[region.toLowerCase()];
           if (!coords) return null;
@@ -785,5 +785,41 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     </div>
   );
 };
+
+// Helper component to add MapLibre GL layer for OHM
+function OHMMapLibreLayer({ enabled, attribution }) {
+  const map = useMap();
+  const mlMapRef = React.useRef(null);
+  const languageControlRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!enabled) return;
+    const maplibreLayer = L.maplibreGL({
+      style: 'https://www.openhistoricalmap.org/map-styles/main/main.json',
+      attribution: attribution || '<a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a>'
+    });
+    map.addLayer(maplibreLayer);
+    const mlMap = maplibreLayer.getMaplibreMap && maplibreLayer.getMaplibreMap();
+    mlMapRef.current = mlMap;
+    if (mlMap) {
+      const languageControl = new LanguageControl({ defaultLanguage: 'en' });
+      mlMap.addControl(languageControl);
+      languageControlRef.current = languageControl;
+    }
+    return () => {
+      map.removeLayer(maplibreLayer);
+      // Defensive: only remove control if both are still valid
+      if (mlMapRef.current && languageControlRef.current) {
+        try {
+          mlMapRef.current.removeControl(languageControlRef.current);
+        } catch (e) {
+          // Ignore errors if already removed
+        }
+      }
+      mlMapRef.current = null;
+      languageControlRef.current = null;
+    };
+  }, [enabled, map, attribution]);
+  return null;
+}
 
 export default MapView;
