@@ -231,6 +231,53 @@ const countryCoords = {
   "zimbabwe": [-19.0154, 29.1549]
 };
 
+// Map era/century tile layers
+// Add minZoom/maxZoom for each era
+// Add recommended center/zoom for each era
+const mapEras = [
+  {
+    label: 'Modern',
+    value: 'modern',
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a> | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    minZoom: 1,
+    maxZoom: 18,
+    center: [20, 0],
+    zoom: 2
+  },
+  {
+    label: 'Roman Empire (Pelagios)',
+    value: 'roman',
+    url: 'https://dh.gu.se/tiles/imperium/{z}/{x}/{y}.png',
+    attribution: 'Map data &copy; <a href="http://pelagios.org/">Pelagios</a> Imperium Romanum project.',
+    minZoom: 3,
+    maxZoom: 7,
+    center: [41, 15],
+    zoom: 4
+  },
+  // {
+  //   label: 'Ancient World (OpenHistoricalMap)',
+  //   value: 'ancient',
+  //   url: 'https://tile.openhistoricalmap.org/ohm/{z}/{x}/{y}.png',
+  //   attribution: 'Map data © <a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a> contributors',
+  //   minZoom: 2,
+  //   maxZoom: 15,
+  //   center: [37, 20], // Eastern Mediterranean
+  //   zoom: 5
+  // },
+  // {
+  //   label: 'Medieval Europe (Pelagios)',
+  //   value: 'medieval',
+  //   url: 'https://pelagios.org/tiles/medieval/{z}/{x}/{y}.png',
+  //   attribution: 'Map data © <a href="http://pelagios.org/">Pelagios</a> Medieval project.',
+  //   minZoom: 3,
+  //   maxZoom: 7,
+  //   center: [48, 10], // Central Europe
+  //   zoom: 4
+  // }
+  // Add more eras as needed
+];
+
 const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedCountries, loading, error, onBackToTimeline }) => {
   // Toggle state: 'region' or 'country'
   const [viewMode, setViewMode] = React.useState('country');
@@ -244,6 +291,10 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
   const [modalOpen, setModalOpen] = React.useState(false);
   const [modalEvents, setModalEvents] = React.useState([]);
   const [modalTitle, setModalTitle] = React.useState("");
+  const [selectedEra, setSelectedEra] = React.useState('modern');
+  const selectedEraObj = mapEras.find(e => e.value === selectedEra) || mapEras[0];
+  const [mapCenter, setMapCenter] = React.useState(selectedEraObj.center);
+  const [mapZoom, setMapZoom] = React.useState(selectedEraObj.zoom);
 
   // Group events by region
   const regionEvents = React.useMemo(() => {
@@ -451,8 +502,37 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     return null;
   }
 
+  // Helper to set map view on era change
+  function MapEraViewSetter({ center, zoom }) {
+    const map = useMap();
+    React.useEffect(() => {
+      map.setView(center, zoom, { animate: true });
+    }, [center, zoom, map]);
+    return null;
+  }
+
+  // When era changes, update map center/zoom
+  React.useEffect(() => {
+    setMapCenter(selectedEraObj.center);
+    setMapZoom(selectedEraObj.zoom);
+  }, [selectedEra, selectedEraObj]);
+
   return (
     <div className="w-full h-[500px] relative">
+      {/* Era/Century selector */}
+      <div className="w-full flex justify-center mb-2 gap-4">
+        <label htmlFor="era-select" className="text-white font-semibold mr-2">Map Era:</label>
+        <select
+          id="era-select"
+          className="px-3 py-1 rounded border border-blue-400 bg-gray-800 text-white shadow"
+          value={selectedEra}
+          onChange={e => setSelectedEra(e.target.value)}
+        >
+          {mapEras.map(era => (
+            <option key={era.value} value={era.value}>{era.label}</option>
+          ))}
+        </select>
+      </div>
       {/* Modal for timeline of events in selected region/country */}
       {modalOpen && (
         <div
@@ -557,11 +637,21 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
       </div>
       {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
       {error && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10 text-red-300">{error}</div>}
-      <MapContainer center={[20, 0]} zoom={2} style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1 }} scrollWheelZoom={true}>
+      <MapContainer
+        center={mapCenter}
+        zoom={mapZoom}
+        minZoom={selectedEraObj.minZoom}
+        maxZoom={selectedEraObj.maxZoom}
+        style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1 }}
+        scrollWheelZoom={true}
+      >
+        <MapEraViewSetter center={selectedEraObj.center} zoom={selectedEraObj.zoom} />
         <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
+        {/* Use selected era's tile layer, add errorTileUrl for fallback */}
         <TileLayer
-          attribution='&copy; <a href="https://carto.com/attributions">CARTO</a> | &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution={selectedEraObj.attribution}
+          url={selectedEraObj.url}
+          errorTileUrl="https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
         />
         {viewMode === 'region' && regionList.map((region, idx) => {
           const coords = regionCoords[region.toLowerCase()];
