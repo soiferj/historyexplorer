@@ -7,6 +7,7 @@ import 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-leaflet';
 import LanguageControl from '@mapbox/mapbox-gl-language';
+import { filterByDate, dateRangeFromISODate } from '@openhistoricalmap/maplibre-gl-dates';
 
 // Use the same color palette as Timeline
 const colorPalette = [
@@ -291,6 +292,83 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
   const selectedEraObj = mapEras.find(e => e.value === selectedEra) || mapEras[0];
   const [mapCenter, setMapCenter] = React.useState(selectedEraObj.center);
   const [mapZoom, setMapZoom] = React.useState(selectedEraObj.zoom);
+  const [selectedYear, setSelectedYear] = React.useState(null);
+
+  // Compute min/max year and date type from sorted events (for OHM slider)
+  const ohmYearData = React.useMemo(() => {
+    // Build a sorted list of years with their date types
+    const filtered = (events || []).filter(ev => ev.date && !isNaN(parseInt(ev.date.split("-"), 10)));
+    if (filtered.length === 0) return null;
+    // Map to { year: number, dateType: 'BCE'|'CE' }
+    const yearObjs = filtered.map(ev => {
+      let y = parseInt(ev.date.split("-")[0], 10);
+      let type = ev.date_type || 'CE';
+      if (type === 'BCE') y = -Math.abs(y); // BCE as negative
+      else y = Math.abs(y); // CE as positive
+      return { year: y, dateType: type };
+    });
+    // Sort: BCE (negative, descending), then CE (positive, ascending)
+    yearObjs.sort((a, b) => a.year - b.year);
+    const years = yearObjs.map(obj => obj.year);
+    const yearToType = {};
+    yearObjs.forEach(obj => { yearToType[obj.year] = obj.dateType; });
+    return {
+      min: years[0],
+      max: years[years.length - 1],
+      years,
+      yearToType,
+    };
+  }, [events]);
+
+  // Compute centuries from events for OHM dropdown
+  const ohmCenturyData = React.useMemo(() => {
+    if (!ohmYearData) return null;
+    // Map each year to its century and dateType
+    const centuriesSet = new Set();
+    const centuryToYear = {};
+    const centuryToType = {};
+    ohmYearData.years.forEach(y => {
+      let absYear = Math.abs(y);
+      let type = ohmYearData.yearToType[y] || (y < 0 ? 'BCE' : 'CE');
+      let centuryNum;
+      if (type === 'BCE') {
+        centuryNum = Math.ceil(absYear / 100);
+        // e.g. -450 => 5th century BCE
+        // Use -((centuryNum-1)*100+1) as the first year of the century
+        const firstYear = -((centuryNum - 1) * 100 + 1);
+        centuriesSet.add(`-${centuryNum}`);
+        centuryToYear[`-${centuryNum}`] = firstYear;
+        centuryToType[`-${centuryNum}`] = 'BCE';
+      } else {
+        centuryNum = Math.ceil(absYear / 100);
+        // e.g. 1204 => 13th century CE
+        // Use (centuryNum-1)*100+1 as the first year of the century
+        const firstYear = (centuryNum - 1) * 100 + 1;
+        centuriesSet.add(`${centuryNum}`);
+        centuryToYear[`${centuryNum}`] = firstYear;
+        centuryToType[`${centuryNum}`] = 'CE';
+      }
+    });
+    // Sort centuries: BCE (negative, descending), then CE (positive, ascending)
+    const sorted = Array.from(centuriesSet).sort((a, b) => parseInt(a) - parseInt(b));
+    return {
+      centuries: sorted,
+      centuryToYear,
+      centuryToType,
+    };
+  }, [ohmYearData]);
+
+  // Set default selectedYear when OHM is selected or events change
+  React.useEffect(() => {
+    if (selectedEra === 'ohm' && ohmYearData) {
+      setSelectedYear(y => {
+        if (y == null || y < ohmYearData.min || y > ohmYearData.max) {
+          return ohmYearData.min;
+        }
+        return y;
+      });
+    }
+  }, [selectedEra, ohmYearData]);
 
   // Group events by region
   const regionEvents = React.useMemo(() => {
@@ -529,6 +607,51 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           ))}
         </select>
       </div>
+      {/* OHM Century Dropdown */}
+      {selectedEra === 'ohm' && ohmCenturyData && (
+        <div className="w-full flex justify-center mb-2 gap-4 items-center">
+          <select
+            id="ohm-century-dropdown"
+            className="px-3 py-1 rounded border border-blue-400 bg-gray-800 text-white shadow"
+            value={(() => {
+              // Find the selected century for the current selectedYear
+              if (selectedYear == null) return ohmCenturyData.centuries[0];
+              let y = selectedYear;
+              let type = y < 0 ? 'BCE' : 'CE';
+              let absYear = Math.abs(y);
+              let centuryNum = Math.ceil(absYear / 100);
+              return type === 'BCE' ? `-${centuryNum}` : `${centuryNum}`;
+            })()}
+            onChange={e => {
+              const val = e.target.value;
+              setSelectedYear(ohmCenturyData.centuryToYear[val]);
+            }}
+          >
+            {ohmCenturyData.centuries.map(c => {
+              const type = ohmCenturyData.centuryToType[c];
+              const absC = Math.abs(parseInt(c));
+              return (
+                <option key={c} value={c}>
+                  {type === 'BCE'
+                    ? `${absC}${absC === 1 ? 'st' : absC === 2 ? 'nd' : absC === 3 ? 'rd' : 'th'} century BCE`
+                    : `${absC}${absC === 1 ? 'st' : absC === 2 ? 'nd' : absC === 3 ? 'rd' : 'th'} century CE`}
+                </option>
+              );
+            })}
+          </select>
+          <span className="text-blue-200 font-mono">
+            {(() => {
+              const y = selectedYear ?? (ohmCenturyData && ohmCenturyData.centuryToYear[ohmCenturyData.centuries[0]]);
+              const type = y < 0 ? 'BCE' : 'CE';
+              let absYear = Math.abs(y);
+              let centuryNum = Math.ceil(absYear / 100);
+              return type === 'BCE'
+                ? `${centuryNum}${centuryNum === 1 ? 'st' : centuryNum === 2 ? 'nd' : centuryNum === 3 ? 'rd' : 'th'} century BCE`
+                : `${centuryNum}${centuryNum === 1 ? 'st' : centuryNum === 2 ? 'nd' : centuryNum === 3 ? 'rd' : 'th'} century CE`;
+            })()}
+          </span>
+        </div>
+      )}
       {/* Modal for timeline of events in selected region/country */}
       {modalOpen && (
         <div
@@ -645,7 +768,26 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
         {/* Use MapLibre GL for OHM, otherwise use TileLayer */}
         {selectedEra === 'ohm' ? (
-          <OHMMapLibreLayer enabled={true} attribution={selectedEraObj.attribution} />
+          <OHMMapLibreLayer
+            enabled={true}
+            attribution={selectedEraObj.attribution}
+            year={selectedYear ?? (ohmCenturyData && ohmCenturyData.centuryToYear[ohmCenturyData.centuries[0]])}
+            dateType={(() => {
+              const y = selectedYear ?? (ohmCenturyData && ohmCenturyData.centuryToYear[ohmCenturyData.centuries[0]]);
+              if (ohmCenturyData) {
+                let type = y < 0 ? 'BCE' : 'CE';
+                return type;
+              }
+              return 'CE';
+            })()}
+            key={
+              (() => {
+                const y = selectedYear ?? (ohmCenturyData && ohmCenturyData.centuryToYear[ohmCenturyData.centuries[0]]);
+                const type = y < 0 ? 'BCE' : 'CE';
+                return `${y}-${type}`;
+              })()
+            }
+          />
         ) : (
           <TileLayer
             attribution={selectedEraObj.attribution}
@@ -787,12 +929,20 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
 };
 
 // Helper component to add MapLibre GL layer for OHM
-function OHMMapLibreLayer({ enabled, attribution }) {
+function OHMMapLibreLayer({ enabled, attribution, year, dateType }) {
   const map = useMap();
   const mlMapRef = React.useRef(null);
   const languageControlRef = React.useRef(null);
+  // Force a full reload of the OHM map when year or dateType changes by using a key on the container
   React.useEffect(() => {
     if (!enabled) return;
+    // Remove any previous OHM maplibre layers
+    map.eachLayer(layer => {
+      if (layer && layer.options && layer.options.attribution && String(layer.options.attribution).includes('OpenHistoricalMap')) {
+        map.removeLayer(layer);
+      }
+    });
+    // Add a new OHM maplibre layer
     const maplibreLayer = L.maplibreGL({
       style: 'https://www.openhistoricalmap.org/map-styles/main/main.json',
       attribution: attribution || '<a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a>'
@@ -800,25 +950,15 @@ function OHMMapLibreLayer({ enabled, attribution }) {
     map.addLayer(maplibreLayer);
     const mlMap = maplibreLayer.getMaplibreMap && maplibreLayer.getMaplibreMap();
     mlMapRef.current = mlMap;
-    if (mlMap) {
-      const languageControl = new LanguageControl({ defaultLanguage: 'en' });
-      mlMap.addControl(languageControl);
-      languageControlRef.current = languageControl;
-    }
-    return () => {
-      map.removeLayer(maplibreLayer);
-      // Defensive: only remove control if both are still valid
-      if (mlMapRef.current && languageControlRef.current) {
-        try {
-          mlMapRef.current.removeControl(languageControlRef.current);
-        } catch (e) {
-          // Ignore errors if already removed
-        }
-      }
-      mlMapRef.current = null;
-      languageControlRef.current = null;
-    };
-  }, [enabled, map, attribution]);
+    if (!mlMap) return;
+    const y = Math.abs(year);
+    const type = dateType || 'CE';
+    const yearStr = type === 'BCE' ? `-${y}` : `${y}`;
+    const isoDate = `${yearStr}-01-01`;
+    mlMap.once('styledata', function () {
+      filterByDate(mlMap, isoDate);
+    });
+  }, [enabled, map, attribution, year, dateType]);
   return null;
 }
 
