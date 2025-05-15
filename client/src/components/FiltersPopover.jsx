@@ -55,13 +55,25 @@ function FiltersPopover({
             <h2 className="text-3xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Filters</h2>
             {/* Centered Search Bar */}
             <div className="flex justify-center w-full mb-4">
-                <input
-                    type="text"
-                    placeholder="Search anything..."
-                    className="p-3 w-64 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                />
+                <div className="relative w-64">
+                    <input
+                        type="text"
+                        placeholder="Search anything..."
+                        className="p-3 w-64 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md pr-10"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                    {searchTerm && (
+                        <button
+                            type="button"
+                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-pink-400 focus:outline-none"
+                            onClick={() => setSearchTerm('')}
+                            aria-label="Clear search"
+                        >
+                            ×
+                        </button>
+                    )}
+                </div>
             </div>
             {/* Date Range Filter */}
             <div className="mb-4 w-full flex flex-col items-center">
