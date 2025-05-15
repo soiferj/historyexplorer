@@ -284,7 +284,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
   const [currentLineIdx, setCurrentLineIdx] = React.useState(-1);
   const [linesToDraw, setLinesToDraw] = React.useState([]);
   const [paused, setPaused] = React.useState(false);
-  const [speed] = React.useState(1500); // Animation speed in ms per frame
+  const [speed] = React.useState(4000); // Animation speed in ms per frame (changed from 1500 to 4000)
   const timerRef = React.useRef(null);
   const [modalOpen, setModalOpen] = React.useState(false);
   const [modalEvents, setModalEvents] = React.useState([]);
@@ -512,6 +512,28 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     }, speed);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [animating, paused, currentLineIdx, linesToDraw, speed]);
+
+  // During animation or manual frame change, if OHM is selected, set the map century to the century of the current event
+  React.useEffect(() => {
+    if (
+      selectedEra === 'ohm' &&
+      ohmCenturyData &&
+      currentLineIdx >= 0 &&
+      linesToDraw[currentLineIdx] &&
+      linesToDraw[currentLineIdx].year != null
+    ) {
+      const y = linesToDraw[currentLineIdx].year;
+      const type = linesToDraw[currentLineIdx].dateType || (y < 0 ? 'BCE' : 'CE');
+      const absYear = Math.abs(y);
+      const centuryNum = Math.ceil(absYear / 100);
+      const centuryKey = type === 'BCE' ? `-${centuryNum}` : `${centuryNum}`;
+      const newYear = ohmCenturyData.centuryToYear[centuryKey];
+      if (newYear != null && newYear !== selectedYear) {
+        setSelectedYear(newYear);
+      }
+    }
+    // Only run when currentLineIdx, selectedEra, ohmCenturyData, or linesToDraw changes
+  }, [selectedEra, ohmCenturyData, currentLineIdx, linesToDraw, selectedYear]);
 
   // Stop animation
   const handleStop = () => {
