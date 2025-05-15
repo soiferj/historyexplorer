@@ -373,13 +373,12 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
 
   // Set default selectedYear when OHM is selected or events change
   React.useEffect(() => {
-    if (selectedEra === 'ohm' && ohmCenturyData) {
+    if (selectedEra === 'ohm' && ohmYearData) {
       setSelectedYear(y => {
-        // Always default to the latest (most recent) century in the sorted list of filtered events (before adding 21st)
-        const latestCentury = ohmCenturyData.latestCenturyBefore21;
-        const latestYear = ohmCenturyData.centuryToYear[latestCentury];
+        // Always default to the last (most recent) year in the filtered events
+        const lastYear = ohmYearData.max;
         if (y == null || y < ohmYearData.min || y > ohmYearData.max) {
-          return latestYear;
+          return lastYear;
         }
         return y;
       });
@@ -759,13 +758,6 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         >
           {showEvents ? 'Hide Events' : 'Show Events'}
         </button>
-        <button
-          className="px-2 py-1 rounded text-sm font-semibold shadow transition-all duration-200 border border-green-400 text-white bg-gray-700 hover:bg-green-700 min-w-[120px]"
-          onClick={() => setViewMode(viewMode === 'country' ? 'region' : 'country')}
-          type="button"
-        >
-          {viewMode === 'country' ? 'Show Events by Region' : 'Show Events by Country'}
-        </button>
         <AnimationControlsDropdown
           animating={animating}
           paused={paused}
@@ -778,6 +770,13 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           handleBack={handleBack}
           handleForward={handleForward}
         />
+        <button
+          className="px-2 py-1 rounded text-sm font-semibold shadow transition-all duration-200 border border-green-400 text-white bg-gray-700 hover:bg-green-700 min-w-[120px]"
+          onClick={() => setViewMode(viewMode === 'country' ? 'region' : 'country')}
+          type="button"
+        >
+          {viewMode === 'country' ? 'Show Events by Region' : 'Show Events by Country'}
+        </button>
       </div>
       {/* Map component */}
       {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
@@ -1001,22 +1000,85 @@ function OHMMapLibreLayer({ enabled, attribution, year, dateType }) {
 // Update AnimationControlsDropdown to always render the button and dropdown together
 function AnimationControlsDropdown({ animating, paused, currentLineIdx, linesToDraw, events, handlePlay, handlePauseResume, handleStop, handleBack, handleForward }) {
   const [open, setOpen] = React.useState(false);
+  const [position, setPosition] = React.useState({ x: window.innerWidth / 2 - 120, y: 100 }); // smaller default position
+  const [dragging, setDragging] = React.useState(false);
+  const dragOffset = React.useRef({ x: 0, y: 0 });
+  const windowRef = React.useRef(null);
+
+  // Mouse event handlers for drag
+  const onMouseDown = (e) => {
+    setDragging(true);
+    dragOffset.current = {
+      x: e.clientX - position.x,
+      y: e.clientY - position.y
+    };
+    document.body.style.userSelect = 'none';
+  };
+  React.useEffect(() => {
+    if (!dragging) return;
+    const onMouseMove = (e) => {
+      setPosition({
+        x: Math.max(0, Math.min(window.innerWidth - 220, e.clientX - dragOffset.current.x)), // smaller width
+        y: Math.max(0, Math.min(window.innerHeight - 60, e.clientY - dragOffset.current.y)) // smaller height
+      });
+    };
+    const onMouseUp = () => {
+      setDragging(false);
+      document.body.style.userSelect = '';
+    };
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [dragging]);
+
   return (
-    <div className="relative">
+    <div className="relative z-50">
       <button
         className="px-2 py-1 rounded text-xs font-semibold border border-blue-400 text-white bg-gray-700 hover:bg-blue-700"
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
         aria-controls="animation-controls-panel"
-        style={{ minWidth: 120 }}
+        style={{ minWidth: 100 }}
         type="button"
       >
         {open ? 'Hide Animation Controls' : 'Show Animation Controls'}
       </button>
       {open && (
-        <div id="animation-controls-panel" className="absolute left-0 mt-2 z-20 w-max min-w-[260px] flex flex-wrap justify-center gap-1 items-center px-2 bg-gray-800 rounded-lg py-2 border border-blue-400 shadow-lg animate-fade-in text-xs">
+        <div
+          ref={windowRef}
+          className="fixed shadow-lg border border-blue-400 rounded-lg bg-gray-800 py-1 px-1 min-w-[160px] w-max flex flex-wrap justify-center gap-1 items-center text-xs cursor-default"
+          style={{
+            left: position.x,
+            top: position.y,
+            zIndex: 1000,
+            boxShadow: '0 8px 32px #000a',
+            userSelect: dragging ? 'none' : 'auto',
+            transition: dragging ? 'none' : 'box-shadow 0.2s',
+            minWidth: 160,
+            padding: 6,
+            borderRadius: 10,
+            maxWidth: 260
+          }}
+        >
+          <div
+            className="w-full flex items-center justify-end cursor-move mb-1 select-none"
+            style={{ cursor: 'move', marginBottom: 2, minHeight: 18 }}
+            onMouseDown={onMouseDown}
+          >
+            <button
+              className="ml-2 text-white hover:text-pink-400 text-lg font-bold px-1"
+              onClick={() => setOpen(false)}
+              title="Close"
+              style={{ lineHeight: 1 }}
+              type="button"
+            >
+              ×
+            </button>
+          </div>
           <span className="text-white font-semibold mr-1">Anim</span>
-          {/* Frame counter */}
           <span className="text-pink-200 font-mono text-xs mr-1">
             {linesToDraw.length > 0 ? `${Math.max(0, currentLineIdx + 1)} / ${linesToDraw.length}` : '0 / 0'}
           </span>
