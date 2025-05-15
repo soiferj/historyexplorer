@@ -598,11 +598,37 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     return null;
   }
 
-  // When era changes, update map center/zoom
+  // Track previous era to only reset view when era actually changes
+  const prevEraRef = React.useRef(selectedEra);
   React.useEffect(() => {
-    setMapCenter(selectedEraObj.center);
-    setMapZoom(selectedEraObj.zoom);
+    if (prevEraRef.current !== selectedEra) {
+      setMapCenter(selectedEraObj.center);
+      setMapZoom(selectedEraObj.zoom);
+      prevEraRef.current = selectedEra;
+    }
+    // Do not reset view if only selectedEraObj changes (e.g., props update)
   }, [selectedEra, selectedEraObj]);
+
+  // Track map center/zoom on user interaction to preserve state
+  const handleMapMove = React.useCallback((map) => {
+    setMapCenter(map.getCenter());
+    setMapZoom(map.getZoom());
+  }, []);
+
+  // Custom MapEventHandler to update center/zoom state
+  function MapEventHandler() {
+    const map = useMap();
+    React.useEffect(() => {
+      const onMove = () => handleMapMove(map);
+      map.on('moveend', onMove);
+      map.on('zoomend', onMove);
+      return () => {
+        map.off('moveend', onMove);
+        map.off('zoomend', onMove);
+      };
+    }, [map]);
+    return null;
+  }
 
   return (
     <div className="w-full h-[500px] relative">
@@ -732,7 +758,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1 }}
         scrollWheelZoom={true}
       >
-        <MapEraViewSetter center={selectedEraObj.center} zoom={selectedEraObj.zoom} />
+        <MapEventHandler />
         <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
         {/* Use MapLibre GL for OHM, otherwise use TileLayer */}
         {selectedEra === 'ohm' ? (
