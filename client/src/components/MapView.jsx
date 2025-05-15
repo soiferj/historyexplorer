@@ -254,7 +254,7 @@ const mapEras = [
     zoom: 2
   },
   {
-    label: 'Historical by Century',
+    label: 'Historical',
     value: 'ohm',
     url: 'https://www.openhistoricalmap.org/map-styles/main/main.json', // Not used by TileLayer, but for reference
     attribution: '<a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a>',
@@ -297,6 +297,9 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
 
   // Add state for toggling events
   const [showEvents, setShowEvents] = React.useState(true);
+
+  // Add state for tempYear (for slider dragging)
+  const [tempYear, setTempYear] = React.useState(null);
 
   // Compute min/max year and date type from sorted events (for OHM slider)
   const ohmYearData = React.useMemo(() => {
@@ -513,27 +516,25 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [animating, paused, currentLineIdx, linesToDraw, speed]);
 
-  // During animation or manual frame change, if OHM is selected, set the map century to the century of the current event
+  // During animation or manual frame change, if OHM is selected, set the map year to the event's year (respecting BCE/CE sign)
   React.useEffect(() => {
     if (
       selectedEra === 'ohm' &&
-      ohmCenturyData &&
       currentLineIdx >= 0 &&
       linesToDraw[currentLineIdx] &&
       linesToDraw[currentLineIdx].year != null
     ) {
-      const y = linesToDraw[currentLineIdx].year;
-      const type = linesToDraw[currentLineIdx].dateType || (y < 0 ? 'BCE' : 'CE');
-      const absYear = Math.abs(y);
-      const centuryNum = Math.ceil(absYear / 100);
-      const centuryKey = type === 'BCE' ? `-${centuryNum}` : `${centuryNum}`;
-      const newYear = ohmCenturyData.centuryToYear[centuryKey];
-      if (newYear != null && newYear !== selectedYear) {
-        setSelectedYear(newYear);
+      let y = linesToDraw[currentLineIdx].year;
+      let type = linesToDraw[currentLineIdx].dateType || (y < 0 ? 'BCE' : 'CE');
+      // Ensure BCE is negative, CE is positive
+      if (type === 'BCE') y = -Math.abs(y);
+      else y = Math.abs(y);
+      if (y !== selectedYear) {
+        setSelectedYear(y);
       }
     }
-    // Only run when currentLineIdx, selectedEra, ohmCenturyData, or linesToDraw changes
-  }, [selectedEra, ohmCenturyData, currentLineIdx, linesToDraw, selectedYear]);
+    // Only run when currentLineIdx, selectedEra, linesToDraw, or selectedYear changes
+  }, [selectedEra, currentLineIdx, linesToDraw, selectedYear]);
 
   // Stop animation
   const handleStop = () => {
@@ -668,37 +669,46 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           ))}
         </select>
       </div>
-      {/* OHM Century Dropdown */}
-      {selectedEra === 'ohm' && ohmCenturyData && (
-        <div className="w-full flex justify-center mb-2 gap-4 items-center">
-          <label htmlFor="ohm-century-dropdown" className="text-white font-semibold mr-2">Century:</label>
-          <select
-            id="ohm-century-dropdown"
-            className="px-3 py-1 rounded border border-blue-400 bg-gray-800 text-white shadow"
-            value={(() => {
-              if (selectedYear == null) return ohmCenturyData.centuries[0];
-              let y = selectedYear;
-              let type = y < 0 ? 'BCE' : 'CE';
-              let absYear = Math.abs(y);
-              let centuryNum = Math.ceil(absYear / 100);
-              return type === 'BCE' ? `-${centuryNum}` : `${centuryNum}`;
+      {/* OHM Year Slider */}
+      {selectedEra === 'ohm' && ohmYearData && (
+        <div className="w-full flex flex-col items-center mb-2 gap-2">
+          <label htmlFor="ohm-year-slider" className="text-white font-semibold mb-1">Year:</label>
+          <div className="flex items-center gap-3 w-full max-w-lg">
+            <span className="text-blue-200 font-mono text-xs min-w-[40px] text-right">
+              {ohmYearData.min < 0 ? `${Math.abs(ohmYearData.min)} BCE` : `${ohmYearData.min} CE`}
+            </span>
+            <input
+              id="ohm-year-slider"
+              type="range"
+              min={ohmYearData.min}
+              max={ohmYearData.max}
+              step={1}
+              value={tempYear != null ? tempYear : (selectedYear ?? ohmYearData.max)}
+              onChange={e => {
+                setTempYear(Number(e.target.value));
+              }}
+              onMouseUp={e => {
+                if (tempYear != null) setSelectedYear(tempYear);
+                setTempYear(null);
+              }}
+              onTouchEnd={e => {
+                if (tempYear != null) setSelectedYear(tempYear);
+                setTempYear(null);
+              }}
+              className="flex-1 accent-blue-400 h-2 rounded-lg appearance-none cursor-pointer bg-gray-700"
+            />
+            <span className="text-blue-200 font-mono text-xs min-w-[40px] text-left">
+              {ohmYearData.max < 0 ? `${Math.abs(ohmYearData.max)} BCE` : `${ohmYearData.max} CE`}
+            </span>
+          </div>
+          <div className="text-blue-100 text-xs mt-1">
+            {(() => {
+              const y = tempYear != null ? tempYear : selectedYear;
+              if (y == null) return '';
+              const type = y < 0 ? 'BCE' : 'CE';
+              return `${Math.abs(y)} ${type}`;
             })()}
-            onChange={e => {
-              const val = e.target.value;
-              setSelectedYear(ohmCenturyData.centuryToYear[val]);
-            }}>
-            {ohmCenturyData.centuries.map(c => {
-              const type = ohmCenturyData.centuryToType[c];
-              const absC = Math.abs(parseInt(c));
-              return (
-                <option key={c} value={c}>
-                  {type === 'BCE'
-                    ? `${getOrdinal(absC)} century BCE`
-                    : `${getOrdinal(absC)} century CE`}
-                </option>
-              );
-            })}
-          </select>
+          </div>
         </div>
       )}
       {/* Modal for timeline of events in selected region/country */}
@@ -787,22 +797,20 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           <OHMMapLibreLayer
             enabled={true}
             attribution={selectedEraObj.attribution}
-            year={selectedYear ?? (ohmCenturyData && ohmCenturyData.centuryToYear[ohmCenturyData.centuries[0]])}
+            year={selectedYear ?? (ohmYearData && ohmYearData.max)}
             dateType={(() => {
-              const y = selectedYear ?? (ohmCenturyData && ohmCenturyData.centuryToYear[ohmCenturyData.centuries[0]]);
-              if (ohmCenturyData) {
+              const y = selectedYear ?? (ohmYearData && ohmYearData.max);
+              if (ohmYearData) {
                 let type = y < 0 ? 'BCE' : 'CE';
                 return type;
               }
               return 'CE';
             })()}
-            key={
-              (() => {
-                const y = selectedYear ?? (ohmCenturyData && ohmCenturyData.centuryToYear[ohmCenturyData.centuries[0]]);
-                const type = y < 0 ? 'BCE' : 'CE';
-                return `${y}-${type}`;
-              })()
-            }
+            key={(() => {
+              const y = selectedYear ?? (ohmYearData && ohmYearData.max);
+              const type = y < 0 ? 'BCE' : 'CE';
+              return `${y}-${type}`;
+            })()}
           />
         ) : (
           <TileLayer
