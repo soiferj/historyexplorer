@@ -6,8 +6,9 @@ import '@maplibre/maplibre-gl-leaflet';
 import 'maplibre-gl'; 
 import 'maplibre-gl/dist/maplibre-gl.css';
 import '@maplibre/maplibre-gl-leaflet';
-import LanguageControl from '@mapbox/mapbox-gl-language';
-import { filterByDate, dateRangeFromISODate } from '@openhistoricalmap/maplibre-gl-dates';
+import mapboxgl from 'mapbox-gl';
+import MapboxLanguage from '@mapbox/mapbox-gl-language';
+import { filterByDate } from '@openhistoricalmap/maplibre-gl-dates';
 
 // Use the same color palette as Timeline
 const colorPalette = [
@@ -948,9 +949,11 @@ function OHMMapLibreLayer({ enabled, attribution, year, dateType }) {
       attribution: attribution || '<a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a>'
     });
     map.addLayer(maplibreLayer);
+
     const mlMap = maplibreLayer.getMaplibreMap && maplibreLayer.getMaplibreMap();
     mlMapRef.current = mlMap;
     if (!mlMap) return;
+
     const y = Math.abs(year);
     const type = dateType || 'CE';
     const yearStr = type === 'BCE' ? `-${y}` : `${y}`;
@@ -958,6 +961,16 @@ function OHMMapLibreLayer({ enabled, attribution, year, dateType }) {
     mlMap.once('styledata', function () {
       filterByDate(mlMap, isoDate);
     });
+
+    const language = new MapboxLanguage({
+      defaultLanguage: 'en',
+      languageSource: 'osm',
+    });
+    mlMap.addControl(language);
+
+    // let newStyle = language.setLanguage(mlMap.getStyle(), 'en');
+    // // Style diffing seems to miss changes to expression variable values for some reason.
+    // mlMap.setStyle(newStyle, { diff: false });
   }, [enabled, map, attribution, year, dateType]);
   return null;
 }
