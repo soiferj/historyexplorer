@@ -653,7 +653,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
   }
 
   return (
-    <div className="w-full h-[500px] relative">
+    <div className={`w-full h-[500px] relative${selectedEra === 'ohm' ? ' pb-16' : ' pb-8'}`}>
       {/* Era/Century selector */}
       <div className="w-full flex justify-center mb-2 gap-4">
         <label htmlFor="era-select" className="text-white font-semibold mr-2">Map Type:</label>
