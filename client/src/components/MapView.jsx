@@ -254,17 +254,7 @@ const mapEras = [
     zoom: 2
   },
   {
-    label: 'Roman Empire (Pelagios)',
-    value: 'roman',
-    url: 'https://dh.gu.se/tiles/imperium/{z}/{x}/{y}.png',
-    attribution: 'Map data &copy; <a href="http://pelagios.org/">Pelagios</a> Imperium Romanum project.',
-    minZoom: 3,
-    maxZoom: 7,
-    center: [41, 15],
-    zoom: 4
-  },
-  {
-    label: 'OpenHistoricalMap',
+    label: 'Historical by Century',
     value: 'ohm',
     url: 'https://www.openhistoricalmap.org/map-styles/main/main.json', // Not used by TileLayer, but for reference
     attribution: '<a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a>',
@@ -272,6 +262,16 @@ const mapEras = [
     maxZoom: 18,
     center: [20, 0],
     zoom: 2
+  },
+  {
+    label: 'Roman Empire',
+    value: 'roman',
+    url: 'https://dh.gu.se/tiles/imperium/{z}/{x}/{y}.png',
+    attribution: 'Map data &copy; <a href="http://pelagios.org/">Pelagios</a> Imperium Romanum project.',
+    minZoom: 3,
+    maxZoom: 7,
+    center: [41, 15],
+    zoom: 4
   },
   // Add more eras as needed
 ];
@@ -294,6 +294,9 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
   const [mapCenter, setMapCenter] = React.useState(selectedEraObj.center);
   const [mapZoom, setMapZoom] = React.useState(selectedEraObj.zoom);
   const [selectedYear, setSelectedYear] = React.useState(null);
+
+  // Add state for toggling events
+  const [showEvents, setShowEvents] = React.useState(true);
 
   // Compute min/max year and date type from sorted events (for OHM slider)
   const ohmYearData = React.useMemo(() => {
@@ -334,42 +337,51 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
       let centuryNum;
       if (type === 'BCE') {
         centuryNum = Math.ceil(absYear / 100);
-        // e.g. -450 => 5th century BCE
-        // Use -((centuryNum-1)*100+1) as the first year of the century
         const firstYear = -((centuryNum - 1) * 100 + 1);
         centuriesSet.add(`-${centuryNum}`);
         centuryToYear[`-${centuryNum}`] = firstYear;
         centuryToType[`-${centuryNum}`] = 'BCE';
       } else {
         centuryNum = Math.ceil(absYear / 100);
-        // e.g. 1204 => 13th century CE
-        // Use (centuryNum-1)*100+1 as the first year of the century
         const firstYear = (centuryNum - 1) * 100 + 1;
         centuriesSet.add(`${centuryNum}`);
         centuryToYear[`${centuryNum}`] = firstYear;
         centuryToType[`${centuryNum}`] = 'CE';
       }
     });
+    // Calculate latest century BEFORE adding 21st
+    const sortedBefore21 = Array.from(centuriesSet).sort((a, b) => parseInt(a) - parseInt(b));
+    const latestCenturyBefore21 = sortedBefore21[sortedBefore21.length - 1];
+    // Always include 21st century CE
+    centuriesSet.add('21');
+    if (!centuryToYear['21']) {
+      centuryToYear['21'] = 2001;
+      centuryToType['21'] = 'CE';
+    }
     // Sort centuries: BCE (negative, descending), then CE (positive, ascending)
     const sorted = Array.from(centuriesSet).sort((a, b) => parseInt(a) - parseInt(b));
     return {
       centuries: sorted,
       centuryToYear,
       centuryToType,
+      latestCenturyBefore21,
     };
   }, [ohmYearData]);
 
   // Set default selectedYear when OHM is selected or events change
   React.useEffect(() => {
-    if (selectedEra === 'ohm' && ohmYearData) {
+    if (selectedEra === 'ohm' && ohmCenturyData) {
       setSelectedYear(y => {
+        // Always default to the latest (most recent) century in the sorted list of filtered events (before adding 21st)
+        const latestCentury = ohmCenturyData.latestCenturyBefore21;
+        const latestYear = ohmCenturyData.centuryToYear[latestCentury];
         if (y == null || y < ohmYearData.min || y > ohmYearData.max) {
-          return ohmYearData.min;
+          return latestYear;
         }
         return y;
       });
     }
-  }, [selectedEra, ohmYearData]);
+  }, [selectedEra, ohmYearData, ohmCenturyData]);
 
   // Group events by region
   const regionEvents = React.useMemo(() => {
@@ -596,7 +608,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     <div className="w-full h-[500px] relative">
       {/* Era/Century selector */}
       <div className="w-full flex justify-center mb-2 gap-4">
-        <label htmlFor="era-select" className="text-white font-semibold mr-2">Map Era:</label>
+        <label htmlFor="era-select" className="text-white font-semibold mr-2">Map Type:</label>
         <select
           id="era-select"
           className="px-3 py-1 rounded border border-blue-400 bg-gray-800 text-white shadow"
@@ -611,11 +623,11 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
       {/* OHM Century Dropdown */}
       {selectedEra === 'ohm' && ohmCenturyData && (
         <div className="w-full flex justify-center mb-2 gap-4 items-center">
+          <label htmlFor="ohm-century-dropdown" className="text-white font-semibold mr-2">Century:</label>
           <select
             id="ohm-century-dropdown"
             className="px-3 py-1 rounded border border-blue-400 bg-gray-800 text-white shadow"
             value={(() => {
-              // Find the selected century for the current selectedYear
               if (selectedYear == null) return ohmCenturyData.centuries[0];
               let y = selectedYear;
               let type = y < 0 ? 'BCE' : 'CE';
@@ -626,31 +638,19 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
             onChange={e => {
               const val = e.target.value;
               setSelectedYear(ohmCenturyData.centuryToYear[val]);
-            }}
-          >
+            }}>
             {ohmCenturyData.centuries.map(c => {
               const type = ohmCenturyData.centuryToType[c];
               const absC = Math.abs(parseInt(c));
               return (
                 <option key={c} value={c}>
                   {type === 'BCE'
-                    ? `${absC}${absC === 1 ? 'st' : absC === 2 ? 'nd' : absC === 3 ? 'rd' : 'th'} century BCE`
-                    : `${absC}${absC === 1 ? 'st' : absC === 2 ? 'nd' : absC === 3 ? 'rd' : 'th'} century CE`}
+                    ? `${getOrdinal(absC)} century BCE`
+                    : `${getOrdinal(absC)} century CE`}
                 </option>
               );
             })}
           </select>
-          <span className="text-blue-200 font-mono">
-            {(() => {
-              const y = selectedYear ?? (ohmCenturyData && ohmCenturyData.centuryToYear[ohmCenturyData.centuries[0]]);
-              const type = y < 0 ? 'BCE' : 'CE';
-              let absYear = Math.abs(y);
-              let centuryNum = Math.ceil(absYear / 100);
-              return type === 'BCE'
-                ? `${centuryNum}${centuryNum === 1 ? 'st' : centuryNum === 2 ? 'nd' : centuryNum === 3 ? 'rd' : 'th'} century BCE`
-                : `${centuryNum}${centuryNum === 1 ? 'st' : centuryNum === 2 ? 'nd' : centuryNum === 3 ? 'rd' : 'th'} century CE`;
-            })()}
-          </span>
         </div>
       )}
       {/* Modal for timeline of events in selected region/country */}
@@ -692,69 +692,36 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           </div>
         </div>
       )}
-      <div className="w-full flex justify-center mb-4 gap-4">
+      {/* Controls row: toggle events, region/country toggle, and animation controls side-by-side */}
+      <div className="w-full flex justify-center mb-4 gap-2">
         <button
-          className="px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-green-400 text-white bg-gray-700 hover:bg-green-700"
+          className="px-2 py-1 rounded text-sm font-semibold shadow transition-all duration-200 border border-yellow-400 text-white bg-gray-700 hover:bg-yellow-700 min-w-[120px]"
+          onClick={() => setShowEvents(v => !v)}
+          type="button"
+        >
+          {showEvents ? 'Hide Events' : 'Show Events'}
+        </button>
+        <button
+          className="px-2 py-1 rounded text-sm font-semibold shadow transition-all duration-200 border border-green-400 text-white bg-gray-700 hover:bg-green-700 min-w-[120px]"
           onClick={() => setViewMode(viewMode === 'country' ? 'region' : 'country')}
+          type="button"
         >
-          {viewMode === 'country' ? 'Show by Region' : 'Show by Country'}
+          {viewMode === 'country' ? 'Show Events by Region' : 'Show Events by Country'}
         </button>
+        <AnimationControlsDropdown
+          animating={animating}
+          paused={paused}
+          currentLineIdx={currentLineIdx}
+          linesToDraw={linesToDraw}
+          events={events}
+          handlePlay={handlePlay}
+          handlePauseResume={handlePauseResume}
+          handleStop={handleStop}
+          handleBack={handleBack}
+          handleForward={handleForward}
+        />
       </div>
-      {/* Animation controls row */}
-      <div className="w-full flex flex-wrap justify-center mb-4 gap-2 items-center px-2 max-w-full sm:max-w-screen-sm mx-auto">
-        <span className="text-white font-semibold mr-2">Animation</span>
-        {/* Frame counter */}
-        <span className="text-pink-200 font-mono text-sm mr-2">
-          {linesToDraw.length > 0 ? `${Math.max(0, currentLineIdx + 1)} / ${linesToDraw.length}` : '0 / 0'}
-        </span>
-        <button
-          className="p-2 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-lg"
-          onClick={handlePlay}
-          title="Play"
-          style={{ minWidth: 32 }}
-          disabled={animating || (events || []).length === 0}
-        >
-          <span role="img" aria-label="Play">&#9654;</span>
-        </button>
-        <button
-          className="p-2 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-lg"
-          onClick={handlePauseResume}
-          title={paused ? "Resume" : "Pause"}
-          style={{ minWidth: 32 }}
-          disabled={!animating}
-        >
-          {paused ? <span role="img" aria-label="Resume">&#9654;&#10073;</span> : <span role="img" aria-label="Pause">&#10073;&#10073;</span>}
-        </button>
-        <button
-          className="p-2 rounded shadow border border-red-400 text-white bg-gray-700 hover:bg-red-700 text-lg"
-          onClick={handleStop}
-          title="Stop"
-          style={{ minWidth: 32 }}
-          disabled={!animating && currentLineIdx === -1}
-        >
-          <span role="img" aria-label="Stop">&#9632;</span>
-        </button>
-        <div className="flex gap-1">
-          <button
-            className="p-2 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-lg"
-            onClick={handleBack}
-            title="Back"
-            style={{ minWidth: 32 }}
-            disabled={!animating && currentLineIdx <= 0}
-          >
-            &#8592;
-          </button>
-          <button
-            className="p-2 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-lg"
-            onClick={handleForward}
-            title="Forward"
-            style={{ minWidth: 32 }}
-            disabled={!animating && currentLineIdx >= linesToDraw.length - 1}
-          >
-            &#8594;
-          </button>
-        </div>
-      </div>
+      {/* Map component */}
       {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
       {error && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10 text-red-300">{error}</div>}
       <MapContainer
@@ -796,7 +763,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
             errorTileUrl="https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
           />
         )}
-        {viewMode === 'region' && regionList.map((region, idx) => {
+        {showEvents && viewMode === 'region' && regionList.map((region, idx) => {
           const coords = regionCoords[region.toLowerCase()];
           if (!coords) return null;
           let isActive = false;
@@ -829,7 +796,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
             </CircleMarker>
           );
         })}
-        {viewMode === 'country' && countryList.map((country, idx) => {
+        {showEvents && viewMode === 'country' && countryList.map((country, idx) => {
           const coords = countryCoords[country.toLowerCase()];
           if (!coords) return null;
           let isActive = false;
@@ -863,7 +830,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           );
         })}
         {/* Animated lines */}
-        {linesToDraw.slice(0, currentLineIdx + 1).map((line, idx) => (
+        {showEvents && linesToDraw.slice(0, currentLineIdx + 1).map((line, idx) => (
           idx === currentLineIdx && line.dests && line.eventTitle && (
             line.dests.map((dest, dIdx) => (
               dIdx === 0 ? (
@@ -973,6 +940,92 @@ function OHMMapLibreLayer({ enabled, attribution, year, dateType }) {
     // mlMap.setStyle(newStyle, { diff: false });
   }, [enabled, map, attribution, year, dateType]);
   return null;
+}
+
+// Update AnimationControlsDropdown to always render the button and dropdown together
+function AnimationControlsDropdown({ animating, paused, currentLineIdx, linesToDraw, events, handlePlay, handlePauseResume, handleStop, handleBack, handleForward }) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="relative">
+      <button
+        className="px-2 py-1 rounded text-xs font-semibold border border-blue-400 text-white bg-gray-700 hover:bg-blue-700"
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-controls="animation-controls-panel"
+        style={{ minWidth: 120 }}
+        type="button"
+      >
+        {open ? 'Hide Animation Controls' : 'Show Animation Controls'}
+      </button>
+      {open && (
+        <div id="animation-controls-panel" className="absolute left-0 mt-2 z-20 w-max min-w-[260px] flex flex-wrap justify-center gap-1 items-center px-2 bg-gray-800 rounded-lg py-2 border border-blue-400 shadow-lg animate-fade-in text-xs">
+          <span className="text-white font-semibold mr-1">Anim</span>
+          {/* Frame counter */}
+          <span className="text-pink-200 font-mono text-xs mr-1">
+            {linesToDraw.length > 0 ? `${Math.max(0, currentLineIdx + 1)} / ${linesToDraw.length}` : '0 / 0'}
+          </span>
+          <button
+            className="p-1 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-base"
+            onClick={handlePlay}
+            title="Play"
+            style={{ minWidth: 24 }}
+            disabled={animating || (events || []).length === 0}
+            type="button"
+          >
+            <span role="img" aria-label="Play">&#9654;</span>
+          </button>
+          <button
+            className="p-1 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-base"
+            onClick={handlePauseResume}
+            title={paused ? "Resume" : "Pause"}
+            style={{ minWidth: 24 }}
+            disabled={!animating}
+            type="button"
+          >
+            {paused ? <span role="img" aria-label="Resume">&#9654;&#10073;</span> : <span role="img" aria-label="Pause">&#10073;&#10073;</span>}
+          </button>
+          <button
+            className="p-1 rounded shadow border border-red-400 text-white bg-gray-700 hover:bg-red-700 text-base"
+            onClick={handleStop}
+            title="Stop"
+            style={{ minWidth: 24 }}
+            disabled={!animating && currentLineIdx === -1}
+            type="button"
+          >
+            <span role="img" aria-label="Stop">&#9632;</span>
+          </button>
+          <div className="flex gap-0.5">
+            <button
+              className="p-1 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-base"
+              onClick={handleBack}
+              title="Back"
+              style={{ minWidth: 24 }}
+              disabled={!animating && currentLineIdx <= 0}
+              type="button"
+            >
+              &#8592;
+            </button>
+            <button
+              className="p-1 rounded shadow border border-gray-400 text-white bg-gray-700 hover:bg-gray-600 text-base"
+              onClick={handleForward}
+              title="Forward"
+              style={{ minWidth: 24 }}
+              disabled={!animating && currentLineIdx >= linesToDraw.length - 1}
+              type="button"
+            >
+              &#8594;
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper for ordinal suffix
+function getOrdinal(n) {
+  const s = ["th", "st", "nd", "rd"], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
 export default MapView;
