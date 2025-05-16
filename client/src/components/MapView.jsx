@@ -236,7 +236,9 @@ const countryCoords = {
   "vietnam": [14.0583, 108.2772],
   "yemen": [15.5527, 48.5164],
   "zambia": [-13.1339, 27.8493],
-  "zimbabwe": [-19.0154, 29.1549]
+  "zimbabwe": [-19.0154, 29.1549],
+  "greenland": [71.7069, -42.6043],
+  "faroe islands": [62.0, -6.8]
 };
 
 // Map era/century tile layers
