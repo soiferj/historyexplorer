@@ -611,19 +611,32 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     return null;
   }
 
-  // Helper to set map view on era change
-  function MapEraViewSetter({ center, zoom }) {
+  // Helper to set map view on era change (always for roman, use hardcoded values)
+  function MapEraViewSetter({ center, zoom, selectedEra }) {
     const map = useMap();
     React.useEffect(() => {
-      map.setView(center, zoom, { animate: true });
-    }, [center, zoom, map]);
+      if (selectedEra === 'roman') {
+        // Use hardcoded Roman Empire values
+        map.setView([41, 15], 4, { animate: true });
+      } else {
+        map.setView(center, zoom, { animate: true });
+      }
+    }, [center, zoom, selectedEra, map]);
     return null;
   }
 
   // Track previous era to only reset view when era actually changes
   const prevEraRef = React.useRef(selectedEra);
   React.useEffect(() => {
-    if (prevEraRef.current !== selectedEra) {
+    if (selectedEra === 'roman') {
+      // Always reset to Roman Empire default center/zoom
+      const romanEra = mapEras.find(e => e.value === 'roman');
+      if (romanEra) {
+        setMapCenter(romanEra.center);
+        setMapZoom(romanEra.zoom);
+      }
+      prevEraRef.current = selectedEra;
+    } else if (prevEraRef.current !== selectedEra) {
       setMapCenter(selectedEraObj.center);
       setMapZoom(selectedEraObj.zoom);
       prevEraRef.current = selectedEra;
@@ -824,6 +837,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         scrollWheelZoom={true}
       >
         <MapEventHandler />
+        <MapEraViewSetter center={mapCenter} zoom={mapZoom} selectedEra={selectedEra} />
         <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
         {/* Use MapLibre GL for OHM, otherwise use TileLayer */}
         {selectedEra === 'ohm' ? (
