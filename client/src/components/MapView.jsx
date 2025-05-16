@@ -670,45 +670,79 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
       </div>
       {/* OHM Year Slider */}
       {selectedEra === 'ohm' && ohmYearData && (
-        <div className="w-full flex flex-col items-center mb-2 gap-2">
-          <label htmlFor="ohm-year-slider" className="text-white font-semibold mb-1">Year:</label>
-          <div className="flex items-center gap-3 w-full max-w-lg">
-            <span className="text-blue-200 font-mono text-xs min-w-[40px] text-right">
-              {ohmYearData.min < 0 ? `${Math.abs(ohmYearData.min)} BCE` : `${ohmYearData.min} CE`}
-            </span>
-            <input
-              id="ohm-year-slider"
-              type="range"
-              min={ohmYearData.min}
-              max={ohmYearData.max}
-              step={1}
-              value={tempYear != null ? tempYear : (selectedYear ?? ohmYearData.max)}
-              onChange={e => {
-                setTempYear(Number(e.target.value));
-              }}
-              onMouseUp={e => {
-                if (tempYear != null) setSelectedYear(tempYear);
-                setTempYear(null);
-              }}
-              onTouchEnd={e => {
-                if (tempYear != null) setSelectedYear(tempYear);
-                setTempYear(null);
-              }}
-              className="flex-1 accent-blue-400 h-2 rounded-lg appearance-none cursor-pointer bg-gray-700"
-            />
-            <span className="text-blue-200 font-mono text-xs min-w-[40px] text-left">
-              {ohmYearData.max < 0 ? `${Math.abs(ohmYearData.max)} BCE` : `${ohmYearData.max} CE`}
-            </span>
+        <>
+          {/* Custom style for larger slider thumb only (not the track) */}
+          <style>{`
+            #ohm-year-slider::-webkit-slider-thumb {
+              width: 32px;
+              height: 32px;
+              background: #60a5fa;
+              border-radius: 50%;
+              border: 3px solid #fff;
+              box-shadow: 0 2px 8px #0004;
+              cursor: pointer;
+              -webkit-appearance: none;
+              appearance: none;
+            }
+            #ohm-year-slider::-moz-range-thumb {
+              width: 32px;
+              height: 32px;
+              background: #60a5fa;
+              border-radius: 50%;
+              border: 3px solid #fff;
+              box-shadow: 0 2px 8px #0004;
+              cursor: pointer;
+            }
+            #ohm-year-slider::-ms-thumb {
+              width: 32px;
+              height: 32px;
+              background: #60a5fa;
+              border-radius: 50%;
+              border: 3px solid #fff;
+              box-shadow: 0 2px 8px #0004;
+              cursor: pointer;
+            }
+          `}</style>
+          <div className="w-full flex flex-col items-center mb-2 gap-2">
+            <label htmlFor="ohm-year-slider" className="text-white font-semibold mb-1">Year:</label>
+            <div className="flex items-center gap-3 w-full max-w-lg">
+              <span className="text-blue-200 font-mono text-xs min-w-[40px] text-right">
+                {ohmYearData.min < 0 ? `${Math.abs(ohmYearData.min)} BCE` : `${ohmYearData.min} CE`}
+              </span>
+              <input
+                id="ohm-year-slider"
+                type="range"
+                min={ohmYearData.min}
+                max={ohmYearData.max}
+                step={1}
+                value={tempYear != null ? tempYear : (selectedYear ?? ohmYearData.max)}
+                onChange={e => {
+                  setTempYear(Number(e.target.value));
+                }}
+                onMouseUp={e => {
+                  if (tempYear != null) setSelectedYear(tempYear);
+                  setTempYear(null);
+                }}
+                onTouchEnd={e => {
+                  if (tempYear != null) setSelectedYear(tempYear);
+                  setTempYear(null);
+                }}
+                className="flex-1 accent-blue-400 h-2 rounded-lg appearance-none cursor-pointer bg-gray-700"
+              />
+              <span className="text-blue-200 font-mono text-xs min-w-[40px] text-left">
+                {ohmYearData.max < 0 ? `${Math.abs(ohmYearData.max)} BCE` : `${ohmYearData.max} CE`}
+              </span>
+            </div>
+            <div className="text-blue-100 text-xs mt-1">
+              {(() => {
+                const y = tempYear != null ? tempYear : selectedYear;
+                if (y == null) return '';
+                const type = y < 0 ? 'BCE' : 'CE';
+                return `${Math.abs(y)} ${type}`;
+              })()}
+            </div>
           </div>
-          <div className="text-blue-100 text-xs mt-1">
-            {(() => {
-              const y = tempYear != null ? tempYear : selectedYear;
-              if (y == null) return '';
-              const type = y < 0 ? 'BCE' : 'CE';
-              return `${Math.abs(y)} ${type}`;
-            })()}
-          </div>
-        </div>
+        </>
       )}
       {/* Modal for timeline of events in selected region/country */}
       {modalOpen && (
@@ -1005,7 +1039,7 @@ function AnimationControlsDropdown({ animating, paused, currentLineIdx, linesToD
   const dragOffset = React.useRef({ x: 0, y: 0 });
   const windowRef = React.useRef(null);
 
-  // Mouse event handlers for drag
+  // Mouse and touch event handlers for drag
   const onMouseDown = (e) => {
     setDragging(true);
     dragOffset.current = {
@@ -1014,23 +1048,49 @@ function AnimationControlsDropdown({ animating, paused, currentLineIdx, linesToD
     };
     document.body.style.userSelect = 'none';
   };
+  const onTouchStart = (e) => {
+    if (e.touches.length !== 1) return;
+    setDragging(true);
+    const touch = e.touches[0];
+    dragOffset.current = {
+      x: touch.clientX - position.x,
+      y: touch.clientY - position.y
+    };
+    document.body.style.userSelect = 'none';
+  };
   React.useEffect(() => {
     if (!dragging) return;
     const onMouseMove = (e) => {
       setPosition({
-        x: Math.max(0, Math.min(window.innerWidth - 220, e.clientX - dragOffset.current.x)), // smaller width
-        y: Math.max(0, Math.min(window.innerHeight - 60, e.clientY - dragOffset.current.y)) // smaller height
+        x: Math.max(0, Math.min(window.innerWidth - 220, e.clientX - dragOffset.current.x)),
+        y: Math.max(0, Math.min(window.innerHeight - 60, e.clientY - dragOffset.current.y))
       });
     };
     const onMouseUp = () => {
       setDragging(false);
       document.body.style.userSelect = '';
     };
+    const onTouchMove = (e) => {
+      if (e.touches.length !== 1) return;
+      const touch = e.touches[0];
+      setPosition({
+        x: Math.max(0, Math.min(window.innerWidth - 220, touch.clientX - dragOffset.current.x)),
+        y: Math.max(0, Math.min(window.innerHeight - 60, touch.clientY - dragOffset.current.y))
+      });
+    };
+    const onTouchEnd = () => {
+      setDragging(false);
+      document.body.style.userSelect = '';
+    };
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
+    window.addEventListener('touchmove', onTouchMove);
+    window.addEventListener('touchend', onTouchEnd);
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
     };
   }, [dragging]);
 
@@ -1067,6 +1127,7 @@ function AnimationControlsDropdown({ animating, paused, currentLineIdx, linesToD
             className="w-full flex items-center justify-end cursor-move mb-1 select-none"
             style={{ cursor: 'move', marginBottom: 2, minHeight: 18 }}
             onMouseDown={onMouseDown}
+            onTouchStart={onTouchStart}
           >
             <button
               className="ml-2 text-white hover:text-pink-400 text-lg font-bold px-1"
