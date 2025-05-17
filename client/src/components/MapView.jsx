@@ -706,7 +706,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
             }
           `}</style>
           <div className="w-full flex flex-col items-center mb-2 gap-2">
-            <label htmlFor="ohm-year-slider" className="text-white font-semibold mb-1">Year:</label>
+            {/* Year input + slider row (now replaces the label) */}
             <div className="flex items-center gap-3 w-full max-w-lg">
               <span className="text-blue-200 font-mono text-xs min-w-[40px] text-right">
                 {ohmYearData.min < 0 ? `${Math.abs(ohmYearData.min)} BCE` : `${ohmYearData.min} CE`}
@@ -731,17 +731,56 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
                 }}
                 className="flex-1 accent-blue-400 h-2 rounded-lg appearance-none cursor-pointer bg-gray-700"
               />
-              <span className="text-blue-200 font-mono text-xs min-w-[40px] text-left">
-                {ohmYearData.max < 0 ? `${Math.abs(ohmYearData.max)} BCE` : `${ohmYearData.max} CE`}
-              </span>
-            </div>
-            <div className="text-blue-100 text-xs mt-1">
-              {(() => {
-                const y = tempYear != null ? tempYear : selectedYear;
-                if (y == null) return '';
-                const type = y < 0 ? 'BCE' : 'CE';
-                return `${Math.abs(y)} ${type}`;
-              })()}
+              <div className="text-blue-100 text-xs mt-1 flex items-center gap-2 justify-center">
+                <input
+                  type="number"
+                  min={ohmYearData.min < 0 ? Math.abs(ohmYearData.min) : ohmYearData.min}
+                  max={ohmYearData.max}
+                  value={(() => {
+                    const y = tempYear != null ? tempYear : (selectedYear ?? ohmYearData.max);
+                    return y < 0 ? Math.abs(y) : y;
+                  })()}
+                  onChange={e => {
+                    let val = Number(e.target.value);
+                    if (isNaN(val)) val = ohmYearData.min < 0 ? Math.abs(ohmYearData.min) : ohmYearData.min;
+                    // Determine BCE/CE from selector
+                    const era = (tempYear != null ? tempYear : (selectedYear ?? ohmYearData.max)) < 0 ? 'BCE' : 'CE';
+                    if (era === 'BCE') val = -Math.abs(val);
+                    if (era === 'CE') val = Math.abs(val);
+                    // Clamp
+                    if (val < ohmYearData.min) val = ohmYearData.min;
+                    if (val > ohmYearData.max) val = ohmYearData.max;
+                    setTempYear(val);
+                  }}
+                  onBlur={e => {
+                    if (tempYear != null) setSelectedYear(tempYear);
+                    setTempYear(null);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && tempYear != null) {
+                      setSelectedYear(tempYear);
+                      setTempYear(null);
+                    }
+                  }}
+                  className="w-20 px-2 py-1 rounded border border-blue-400 bg-gray-800 text-blue-100 font-mono text-xs text-center focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                  aria-label="Enter year manually"
+                />
+                <select
+                  value={(tempYear != null ? tempYear : (selectedYear ?? ohmYearData.max)) < 0 ? 'BCE' : 'CE'}
+                  onChange={e => {
+                    let y = tempYear != null ? tempYear : (selectedYear ?? ohmYearData.max);
+                    let val = Math.abs(y);
+                    if (e.target.value === 'BCE') val = -val;
+                    setTempYear(val);
+                    setSelectedYear(val);
+                  }}
+                  className="px-2 py-1 rounded border border-blue-400 bg-gray-800 text-blue-100 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
+                  aria-label="Select BCE or CE"
+                >
+                  <option value="CE">CE</option>
+                  <option value="BCE">BCE</option>
+                </select>
+              </div>
             </div>
           </div>
         </>
