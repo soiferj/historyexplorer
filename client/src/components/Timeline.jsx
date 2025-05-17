@@ -1441,7 +1441,7 @@ const Timeline = (props) => {
                                                       }}
                                                     >
                                                       <option value="">+ Add tag...</option>
-                                                      {getAllTags(validEvents).filter(tag => !localEditForm.tags.includes(tag)).map(tag => (
+                                                      {getAllTags(allEvents).filter(tag => !localEditForm.tags.includes(tag)).map(tag => (
                                                         <option key={tag} value={tag}>{tag}</option>
                                                       ))}
                                                     </select>
@@ -1535,7 +1535,7 @@ const Timeline = (props) => {
                                                       }}
                                                     >
                                                       <option value="">+ Add region...</option>
-                                                      {getAllRegions(validEvents).filter(region => !localEditForm.regions.includes(region)).map(region => (
+                                                      {getAllRegions(allEvents).filter(region => !localEditForm.regions.includes(region)).map(region => (
                                                         <option key={region} value={region}>{region}</option>
                                                       ))}
                                                     </select>
@@ -1629,7 +1629,7 @@ const Timeline = (props) => {
                                                       }}
                                                     >
                                                       <option value="">+ Add country...</option>
-                                                      {getAllCountries(validEvents).filter(country => !localEditForm.countries.includes(country)).map(country => (
+                                                      {getAllCountries(allEvents).filter(country => !localEditForm.countries.includes(country)).map(country => (
                                                         <option key={country} value={country}>{country}</option>
                                                       ))}
                                                     </select>
