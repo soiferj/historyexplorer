@@ -83,7 +83,7 @@ function AdminToolsModal({
     }
 
     return (
-        <div className="w-full max-h-[70vh] overflow-y-auto flex flex-col items-center">
+        <div className="w-full max-h-[70vh] overflow-y-auto flex flex-col items-center mt-8 sm:mt-12">
             <h2 className="text-3xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Admin Tools</h2>
             {/* Delete Tags Section */}
             <div className="w-full mb-8">
