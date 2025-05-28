@@ -1,5 +1,5 @@
 import React from "react";
-import { MapContainer, TileLayer, CircleMarker, Tooltip, Marker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Tooltip, Marker, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import '@maplibre/maplibre-gl-leaflet';
@@ -256,7 +256,7 @@ const mapEras = [
     zoom: 2
   },
   {
-    label: 'Historical',
+    label: 'Historical (OHM)',
     value: 'ohm',
     url: 'https://www.openhistoricalmap.org/map-styles/main/main.json', // Not used by TileLayer, but for reference
     attribution: '<a href="https://www.openhistoricalmap.org/">OpenHistoricalMap</a>',
@@ -275,10 +275,23 @@ const mapEras = [
     center: [41, 15],
     zoom: 4
   },
+  {
+    label: 'Historical Basemap',
+    value: 'historical-basemap',
+    url: '', // Not used for custom GeoJSON
+    attribution: '<a href="https://github.com/aourednik/historical-basemaps">Historical Basemaps</a>',
+    minZoom: 1,
+    maxZoom: 10,
+    center: [20, 0],
+    zoom: 2
+  },
   // Add more eras as needed
 ];
 
 const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedCountries, loading, error, onBackToTimeline }) => {
+  
+  const apiUrl = process.env.REACT_APP_API_URL;
+
   // Toggle state: 'region' or 'country'
   const [viewMode, setViewMode] = React.useState('country');
   // Animation state
@@ -303,6 +316,57 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
   // Add state for tempYear (for slider dragging)
   const [tempYear, setTempYear] = React.useState(null);
 
+  // Add state for historical basemap data
+  const [historicalMapData, setHistoricalMapData] = React.useState(null);
+  const [historicalMapLabels, setHistoricalMapLabels] = React.useState([]);
+  // Add state for available years for historical basemap
+  const [historicalMapYears, setHistoricalMapYears] = React.useState([]);
+  // Add state for error handling
+  const [historicalMapError, setHistoricalMapError] = React.useState(null);
+  // Fetch historical basemap data when selectedEra is 'historical-basemap' and selectedYear changes
+  React.useEffect(() => {
+    if (selectedEra !== 'historical-basemap' || selectedYear == null) return;
+    setHistoricalMapError(null);
+    let yearParam = selectedYear < 0 ? `bc${Math.abs(selectedYear)}` : selectedYear;
+    (async () => {
+      try {
+        const response = await fetch(`${apiUrl}/historical-map/${yearParam}`);
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Map fetch failed');
+        setHistoricalMapData(data.geojson);
+        setHistoricalMapLabels(data.labels);
+        setHistoricalMapError(null);
+      } catch (err) {
+        setHistoricalMapData(null);
+        setHistoricalMapLabels([]);
+        setHistoricalMapError('No map data available for this year.');
+      }
+    })();
+  }, [selectedEra, selectedYear, apiUrl]);
+  // Fetch available years from GitHub on mount
+  React.useEffect(() => {
+    async function fetchYears() {
+      try {
+        const res = await fetch('https://api.github.com/repos/aourednik/historical-basemaps/contents/geojson');
+        const files = await res.json();
+        // Filter for world_*.geojson files
+        const yearFiles = files.filter(f => /^world_(\d+|bc\d+)\.geojson$/.test(f.name));
+        // Extract year (as number or string for BCE)
+        const years = yearFiles.map(f => {
+          const match = f.name.match(/^world_(\d+|bc\d+)\.geojson$/);
+          if (!match) return null;
+          const y = match[1];
+          return /^bc\d+$/i.test(y) ? -parseInt(y.slice(2), 10) : parseInt(y, 10);
+        }).filter(y => y !== null);
+        // Sort: BCE (negative, ascending), then CE (positive, ascending)
+        years.sort((a, b) => a - b);
+        setHistoricalMapYears(years);
+      } catch {
+        setHistoricalMapYears([]);
+      }
+    }
+    fetchYears();
+  }, []);
   // Compute min/max year and date type from sorted events (for OHM slider)
   const ohmYearData = React.useMemo(() => {
     // Build a sorted list of years with their date types
@@ -654,6 +718,12 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     return null;
   }
 
+  // Helper component for rendering GeoJSON
+  function GeoJSONLayer({ data }) {
+    if (!data) return null;
+    return <GeoJSON data={data} style={{ color: '#f59e42', weight: 1, fillOpacity: 0.2 }} />;
+  }
+
   return (
     <div className={`w-full h-[500px] relative${selectedEra === 'ohm' ? ' pb-16' : ' pb-8'}`}>
       {/* Era/Century selector */}
@@ -785,6 +855,22 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           </div>
         </>
       )}
+      {/* Historical Basemap year dropdown */}
+      {selectedEra === 'historical-basemap' && historicalMapYears.length > 0 && (
+        <div className="w-full flex justify-center mb-2 gap-4">
+          <label htmlFor="historical-basemap-year-select" className="text-white font-semibold mr-2">Year:</label>
+          <select
+            id="historical-basemap-year-select"
+            className="px-3 py-1 rounded border border-blue-400 bg-gray-800 text-white shadow"
+            value={selectedYear ?? historicalMapYears[historicalMapYears.length-1]}
+            onChange={e => setSelectedYear(Number(e.target.value))}
+          >
+            {historicalMapYears.map(y => (
+              <option key={y} value={y}>{y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`}</option>
+            ))}
+          </select>
+        </div>
+      )}
       {/* Modal for timeline of events in selected region/country */}
       {modalOpen && (
         <div
@@ -886,141 +972,73 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
               return `${y}-${type}`;
             })()}
           />
+        ) : selectedEra === 'historical-basemap' ? (
+          <>
+            {historicalMapError && (
+              <div className="text-red-400 text-center font-semibold my-4">{historicalMapError}</div>
+            )}
+            {historicalMapData && !historicalMapError && (
+              <>
+                <GeoJSONLayer data={historicalMapData} />
+                {/* Render region labels at centroid of each feature */}
+                {historicalMapData.features.map((feature, i) => {
+                  // Only show label if inhabited is not false (show if true or missing)
+                  if (feature.properties && feature.properties.inhabited === false) return null;
+                  // Compute centroid for Polygon and MultiPolygon
+                  let latlng = null;
+                  if (feature.geometry.type === 'Polygon') {
+                    const coords = feature.geometry.coordinates[0];
+                    if (coords && coords.length > 0) {
+                      const lats = coords.map(c => c[1]);
+                      const lngs = coords.map(c => c[0]);
+                      latlng = [lats.reduce((a, b) => a + b, 0) / lats.length, lngs.reduce((a, b) => a + b, 0) / lngs.length];
+                    }
+                  } else if (feature.geometry.type === 'MultiPolygon') {
+                    const coords = feature.geometry.coordinates[0][0];
+                    if (coords && coords.length > 0) {
+                      const lats = coords.map(c => c[1]);
+                      const lngs = coords.map(c => c[0]);
+                      latlng = [lats.reduce((a, b) => a + b, 0) / lats.length, lngs.reduce((a, b) => a + b, 0) / lngs.length];
+                    }
+                  }
+                  const label = feature.properties && (feature.properties.name || feature.properties.label || feature.properties.admin || feature.properties.country);
+                  return latlng && label ? (
+                    <Marker key={i + '-label'} position={latlng} interactive={false}>
+                      <Tooltip direction="center" permanent className="region-label-tooltip">
+                        {label}
+                      </Tooltip>
+                    </Marker>
+                  ) : null;
+                })}
+              </>
+            )}
+          </>
         ) : (
           <TileLayer
-            attribution={selectedEraObj.attribution}
             url={selectedEraObj.url}
+            attribution={selectedEraObj.attribution}
+            minZoom={selectedEraObj.minZoom}
+            maxZoom={selectedEraObj.maxZoom}
             errorTileUrl="https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
           />
         )}
-        {showEvents && viewMode === 'region' && regionList.map((region, idx) => {
-          const coords = regionCoords[region.toLowerCase()];
-          if (!coords) return null;
-          let isActive = false;
-          if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
-            isActive = linesToDraw[currentLineIdx].dests.some(dest => dest.name === region);
-          }
-          // Responsive circle size
-          const isMobile = window.innerWidth < 640;
-          const baseRadius = isMobile ? 12 : 10; // smaller on desktop
-          const activeRadius = isMobile ? 22 : 16; // smaller on desktop
-          return (
+        {/* Render event markers/dots only if showEvents is true */}
+        {showEvents && Array.isArray(events) && events.map((event, idx) =>
+          (typeof event.lat === 'number' && typeof event.lng === 'number') && (
             <CircleMarker
-              key={region}
-              center={coords}
-              radius={isActive ? activeRadius : baseRadius}
-              fillColor={regionColor[region]}
-              color={isActive ? '#fff' : '#222'}
-              weight={isActive ? 10 : 2}
-              fillOpacity={isActive ? 1 : 0.85}
-              eventHandlers={{
-                click: () => handleMarkerClick(region)
-              }}
-              style={{
-                cursor: "pointer",
-                filter: isActive ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${regionColor[region]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
-                zIndex: isActive ? 1000 : undefined
-              }}
+              key={event.id || idx}
+              center={[event.lat, event.lng]}
+              radius={6}
+              fillColor={colorPalette[idx % colorPalette.length]}
+              color="#222"
+              weight={1}
+              opacity={1}
+              fillOpacity={0.8}
             >
-              <Tooltip direction="top" offset={[0, -10]}>{region} ({regionEvents[region].length} events)</Tooltip>
+              <Tooltip>{event.title}</Tooltip>
             </CircleMarker>
-          );
-        })}
-        {showEvents && viewMode === 'country' && countryList.map((country, idx) => {
-          const coords = countryCoords[country.toLowerCase()];
-          if (!coords) return null;
-          let isActive = false;
-          if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
-            isActive = linesToDraw[currentLineIdx].dests.some(dest => dest.name === country);
-          }
-          // Responsive circle size
-          const isMobile = window.innerWidth < 640;
-          const baseRadius = isMobile ? 8 : 7; // smaller on desktop
-          const activeRadius = isMobile ? 14 : 12; // smaller on desktop
-          return (
-            <CircleMarker
-              key={country}
-              center={coords}
-              radius={isActive ? activeRadius : baseRadius}
-              fillColor={countryColor[country]}
-              color={isActive ? '#fff' : '#222'}
-              weight={isActive ? 10 : 2}
-              fillOpacity={isActive ? 1 : 0.85}
-              eventHandlers={{
-                click: () => handleMarkerClick(country)
-              }}
-              style={{
-                cursor: "pointer",
-                filter: isActive ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${countryColor[country]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
-                zIndex: isActive ? 1000 : undefined
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -10]}>{country} ({countryEvents[country].length} events)</Tooltip>
-            </CircleMarker>
-          );
-        })}
-        {/* Animated lines */}
-        {showEvents && linesToDraw.slice(0, currentLineIdx + 1).map((line, idx) => (
-          idx === currentLineIdx && line.dests && line.eventTitle && (
-            line.dests.map((dest, dIdx) => (
-              dIdx === 0 ? (
-                <Marker
-                  key={idx + '-' + dIdx}
-                  position={dest.coords}
-                  icon={L.divIcon({
-                    className: 'event-label-marker',
-                    html: '<div></div>', // invisible marker
-                    iconSize: [1, 1],
-                    iconAnchor: [0, 0],
-                  })}
-                  interactive={false}
-                  zIndexOffset={1000}
-                >
-                  <Tooltip
-                    direction="top"
-                    offset={[0, -18]}
-                    permanent
-                    className="event-label-tooltip"
-                    opacity={1}
-                  >
-                    <span style={{
-                      color: '#fff',
-                      background: 'rgba(24,24,32,0.85)',
-                      borderRadius: 8,
-                      padding: '2px 10px',
-                      fontWeight: 700,
-                      fontSize: 11,
-                      boxShadow: '0 2px 8px #0008',
-                      border: `1px solid ${dest.color}`,
-                      textShadow: '0 1px 4px #000a',
-                      whiteSpace: 'normal', // allow wrapping for date below
-                      wordBreak: 'keep-all',
-                      maxWidth: 260,
-                      lineHeight: 1.2,
-                      textAlign: 'center',
-                      overflowWrap: 'normal',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: 'inline-block',
-                    }}>
-                      {line.eventTitle}
-                      {line.year && (
-                        <span style={{
-                          display: 'block',
-                          fontWeight: 400,
-                          fontSize: 10,
-                          color: '#a5b4fc',
-                          marginTop: 2,
-                          letterSpacing: 0.5,
-                        }}>{line.year} {line.dateType || ''}</span>
-                      )}
-                    </span>
-                  </Tooltip>
-                </Marker>
-              ) : null
-            ))
           )
-        ))}
+        )}
       </MapContainer>
     </div>
   );
