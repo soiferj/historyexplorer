@@ -1015,7 +1015,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
                   const minZoom = 2;
                   const maxZoom = 10;
                   const clusterRadius = Math.max(minRadius, maxRadius - ((zoom - minZoom) * (maxRadius - minRadius) / (maxZoom - minZoom)));
-                  const clusterThreshold = 5; // Only show individual labels at zoom >= 5
+                  const clusterThreshold = 4; // Only show individual labels at zoom >= 4
                   let labelPoints = historicalGeojson.features.map((feature, idx) => {
                     const props = feature.properties || {};
                     let since = props.inhabit_since;
