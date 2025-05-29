@@ -1003,7 +1003,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
               <>
                 <GeoJSON 
                   data={historicalGeojson} 
-                  style={{ color: '#888', weight: 1, fillOpacity: 0.2 }} 
+                  style={{ color: '#888', weight: 1, fillOpacity: 0.4 }} 
                   key={selectedYear != null ? `historical-${selectedYear}` : 'historical'}
                 />
                 {/* Region labels for inhabited regions only, using inhabit_since/until, with clustering and dot */}
@@ -1103,20 +1103,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
                           html: `<span style=\"color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:10px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:normal;width:120px;line-height:1.2;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:block;\">${pt.label}</span>`
                         })}
                         interactive={false}
-                      >
-                        <div style={{
-                          position: 'absolute',
-                          left: '50%',
-                          top: '50%',
-                          width: 8,
-                          height: 8,
-                          background: '#fff',
-                          border: '2px solid #60a5fa',
-                          borderRadius: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          zIndex: 1000
-                        }} />
-                      </Marker>
+                      />
                     ));
                   }
                 })()}
