@@ -1000,7 +1000,11 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-20 text-red-300">{historicalGeojsonError}</div>
             )}
             {historicalGeojson && (
-              <GeoJSON data={historicalGeojson} style={{ color: '#60a5fa', weight: 1, fillOpacity: 0.2 }} />
+              <GeoJSON 
+                data={historicalGeojson} 
+                style={{ color: '#60a5fa', weight: 1, fillOpacity: 0.2 }} 
+                key={selectedYear != null ? `historical-${selectedYear}` : 'historical'}
+              />
             )}
           </>
         ) : (
