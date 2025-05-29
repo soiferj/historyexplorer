@@ -1072,7 +1072,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
                       position={[lat, lng]}
                       icon={L.divIcon({
                         className: 'region-label',
-                        html: `<span style="color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:12px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:normal;width:120px;line-height:1.2;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:block;">${label}</span>`
+                        html: `<span style="color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:10px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:normal;width:120px;line-height:1.2;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:block;">${label}</span>`
                       })}
                       interactive={false}
                     />
