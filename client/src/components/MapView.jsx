@@ -646,10 +646,10 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     // Do not reset view if only selectedEraObj changes (e.g., props update)
   }, [selectedEra, selectedEraObj]);
 
-  // Track map center/zoom on user interaction to preserve state
+  // Track map center/zoom on user interaction to preserve state and trigger re-render for clustering
   const handleMapMove = React.useCallback((map) => {
     setMapCenter(map.getCenter());
-    setMapZoom(map.getZoom());
+    setMapZoom(map.getZoom()); // <-- update zoom state
   }, []);
 
   // Custom MapEventHandler to update center/zoom state
@@ -1006,78 +1006,120 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
                   style={{ color: '#60a5fa', weight: 1, fillOpacity: 0.2 }} 
                   key={selectedYear != null ? `historical-${selectedYear}` : 'historical'}
                 />
-                {/* Region labels for inhabited regions only, using inhabit_since/until */}
-                {historicalGeojson.features && historicalGeojson.features.map((feature, idx) => {
-                  const props = feature.properties || {};
-                  let since = props.inhabit_since;
-                  let until = props.inhabit_until;
-                  const parseYear = y => {
-                    if (y == null) return null;
-                    if (typeof y === 'number') return y;
-                    if (typeof y === 'string') {
-                      if (/^\d+$/.test(y)) return parseInt(y, 10); // CE
-                      if (/^(-?\d+)$/.test(y)) return parseInt(y, 10); // negative
-                      if (/^bc\s*(\d+)$/i.test(y)) return -parseInt(y.match(/^bc\s*(\d+)$/i)[1], 10); // BCE
-                    }
-                    return null;
-                  };
-                  since = parseYear(since);
-                  until = parseYear(until);
-                  let inhabited = true;
-                  if (since != null && selectedYear < since) inhabited = false;
-                  if (until != null && selectedYear > until) inhabited = false;
-                  // Debug output
-                  console.log('Region label debug:', {
-                    label: props.name || props.label || props.admin || props.country,
-                    since, until, selectedYear, inhabited, props
-                  });
-                  if (!inhabited) return null;
-                  // Try to get centroid for label placement
-                  let lat = null, lng = null;
-                  if (feature.geometry && feature.geometry.type && feature.geometry.coordinates) {
-                    try {
-                      if (feature.geometry.type === 'Polygon') {
-                        const coords = feature.geometry.coordinates[0];
-                        if (coords && coords.length > 2) {
-                          const lats = coords.map(c => c[1]);
-                          const lngs = coords.map(c => c[0]);
-                          lat = lats.reduce((a, b) => a + b, 0) / lats.length;
-                          lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+                {/* Region labels for inhabited regions only, using inhabit_since/until, with clustering and dot */}
+                {(() => {
+                  if (!historicalGeojson.features) return null;
+                  let zoom = mapZoom;
+                  const minRadius = 1;
+                  const maxRadius = 12;
+                  const minZoom = 2;
+                  const maxZoom = 10;
+                  const clusterRadius = Math.max(minRadius, maxRadius - ((zoom - minZoom) * (maxRadius - minRadius) / (maxZoom - minZoom)));
+                  const clusterThreshold = 5; // Only show individual labels at zoom >= 5
+                  let labelPoints = historicalGeojson.features.map((feature, idx) => {
+                    const props = feature.properties || {};
+                    let since = props.inhabit_since;
+                    let until = props.inhabit_until;
+                    const parseYear = y => {
+                      if (y == null) return null;
+                      if (typeof y === 'number') return y;
+                      if (typeof y === 'string') {
+                        if (/^\d+$/.test(y)) return parseInt(y, 10); // CE
+                        if (/^(-?\d+)$/.test(y)) return parseInt(y, 10); // negative
+                        if (/^bc\s*(\d+)$/i.test(y)) return -parseInt(y.match(/^bc\s*(\d+)$/i)[1], 10); // BCE
+                      }
+                      return null;
+                    };
+                    since = parseYear(since);
+                    until = parseYear(until);
+                    let inhabited = true;
+                    if (since != null && selectedYear < since) inhabited = false;
+                    if (until != null && selectedYear > until) inhabited = false;
+                    if (!inhabited) return null;
+                    // Get centroid
+                    let lat = null, lng = null;
+                    if (feature.geometry && feature.geometry.type && feature.geometry.coordinates) {
+                      try {
+                        if (feature.geometry.type === 'Polygon') {
+                          const coords = feature.geometry.coordinates[0];
+                          if (coords && coords.length > 2) {
+                            const lats = coords.map(c => c[1]);
+                            const lngs = coords.map(c => c[0]);
+                            lat = lats.reduce((a, b) => a + b, 0) / lats.length;
+                            lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+                          }
+                        } else if (feature.geometry.type === 'MultiPolygon') {
+                          const coords = feature.geometry.coordinates[0][0];
+                          if (coords && coords.length > 2) {
+                            const lats = coords.map(c => c[1]);
+                            const lngs = coords.map(c => c[0]);
+                            lat = lats.reduce((a, b) => a + b, 0) / lats.length;
+                            lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+                          }
                         }
-                      } else if (feature.geometry.type === 'MultiPolygon') {
-                        // Use first polygon
-                        const coords = feature.geometry.coordinates[0][0];
-                        if (coords && coords.length > 2) {
-                          const lats = coords.map(c => c[1]);
-                          const lngs = coords.map(c => c[0]);
-                          lat = lats.reduce((a, b) => a + b, 0) / lats.length;
-                          lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+                      } catch (e) { /* ignore */ }
+                    }
+                    if (lat == null || lng == null) return null;
+                    const label = props.name || props.label || props.admin || props.country || props.NAME || props.ABBREVN || props.SUBJECTO || props.PARTOF;
+                    if (!label) return null;
+                    return { lat, lng, label, idx };
+                  }).filter(Boolean);
+                  let clusters = [];
+                  if (zoom < clusterThreshold) {
+                    labelPoints.forEach(pt => {
+                      let found = false;
+                      for (let cluster of clusters) {
+                        const d = Math.sqrt(Math.pow(cluster.lat - pt.lat, 2) + Math.pow(cluster.lng - pt.lng, 2));
+                        if (d < clusterRadius) {
+                          cluster.points.push(pt);
+                          cluster.lat = (cluster.lat * (cluster.points.length - 1) + pt.lat) / cluster.points.length;
+                          cluster.lng = (cluster.lng * (cluster.points.length - 1) + pt.lng) / cluster.points.length;
+                          found = true;
+                          break;
                         }
                       }
-                    } catch (e) { /* ignore */ }
-                  }
-                  if (lat == null || lng == null) return null;
-                  const label = props.name || props.label || props.admin || props.country || props.NAME || props.ABBREVN || props.SUBJECTO || props.PARTOF;
-                  // DEBUG: Output the label string and its length
-                  if (label != null) {
-                    console.log('Region label string:', label, 'length:', label.length, 'raw:', JSON.stringify(label));
+                      if (!found) clusters.push({ lat: pt.lat, lng: pt.lng, points: [pt] });
+                    });
+                    // Always render clusters as circles, even if size 1, at low zoom
+                    return clusters.map((cluster, cidx) => (
+                      <Marker
+                        key={`region-label-cluster-${cidx}`}
+                        position={[cluster.lat, cluster.lng]}
+                        icon={L.divIcon({
+                          className: 'region-label-cluster',
+                          html: `<div style=\"background:rgba(24,24,32,0.85);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:2px solid #60a5fa;box-shadow:0 2px 8px #0008;font-weight:700;font-size:15px;color:#fff;\">${cluster.points.length}</div>`
+                        })}
+                        interactive={false}
+                      />
+                    ));
                   } else {
-                    console.log('Region label string is null or undefined:', label);
+                    // Only render individual labels and dots when zoomed in
+                    return labelPoints.map((pt) => (
+                      <Marker
+                        key={`region-label-${pt.idx}`}
+                        position={[pt.lat, pt.lng]}
+                        icon={L.divIcon({
+                          className: 'region-label',
+                          html: `<span style=\"color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:10px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:normal;width:120px;line-height:1.2;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:block;\">${pt.label}</span>`
+                        })}
+                        interactive={false}
+                      >
+                        <div style={{
+                          position: 'absolute',
+                          left: '50%',
+                          top: '50%',
+                          width: 8,
+                          height: 8,
+                          background: '#fff',
+                          border: '2px solid #60a5fa',
+                          borderRadius: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          zIndex: 1000
+                        }} />
+                      </Marker>
+                    ));
                   }
-                  // Place label as a text span at centroid, force width and wrapping
-                  if (!label) return null;
-                  return (
-                    <Marker
-                      key={`region-label-${idx}`}
-                      position={[lat, lng]}
-                      icon={L.divIcon({
-                        className: 'region-label',
-                        html: `<span style="color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:10px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:normal;width:120px;line-height:1.2;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:block;">${label}</span>`
-                      })}
-                      interactive={false}
-                    />
-                  );
-                })}
+                })()}
               </>
             )}
           </>
@@ -1091,30 +1133,30 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         {showEvents && viewMode === 'region' && regionList.map((region, idx) => {
           const coords = regionCoords[region.toLowerCase()];
           if (!coords) return null;
-          let isActive = false;
+          let isActiveRegion = false;
           if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
-            isActive = linesToDraw[currentLineIdx].dests.some(dest => dest.name === region);
+            isActiveRegion = linesToDraw[currentLineIdx].dests.some(dest => dest.name === region);
           }
           // Responsive circle size
-          const isMobile = window.innerWidth < 640;
-          const baseRadius = isMobile ? 12 : 10; // smaller on desktop
-          const activeRadius = isMobile ? 22 : 16; // smaller on desktop
+          const isMobileRegion = window.innerWidth < 640;
+          const baseRadiusRegion = isMobileRegion ? 12 : 10;
+          const activeRadiusRegion = isMobileRegion ? 22 : 16;
           return (
             <CircleMarker
               key={region}
               center={coords}
-              radius={isActive ? activeRadius : baseRadius}
+              radius={isActiveRegion ? activeRadiusRegion : baseRadiusRegion}
               fillColor={regionColor[region]}
-              color={isActive ? '#fff' : '#222'}
-              weight={isActive ? 10 : 2}
-              fillOpacity={isActive ? 1 : 0.85}
+              color={isActiveRegion ? '#fff' : '#222'}
+              weight={isActiveRegion ? 10 : 2}
+              fillOpacity={isActiveRegion ? 1 : 0.85}
               eventHandlers={{
                 click: () => handleMarkerClick(region)
               }}
               style={{
                 cursor: "pointer",
-                filter: isActive ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${regionColor[region]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
-                zIndex: isActive ? 1000 : undefined
+                filter: isActiveRegion ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${regionColor[region]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
+                zIndex: isActiveRegion ? 1000 : undefined
               }}
             >
               <Tooltip direction="top" offset={[0, -10]}>{region} ({regionEvents[region].length} events)</Tooltip>
@@ -1124,30 +1166,30 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         {showEvents && viewMode === 'country' && countryList.map((country, idx) => {
           const coords = countryCoords[country.toLowerCase()];
           if (!coords) return null;
-          let isActive = false;
+          let isActiveCountry = false;
           if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
-            isActive = linesToDraw[currentLineIdx].dests.some(dest => dest.name === country);
+            isActiveCountry = linesToDraw[currentLineIdx].dests.some(dest => dest.name === country);
           }
           // Responsive circle size
-          const isMobile = window.innerWidth < 640;
-          const baseRadius = isMobile ? 8 : 7; // smaller on desktop
-          const activeRadius = isMobile ? 14 : 12; // smaller on desktop
+          const isMobileCountry = window.innerWidth < 640;
+          const baseRadiusCountry = isMobileCountry ? 8 : 7;
+          const activeRadiusCountry = isMobileCountry ? 14 : 12;
           return (
             <CircleMarker
               key={country}
               center={coords}
-              radius={isActive ? activeRadius : baseRadius}
+              radius={isActiveCountry ? activeRadiusCountry : baseRadiusCountry}
               fillColor={countryColor[country]}
-              color={isActive ? '#fff' : '#222'}
-              weight={isActive ? 10 : 2}
-              fillOpacity={isActive ? 1 : 0.85}
+              color={isActiveCountry ? '#fff' : '#222'}
+              weight={isActiveCountry ? 10 : 2}
+              fillOpacity={isActiveCountry ? 1 : 0.85}
               eventHandlers={{
                 click: () => handleMarkerClick(country)
               }}
               style={{
                 cursor: "pointer",
-                filter: isActive ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${countryColor[country]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
-                zIndex: isActive ? 1000 : undefined
+                filter: isActiveCountry ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${countryColor[country]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
+                zIndex: isActiveCountry ? 1000 : undefined
               }}
             >
               <Tooltip direction="top" offset={[0, -10]}>{country} ({countryEvents[country].length} events)</Tooltip>
@@ -1406,7 +1448,7 @@ function AnimationControlsDropdown({ animating, paused, currentLineIdx, linesToD
             style={{ minWidth: 24 }}
             disabled={!animating && currentLineIdx === -1}
             type="button"
-          >
+                            >
             <span role="img" aria-label="Stop">&#9632;</span>
           </button>
           <div className="flex gap-0.5">
