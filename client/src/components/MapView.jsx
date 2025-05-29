@@ -966,7 +966,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         zoom={mapZoom}
         minZoom={selectedEraObj.minZoom}
         maxZoom={selectedEraObj.maxZoom}
-        style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1 }}
+        style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1, background: selectedEra === 'historical-basemaps' ? '#b3e0ff' : undefined }}
         scrollWheelZoom={true}
       >
         <MapEventHandler />
@@ -1003,7 +1003,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
               <>
                 <GeoJSON 
                   data={historicalGeojson} 
-                  style={{ color: '#60a5fa', weight: 1, fillOpacity: 0.2 }} 
+                  style={{ color: '#888', weight: 1, fillOpacity: 0.2 }} 
                   key={selectedYear != null ? `historical-${selectedYear}` : 'historical'}
                 />
                 {/* Region labels for inhabited regions only, using inhabit_since/until, with clustering and dot */}
