@@ -6,9 +6,15 @@ const fetch = require('node-fetch');
 router.get('/years', async (req, res) => {
   try {
     const githubApiUrl = 'https://api.github.com/repos/aourednik/historical-basemaps/contents/geojson';
-    const response = await fetch(githubApiUrl);
+    const headers = {};
+    if (process.env.GITHUB_TOKEN) {
+      headers['Authorization'] = `token ${process.env.GITHUB_TOKEN}`;
+    }
+    const response = await fetch(githubApiUrl, { headers });
     if (!response.ok) {
-      return res.status(500).json({ error: 'Failed to fetch years from GitHub' });
+      const errorText = await response.text();
+      console.error('GitHub API error:', response.status, errorText);
+      return res.status(500).json({ error: 'Failed to fetch years from GitHub', status: response.status, details: errorText });
     }
     const files = await response.json();
     const years = files
@@ -25,7 +31,8 @@ router.get('/years', async (req, res) => {
       .sort((a, b) => a - b);
     res.json({ years });
   } catch (e) {
-    res.status(500).json({ error: 'Failed to fetch or parse years' });
+    console.error('Error fetching/parsing years from GitHub:', e);
+    res.status(500).json({ error: 'Failed to fetch or parse years', details: e.message });
   }
 });
 
