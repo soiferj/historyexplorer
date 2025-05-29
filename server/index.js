@@ -11,8 +11,11 @@ app.use((req, res, next) => {
     next();
 });
 
+// CORS setup: allow all origins in development, restrict in production
 app.use(cors({
-  origin: 'https://historyexplorer.onrender.com',
+  origin: process.env.NODE_ENV === 'production' 
+    ? 'https://historyexplorer.onrender.com' 
+    : true, // allow all origins in dev
   credentials: true // if you need cookies/auth
 }));
 app.use(express.json());
