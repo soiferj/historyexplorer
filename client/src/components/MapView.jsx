@@ -1058,6 +1058,13 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
                   }
                   if (lat == null || lng == null) return null;
                   const label = props.name || props.label || props.admin || props.country || props.NAME || props.ABBREVN || props.SUBJECTO || props.PARTOF;
+                  // DEBUG: Output the label string and its length
+                  if (label != null) {
+                    console.log('Region label string:', label, 'length:', label.length, 'raw:', JSON.stringify(label));
+                  } else {
+                    console.log('Region label string is null or undefined:', label);
+                  }
+                  // Place label as a text span at centroid, force width and wrapping
                   if (!label) return null;
                   return (
                     <Marker
@@ -1065,7 +1072,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
                       position={[lat, lng]}
                       icon={L.divIcon({
                         className: 'region-label',
-                        html: `<div style='color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:11px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:nowrap;max-width:180px;line-height:1.2;text-align:center;'>${label}</div>`
+                        html: `<span style="color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:12px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:normal;width:120px;line-height:1.2;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:block;">${label}</span>`
                       })}
                       interactive={false}
                     />
