@@ -1,5 +1,5 @@
 import React from "react";
-import { MapContainer, TileLayer, CircleMarker, Tooltip, Marker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Tooltip, Marker, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import '@maplibre/maplibre-gl-leaflet';
@@ -275,10 +275,23 @@ const mapEras = [
     center: [41, 15],
     zoom: 4
   },
+  {
+    label: 'Historical Basemaps',
+    value: 'historical-basemaps',
+    url: '', // Not used
+    attribution: '<a href="https://github.com/aourednik/historical-basemaps">Historical Basemaps</a>',
+    minZoom: 1,
+    maxZoom: 10,
+    center: [30, 10],
+    zoom: 2
+  },
   // Add more eras as needed
 ];
 
 const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedCountries, loading, error, onBackToTimeline }) => {
+  
+  const apiUrl = process.env.REACT_APP_API_URL;
+  
   // Toggle state: 'region' or 'country'
   const [viewMode, setViewMode] = React.useState('country');
   // Animation state
@@ -654,6 +667,73 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     return null;
   }
 
+  // Fetch geojson for historical-basemaps era
+  const [historicalGeojson, setHistoricalGeojson] = React.useState(null);
+  const [historicalGeojsonLoading, setHistoricalGeojsonLoading] = React.useState(false);
+  const [historicalGeojsonError, setHistoricalGeojsonError] = React.useState(null);
+  const [availableHistoricalYears, setAvailableHistoricalYears] = React.useState([]);
+  const [availableHistoricalYearsLoading, setAvailableHistoricalYearsLoading] = React.useState(false);
+  const [availableHistoricalYearsError, setAvailableHistoricalYearsError] = React.useState(null);
+
+  // Fetch geojson for historical-basemaps era
+  React.useEffect(() => {
+    if (selectedEra !== 'historical-basemaps' || !selectedYear) {
+      setHistoricalGeojson(null);
+      setHistoricalGeojsonError(null);
+      return;
+    }
+    let isMounted = true;
+    setHistoricalGeojsonLoading(true);
+    setHistoricalGeojsonError(null);
+    const fetchGeojson = async () => {
+      try {
+        let yearStr = selectedYear < 0 ? `bc${Math.abs(selectedYear)}` : `${selectedYear}`;
+        const response = await fetch(`${apiUrl}/historical-map/${yearStr}`);
+        if (!response.ok) throw new Error('Map not found for year');
+        const data = await response.json();
+        if (isMounted) {
+          setHistoricalGeojson(data.geojson);
+          setHistoricalGeojsonLoading(false);
+        }
+      } catch (e) {
+        if (isMounted) {
+          setHistoricalGeojson(null);
+          setHistoricalGeojsonError(e.message || 'Failed to load map');
+          setHistoricalGeojsonLoading(false);
+        }
+      }
+    };
+    fetchGeojson();
+    return () => { isMounted = false; };
+  }, [selectedEra, selectedYear, apiUrl]);
+
+  // Fetch available years from backend (proxy) using async/await and apiUrl
+  React.useEffect(() => {
+    if (selectedEra !== 'historical-basemaps') return;
+    let isMounted = true;
+    setAvailableHistoricalYearsLoading(true);
+    setAvailableHistoricalYearsError(null);
+    const fetchYears = async () => {
+      try {
+        const response = await fetch(`${apiUrl}/historical-map/years`);
+        if (!response.ok) throw new Error('Failed to fetch available years');
+        const data = await response.json();
+        if (isMounted) {
+          setAvailableHistoricalYears(Array.isArray(data.years) ? data.years : []);
+          setAvailableHistoricalYearsLoading(false);
+        }
+      } catch (e) {
+        if (isMounted) {
+          setAvailableHistoricalYears([]);
+          setAvailableHistoricalYearsError(e.message || 'Failed to load years');
+          setAvailableHistoricalYearsLoading(false);
+        }
+      }
+    };
+    fetchYears();
+    return () => { isMounted = false; };
+  }, [selectedEra, apiUrl]);
+
   return (
     <div className={`w-full h-[500px] relative${selectedEra === 'ohm' ? ' pb-16' : ' pb-8'}`}>
       {/* Era/Century selector */}
@@ -785,6 +865,31 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           </div>
         </>
       )}
+      {/* Historical Basemaps year dropdown */}
+      {selectedEra === 'historical-basemaps' && (
+        <div className="w-full flex justify-center mb-2 gap-4">
+          <label htmlFor="historical-basemaps-year-select" className="text-white font-semibold mr-2">Year:</label>
+          {availableHistoricalYearsLoading ? (
+            <span className="text-blue-200">Loading years...</span>
+          ) : availableHistoricalYearsError ? (
+            <span className="text-red-300">{availableHistoricalYearsError}</span>
+          ) : (
+            <select
+              id="historical-basemaps-year-select"
+              className="px-3 py-1 rounded border border-blue-400 bg-gray-800 text-white shadow"
+              value={selectedYear ?? ''}
+              onChange={e => setSelectedYear(Number(e.target.value))}
+            >
+              <option value="" disabled>Select year</option>
+              {availableHistoricalYears.map(y => (
+                <option key={y} value={y}>
+                  {y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
       {/* Modal for timeline of events in selected region/country */}
       {modalOpen && (
         <div
@@ -866,7 +971,7 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
       >
         <MapEventHandler />
         <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
-        {/* Use MapLibre GL for OHM, otherwise use TileLayer */}
+        {/* Map layer selection logic */}
         {selectedEra === 'ohm' ? (
           <OHMMapLibreLayer
             enabled={true}
@@ -886,6 +991,18 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
               return `${y}-${type}`;
             })()}
           />
+        ) : selectedEra === 'historical-basemaps' ? (
+          <>
+            {historicalGeojsonLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-20 text-blue-200">Loading historical map...</div>
+            )}
+            {historicalGeojsonError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-20 text-red-300">{historicalGeojsonError}</div>
+            )}
+            {historicalGeojson && (
+              <GeoJSON data={historicalGeojson} style={{ color: '#60a5fa', weight: 1, fillOpacity: 0.2 }} />
+            )}
+          </>
         ) : (
           <TileLayer
             attribution={selectedEraObj.attribution}
