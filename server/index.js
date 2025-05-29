@@ -11,7 +11,10 @@ app.use((req, res, next) => {
     next();
 });
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://historyexplorer.onrender.com',
+  credentials: true // if you need cookies/auth
+}));
 app.use(express.json());
 
 app.get("/", (req, res) => res.send("History Map API Running"));
