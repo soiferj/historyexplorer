@@ -1000,11 +1000,78 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-20 text-red-300">{historicalGeojsonError}</div>
             )}
             {historicalGeojson && (
-              <GeoJSON 
-                data={historicalGeojson} 
-                style={{ color: '#60a5fa', weight: 1, fillOpacity: 0.2 }} 
-                key={selectedYear != null ? `historical-${selectedYear}` : 'historical'}
-              />
+              <>
+                <GeoJSON 
+                  data={historicalGeojson} 
+                  style={{ color: '#60a5fa', weight: 1, fillOpacity: 0.2 }} 
+                  key={selectedYear != null ? `historical-${selectedYear}` : 'historical'}
+                />
+                {/* Region labels for inhabited regions only, using inhabit_since/until */}
+                {historicalGeojson.features && historicalGeojson.features.map((feature, idx) => {
+                  const props = feature.properties || {};
+                  let since = props.inhabit_since;
+                  let until = props.inhabit_until;
+                  const parseYear = y => {
+                    if (y == null) return null;
+                    if (typeof y === 'number') return y;
+                    if (typeof y === 'string') {
+                      if (/^\d+$/.test(y)) return parseInt(y, 10); // CE
+                      if (/^(-?\d+)$/.test(y)) return parseInt(y, 10); // negative
+                      if (/^bc\s*(\d+)$/i.test(y)) return -parseInt(y.match(/^bc\s*(\d+)$/i)[1], 10); // BCE
+                    }
+                    return null;
+                  };
+                  since = parseYear(since);
+                  until = parseYear(until);
+                  let inhabited = true;
+                  if (since != null && selectedYear < since) inhabited = false;
+                  if (until != null && selectedYear > until) inhabited = false;
+                  // Debug output
+                  console.log('Region label debug:', {
+                    label: props.name || props.label || props.admin || props.country,
+                    since, until, selectedYear, inhabited, props
+                  });
+                  if (!inhabited) return null;
+                  // Try to get centroid for label placement
+                  let lat = null, lng = null;
+                  if (feature.geometry && feature.geometry.type && feature.geometry.coordinates) {
+                    try {
+                      if (feature.geometry.type === 'Polygon') {
+                        const coords = feature.geometry.coordinates[0];
+                        if (coords && coords.length > 2) {
+                          const lats = coords.map(c => c[1]);
+                          const lngs = coords.map(c => c[0]);
+                          lat = lats.reduce((a, b) => a + b, 0) / lats.length;
+                          lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+                        }
+                      } else if (feature.geometry.type === 'MultiPolygon') {
+                        // Use first polygon
+                        const coords = feature.geometry.coordinates[0][0];
+                        if (coords && coords.length > 2) {
+                          const lats = coords.map(c => c[1]);
+                          const lngs = coords.map(c => c[0]);
+                          lat = lats.reduce((a, b) => a + b, 0) / lats.length;
+                          lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+                        }
+                      }
+                    } catch (e) { /* ignore */ }
+                  }
+                  if (lat == null || lng == null) return null;
+                  const label = props.name || props.label || props.admin || props.country || props.NAME || props.ABBREVN || props.SUBJECTO || props.PARTOF;
+                  if (!label) return null;
+                  return (
+                    <Marker
+                      key={`region-label-${idx}`}
+                      position={[lat, lng]}
+                      icon={L.divIcon({
+                        className: 'region-label',
+                        html: `<div style='color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:11px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:nowrap;max-width:180px;line-height:1.2;text-align:center;'>${label}</div>`
+                      })}
+                      interactive={false}
+                    />
+                  );
+                })}
+              </>
             )}
           </>
         ) : (
