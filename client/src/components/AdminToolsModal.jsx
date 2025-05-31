@@ -94,13 +94,19 @@ function AdminToolsModal({
         setDedupeTagMapping(null);
         try {
             const allTags = getAllTags(allEvents);
+            // Fetch thresholds from env if available
+            const embeddingThreshold = process.env.REACT_APP_DEDUPE_EMBEDDING_THRESHOLD;
+            const jaccardThreshold = process.env.REACT_APP_DEDUPE_JACCARD_THRESHOLD;
+            const body = { tags: allTags };
+            if (embeddingThreshold) body.threshold = parseFloat(embeddingThreshold);
+            if (jaccardThreshold) body.jaccard = parseFloat(jaccardThreshold);
             const response = await fetch(`${apiUrl}/events/dedupe-tags`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                 },
-                body: JSON.stringify({ tags: allTags })
+                body: JSON.stringify(body)
             });
             const data = await response.json();
             if (response.ok && data.mapping) {
@@ -270,11 +276,34 @@ function AdminToolsModal({
                     <div className="relative glass p-6 rounded-2xl shadow-2xl border border-yellow-400 w-full max-w-lg z-70 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#ffe25933] to-[#ffa75133] backdrop-blur-lg">
                         <h3 className="text-lg font-bold mb-2 text-yellow-300">Confirm Tag Deduplication</h3>
                         <div className="mb-4 text-center text-yellow-200 max-h-60 overflow-y-auto w-full">
-                            <p className="mb-2">The following tag changes will be made:</p>
+                            <p className="mb-2">The following tag changes will be made. You can reject or edit any mapping:</p>
                             <ul className="text-yellow-100 text-left text-xs max-h-40 overflow-y-auto">
                                 {Object.entries(dedupeTagMapping).map(([oldTag, newTag]) => (
-                                    <li key={oldTag}>
-                                        <span className="font-bold">{oldTag}</span> → <span className="text-green-300 font-bold">{newTag}</span>
+                                    <li key={oldTag} className="flex items-center gap-2 mb-1">
+                                        <span className="font-bold">{oldTag}</span> →
+                                        <input
+                                            className="bg-yellow-900 text-yellow-100 rounded px-1 py-0.5 border border-yellow-400 w-40 text-xs"
+                                            value={newTag}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setDedupeTagMapping(prev => ({ ...prev, [oldTag]: val }));
+                                            }}
+                                        />
+                                        {oldTag !== newTag && (
+                                            <button
+                                                className="ml-2 px-2 py-0.5 rounded bg-red-600 text-white text-xs font-bold hover:bg-red-800"
+                                                title="Reject this mapping"
+                                                onClick={() => {
+                                                    setDedupeTagMapping(prev => {
+                                                        const copy = { ...prev };
+                                                        copy[oldTag] = oldTag;
+                                                        return copy;
+                                                    });
+                                                }}
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
                                     </li>
                                 ))}
                             </ul>

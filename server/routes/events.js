@@ -175,43 +175,91 @@ router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
     }
 });
 
-// POST /events/dedupe-tags (admin only): Generate tag deduplication mapping using LLM
+// POST /events/dedupe-tags (admin only): Generate tag deduplication mapping using OpenAI embeddings and KNN clustering
 router.post("/dedupe-tags", verifyAllowedUser, async (req, res) => {
-    const { tags } = req.body;
+    const { tags, threshold, jaccard } = req.body;
+    // Use env or fallback defaults
+    const embeddingThreshold = typeof threshold === 'number' ? threshold : (parseFloat(process.env.DEDUPE_EMBEDDING_THRESHOLD) || 0.7);
+    const jaccardThreshold = typeof jaccard === 'number' ? jaccard : (parseFloat(process.env.DEDUPE_JACCARD_THRESHOLD) || 0.8);
     if (!tags || !Array.isArray(tags) || tags.length === 0) {
         return res.status(400).json({ error: "Tags array is required" });
     }
     try {
-        // Load prompt template from file
-        const promptPath = path.join(__dirname, "../data/dedupe_tags_prompt.txt");
-        let promptTemplate = fs.readFileSync(promptPath, "utf-8");
-        // Replace placeholder
-        const prompt = promptTemplate.replace("{{tags}}", tags.join(", "));
-        const response = await openai.chat.completions.create({
-            model: "gpt-4.1-nano",
-            messages: [
-                { role: "system", content: "You are a helpful assistant for an app that displays information about historical events." },
-                { role: "user", content: prompt }
-            ],
-            temperature: 0,
-            max_tokens: 2048
+        // 1. Get embeddings for all tags
+        const embedResponse = await openai.embeddings.create({
+            model: "text-embedding-3-large", // switched from small to large
+            input: tags
         });
-        const content = response.choices[0].message.content;
-        console.log("[LLM dedupe-tags raw response]", content); // Debug log
-        let mapping = {};
-        try {
-            mapping = JSON.parse(content);
-        } catch (e) {
-            // Try to extract JSON from the response if not pure JSON
-            const match = content.match(/\{[\s\S]*\}/);
-            if (match) {
-                console.log("[LLM dedupe-tags extracted JSON]", match[0]); // Debug log
-                mapping = JSON.parse(match[0]);
-            } else {
-                console.error("[LLM dedupe-tags parse error]", content);
-                throw new Error("Could not parse mapping from LLM");
+        const vectors = embedResponse.data.map(obj => obj.embedding);
+        // 2. KNN clustering by cosine similarity
+        function cosineSim(a, b) {
+            let dot = 0, normA = 0, normB = 0;
+            for (let i = 0; i < a.length; i++) {
+                dot += a[i] * b[i];
+                normA += a[i] * a[i];
+                normB += b[i] * b[i];
+            }
+            return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+        }
+        // Helper: simple string similarity (Jaccard on lowercased word sets)
+        function jaccardSim(a, b) {
+            const setA = new Set(a.toLowerCase().split(/\s+/));
+            const setB = new Set(b.toLowerCase().split(/\s+/));
+            const intersection = new Set([...setA].filter(x => setB.has(x)));
+            const union = new Set([...setA, ...setB]);
+            return intersection.size / union.size;
+        }
+        // Build cosine similarity matrix
+        const simMatrix = Array(tags.length).fill(0).map(() => Array(tags.length).fill(0));
+        for (let i = 0; i < tags.length; i++) {
+            for (let j = 0; j < tags.length; j++) {
+                if (i === j) simMatrix[i][j] = 1;
+                else simMatrix[i][j] = cosineSim(vectors[i], vectors[j]);
             }
         }
+        // Hybrid greedy clustering: assign to first cluster where (embedding sim >= embeddingThreshold OR jaccard >= jaccardThreshold), else new cluster
+        let clusters = [];
+        for (let i = 0; i < tags.length; i++) {
+            let assigned = false;
+            for (const cluster of clusters) {
+                // Compute avg embedding sim to all tags in cluster
+                let sumSim = 0;
+                for (const idx of cluster) sumSim += simMatrix[i][idx];
+                let avgSim = sumSim / cluster.length;
+                // Compute max jaccard sim to any tag in cluster
+                let maxJaccard = Math.max(...cluster.map(idx => jaccardSim(tags[i], tags[idx])));
+                if (avgSim >= embeddingThreshold || maxJaccard >= jaccardThreshold) {
+                    cluster.push(i);
+                    assigned = true;
+                    break;
+                }
+            }
+            if (!assigned) clusters.push([i]);
+        }
+        // Debug: print clusters and their tags
+        console.log("[dedupe-tags] Hybrid Clusters (embedding OR jaccard):");
+        clusters.forEach((cluster, idx) => {
+            console.log(`  Cluster ${idx + 1}:`, cluster.map(i => tags[i]));
+        });
+        // 3. For each cluster, pick the winner (longest tag, or first alphabetically if tie)
+        const mapping = {};
+        for (const cluster of clusters) {
+            let winner = tags[cluster[0]];
+            for (const idx of cluster) {
+                const tag = tags[idx];
+                if (
+                    tag.length > winner.length ||
+                    (tag.length === winner.length && tag.toLowerCase() < winner.toLowerCase())
+                ) {
+                    winner = tag;
+                }
+            }
+            for (const idx of cluster) {
+                mapping[tags[idx]] = winner;
+            }
+        }
+        // Debug: print mapping
+        console.log("[dedupe-tags] Mapping:", mapping);
         res.json({ mapping });
     } catch (e) {
         res.status(500).json({ error: "Failed to generate dedupe mapping: " + e.message });
