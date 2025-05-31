@@ -175,4 +175,74 @@ router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
     }
 });
 
+// POST /events/dedupe-tags (admin only): Generate tag deduplication mapping using LLM
+router.post("/dedupe-tags", verifyAllowedUser, async (req, res) => {
+    const { tags } = req.body;
+    if (!tags || !Array.isArray(tags) || tags.length === 0) {
+        return res.status(400).json({ error: "Tags array is required" });
+    }
+    try {
+        // Load prompt template from file
+        const promptPath = path.join(__dirname, "../data/dedupe_tags_prompt.txt");
+        let promptTemplate = fs.readFileSync(promptPath, "utf-8");
+        // Replace placeholder
+        const prompt = promptTemplate.replace("{{tags}}", tags.join(", "));
+        const response = await openai.chat.completions.create({
+            model: "gpt-4.1-nano",
+            messages: [
+                { role: "system", content: "You are a helpful assistant for an app that displays information about historical events." },
+                { role: "user", content: prompt }
+            ],
+            temperature: 0,
+            max_tokens: 2048
+        });
+        const content = response.choices[0].message.content;
+        console.log("[LLM dedupe-tags raw response]", content); // Debug log
+        let mapping = {};
+        try {
+            mapping = JSON.parse(content);
+        } catch (e) {
+            // Try to extract JSON from the response if not pure JSON
+            const match = content.match(/\{[\s\S]*\}/);
+            if (match) {
+                console.log("[LLM dedupe-tags extracted JSON]", match[0]); // Debug log
+                mapping = JSON.parse(match[0]);
+            } else {
+                console.error("[LLM dedupe-tags parse error]", content);
+                throw new Error("Could not parse mapping from LLM");
+            }
+        }
+        res.json({ mapping });
+    } catch (e) {
+        res.status(500).json({ error: "Failed to generate dedupe mapping: " + e.message });
+    }
+});
+
+// POST /events/apply-dedupe-tags (admin only): Apply deduplication mapping to all events
+router.post("/apply-dedupe-tags", verifyAllowedUser, async (req, res) => {
+    const { mapping } = req.body;
+    if (!mapping || typeof mapping !== "object") {
+        return res.status(400).json({ error: "Mapping object is required" });
+    }
+    try {
+        // Fetch all events
+        const { data: events, error } = await supabase.from("events").select("id, tags");
+        if (error) return res.status(500).json({ error: error.message });
+        let updated = 0;
+        for (const ev of events) {
+            if (!Array.isArray(ev.tags) || ev.tags.length === 0) continue;
+            // Map each tag to its deduped version (if present)
+            const newTags = Array.from(new Set(ev.tags.map(t => mapping[t] || t)));
+            // Only update if tags actually change
+            if (JSON.stringify(newTags) !== JSON.stringify(ev.tags)) {
+                await supabase.from("events").update({ tags: newTags }).eq("id", ev.id);
+                updated++;
+            }
+        }
+        res.json({ success: true, updated });
+    } catch (e) {
+        res.status(500).json({ error: "Failed to apply dedupe mapping: " + e.message });
+    }
+});
+
 module.exports = router;

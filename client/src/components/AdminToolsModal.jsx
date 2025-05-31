@@ -13,6 +13,11 @@ function AdminToolsModal({
     const [backfillRegionsLoading, setBackfillRegionsLoading] = useState(false);
     const [backfillRegionsResult, setBackfillRegionsResult] = useState("");
     const [showBackfillRegionsModal, setShowBackfillRegionsModal] = useState(false);
+    const [dedupeTagsLoading, setDedupeTagsLoading] = useState(false);
+    const [dedupeTagsResult, setDedupeTagsResult] = useState("");
+    const [showDedupeTagsModal, setShowDedupeTagsModal] = useState(false);
+    const [dedupeTagMapping, setDedupeTagMapping] = useState(null);
+    const [showDedupeConfirmModal, setShowDedupeConfirmModal] = useState(false);
     const apiUrl = process.env.REACT_APP_API_URL;
 
     // Helper to get all unique tags from allEvents
@@ -79,6 +84,65 @@ function AdminToolsModal({
             setBackfillRegionsResult("Failed to backfill regions.");
         } finally {
             setBackfillRegionsLoading(false);
+        }
+    }
+
+    // Dedupe Tags: Step 1 - Call LLM to get mapping
+    async function handleDedupeTags() {
+        setDedupeTagsLoading(true);
+        setDedupeTagsResult("");
+        setDedupeTagMapping(null);
+        try {
+            const allTags = getAllTags(allEvents);
+            const response = await fetch(`${apiUrl}/events/dedupe-tags`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                },
+                body: JSON.stringify({ tags: allTags })
+            });
+            const data = await response.json();
+            if (response.ok && data.mapping) {
+                setDedupeTagMapping(data.mapping); // mapping: { oldTag: newTag, ... }
+                setShowDedupeConfirmModal(true);
+            } else {
+                setDedupeTagsResult(data.error || "Failed to generate dedupe mapping.");
+            }
+        } catch (err) {
+            setDedupeTagsResult("Failed to generate dedupe mapping.");
+        } finally {
+            setDedupeTagsLoading(false);
+        }
+    }
+
+    // Dedupe Tags: Step 2 - Confirm and apply mapping
+    async function handleConfirmDedupeTags() {
+        setDedupeTagsLoading(true);
+        setDedupeTagsResult("");
+        try {
+            const response = await fetch(`${apiUrl}/events/apply-dedupe-tags`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                },
+                body: JSON.stringify({ mapping: dedupeTagMapping })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setDedupeTagsResult(`Tags deduplicated for ${data.updated} events.`);
+                setShowDedupeTagsModal(false);
+                setShowDedupeConfirmModal(false);
+                onClose();
+                if (onEventsUpdated) onEventsUpdated();
+            } else {
+                setDedupeTagsResult(data.error || "Failed to apply dedupe mapping.");
+            }
+        } catch (err) {
+            setDedupeTagsResult("Failed to apply dedupe mapping.");
+        } finally {
+            setDedupeTagsLoading(false);
         }
     }
 
@@ -179,6 +243,56 @@ function AdminToolsModal({
                                 onClick={handleBackfillRegions}
                             >
                                 {backfillRegionsLoading ? "Generating..." : "Yes, Overwrite All"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <hr className="my-6 border-blue-400/40" />
+            {/* Dedupe Tags Section */}
+            <h3 className="text-lg font-semibold text-yellow-300 mb-2">Deduplicate Tags</h3>
+            <div className="w-full flex flex-col items-center mb-6">
+                <button
+                    className="px-4 py-2 rounded bg-yellow-700 text-white font-bold hover:bg-yellow-800 border border-yellow-300 shadow disabled:opacity-50"
+                    disabled={dedupeTagsLoading}
+                    onClick={handleDedupeTags}
+                >
+                    {dedupeTagsLoading ? "Generating Mapping..." : "Deduplicate Tags with AI"}
+                </button>
+                {dedupeTagsResult && (
+                    <div className="mt-2 text-yellow-200 text-sm">{dedupeTagsResult}</div>
+                )}
+            </div>
+            {/* Dedupe Tags Confirm Modal */}
+            {showDedupeConfirmModal && dedupeTagMapping && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+                    <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowDedupeConfirmModal(false)} />
+                    <div className="relative glass p-6 rounded-2xl shadow-2xl border border-yellow-400 w-full max-w-lg z-70 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#ffe25933] to-[#ffa75133] backdrop-blur-lg">
+                        <h3 className="text-lg font-bold mb-2 text-yellow-300">Confirm Tag Deduplication</h3>
+                        <div className="mb-4 text-center text-yellow-200 max-h-60 overflow-y-auto w-full">
+                            <p className="mb-2">The following tag changes will be made:</p>
+                            <ul className="text-yellow-100 text-left text-xs max-h-40 overflow-y-auto">
+                                {Object.entries(dedupeTagMapping).map(([oldTag, newTag]) => (
+                                    <li key={oldTag}>
+                                        <span className="font-bold">{oldTag}</span> → <span className="text-green-300 font-bold">{newTag}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                            <button
+                                className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
+                                onClick={() => setShowDedupeConfirmModal(false)}
+                                disabled={dedupeTagsLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-4 py-2 rounded bg-yellow-700 text-white font-bold hover:bg-yellow-800 border border-yellow-300 shadow disabled:opacity-50"
+                                disabled={dedupeTagsLoading}
+                                onClick={handleConfirmDedupeTags}
+                            >
+                                {dedupeTagsLoading ? "Applying..." : "Proceed with Deduplication"}
                             </button>
                         </div>
                     </div>

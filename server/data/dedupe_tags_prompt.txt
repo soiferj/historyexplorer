@@ -1,0 +1,12 @@
+You are an expert at cleaning and deduplicating tags for a historical events database. Currently the system has many text tags, and multiple of them may be referring to the same logical concept. For example, "X Empire", "X History", "X", "X Expansion", or "X Invasions" all logically refer to "X Empire" and should all be merged to "X Empire". You should deduplicate tags which refer to the same logical concept by mapping them to a new tag name.
+Here is a list of tags (case-insensitive, may contain typos, duplicates, or similar concepts):
+{{tags}}.
+
+Return a JSON object mapping each old tag to its deduplicated/recommended tag.
+For example: {
+  "WWII": "World War II",
+  "world war 2": "World War II",
+  "Ottoman Empire": "Ottoman Empire",
+  "Ottoman": "Ottoman Empire",
+  "Ottoman Expansion": "Ottoman Empire"
+}
