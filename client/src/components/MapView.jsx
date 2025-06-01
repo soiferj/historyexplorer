@@ -9,6 +9,7 @@ import '@maplibre/maplibre-gl-leaflet';
 import mapboxgl from 'mapbox-gl';
 import MapboxLanguage from '@mapbox/mapbox-gl-language';
 import { filterByDate } from '@openhistoricalmap/maplibre-gl-dates';
+import { createPortal } from 'react-dom';
 
 // Use the same color palette as Timeline
 const colorPalette = [
@@ -739,8 +740,31 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     return availableHistoricalYears.filter(y => y >= -2000);
   }, [availableHistoricalYears]);
 
-  return (
-    <div className={`w-full h-[500px] relative${selectedEra === 'ohm' ? ' pb-16' : ' pb-8'}`}>
+  const [isFullScreen, setIsFullScreen] = React.useState(false);
+
+  // Handle Escape key to exit full screen
+  React.useEffect(() => {
+    if (!isFullScreen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsFullScreen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isFullScreen]);
+
+  // Prevent body scroll when full screen
+  React.useEffect(() => {
+    if (isFullScreen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isFullScreen]);
+
+  const mapJSX = (
+    <div className={`w-full h-[500px] relative${selectedEra === 'ohm' ? ' pb-16' : ' pb-8'}${isFullScreen ? ' fixed inset-0 z-[9999] bg-black' : ''}`}
+      style={isFullScreen ? { height: '100vh', width: '100vw', borderRadius: 0, top: 0, left: 0, right: 0, bottom: 0, position: 'fixed' } : {}}>
       {/* Era/Century selector */}
       <div className="w-full flex justify-center mb-2 gap-4">
         <label htmlFor="era-select" className="text-white font-semibold mr-2">Map Type:</label>
@@ -1070,295 +1094,327 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
         </button>
       </div>
       {/* Map component */}
-      {loading && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10">Loading map...</div>}
-      {error && <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-10 text-red-300">{error}</div>}
-      <MapContainer
-        center={mapCenter}
-        zoom={mapZoom}
-        minZoom={selectedEraObj.minZoom}
-        maxZoom={selectedEraObj.maxZoom}
-        style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1, background: selectedEra === 'historical-basemaps' ? '#b3e0ff' : undefined }}
-        scrollWheelZoom={true}
-      >
-        <MapEventHandler />
-        <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
-        {/* Map layer selection logic */}
-        {selectedEra === 'ohm' ? (
-          <OHMMapLibreLayer
-            enabled={true}
-            attribution={selectedEraObj.attribution}
-            year={selectedYear ?? (ohmYearData && ohmYearData.max)}
-            dateType={(() => {
-              const y = selectedYear ?? (ohmYearData && ohmYearData.max);
-              if (ohmYearData) {
-                let type = y < 0 ? 'BCE' : 'CE';
-                return type;
-              }
-              return 'CE';
-            })()}
-            key={(() => {
-              const y = selectedYear ?? (ohmYearData && ohmYearData.max);
-              const type = y < 0 ? 'BCE' : 'CE';
-              return `${y}-${type}`;
-            })()}
-          />
-        ) : selectedEra === 'historical-basemaps' ? (
-          <>
-            {historicalGeojsonLoading && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-20 text-blue-200">Loading historical map...</div>
+      <div className="relative w-full h-[500px]" style={isFullScreen ? {height: 'calc(100vh - 0px)'} : {}}>
+        {/* Full Screen Toggle Button - absolutely positioned inside the map window, top right, above zoom controls */}
+        <div style={{ position: 'absolute', top: 14, right: 18, zIndex: 1001, pointerEvents: 'auto' }}>
+          <button
+            className="p-1 rounded-full shadow border border-blue-400 text-white bg-gray-800 hover:bg-blue-700 transition opacity-70 hover:opacity-100 focus:opacity-100 focus:ring-2 focus:ring-blue-400"
+            style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 0 }}
+            onClick={() => setIsFullScreen(v => !v)}
+            aria-label={isFullScreen ? 'Exit Full Screen' : 'Full Screen'}
+            type="button"
+          >
+            {isFullScreen ? (
+              // Arrows pointing in for exit full screen
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M7 7L3 3M3 3V7M3 3H7" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M13 13L17 17M17 17H13M17 17V13" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            ) : (
+              // Arrows pointing out for enter full screen
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M3 7V3H7" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M17 13V17H13" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M3 3L8 8" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M17 17L12 12" stroke="#60a5fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             )}
-            {historicalGeojsonError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-20 text-red-300">{historicalGeojsonError}</div>
-            )}
-            {historicalGeojson && (
-              <>
-                <GeoJSON 
-                  data={historicalGeojson} 
-                  style={{ color: '#888', weight: 1, fillOpacity: 0.4 }} 
-                  key={selectedYear != null ? `historical-${selectedYear}` : 'historical'}
-                />
-                {/* Region labels for inhabited regions only, using inhabit_since/until, with clustering and dot */}
-                {(() => {
-                  if (!historicalGeojson.features) return null;
-                  let zoom = mapZoom;
-                  const minRadius = 1;
-                  const maxRadius = 12;
-                  const minZoom = 2;
-                  const maxZoom = 10;
-                  const clusterRadius = Math.max(minRadius, maxRadius - ((zoom - minZoom) * (maxRadius - minRadius) / (maxZoom - minZoom)));
-                  const clusterThreshold = 4; // Only show individual labels at zoom >= 4
-                  let labelPoints = historicalGeojson.features.map((feature, idx) => {
-                    const props = feature.properties || {};
-                    let since = props.inhabit_since;
-                    let until = props.inhabit_until;
-                    const parseYear = y => {
-                      if (y == null) return null;
-                      if (typeof y === 'number') return y;
-                      if (typeof y === 'string') {
-                        if (/^\d+$/.test(y)) return parseInt(y, 10); // CE
-                        if (/^(-?\d+)$/.test(y)) return parseInt(y, 10); // negative
-                        if (/^bc\s*(\d+)$/i.test(y)) return -parseInt(y.match(/^bc\s*(\d+)$/i)[1], 10); // BCE
-                      }
-                      return null;
-                    };
-                    since = parseYear(since);
-                    until = parseYear(until);
-                    let inhabited = true;
-                    if (since != null && selectedYear < since) inhabited = false;
-                    if (until != null && selectedYear > until) inhabited = false;
-                    if (!inhabited) return null;
-                    // Get centroid
-                    let lat = null, lng = null;
-                    if (feature.geometry && feature.geometry.type && feature.geometry.coordinates) {
-                      try {
-                        if (feature.geometry.type === 'Polygon') {
-                          const coords = feature.geometry.coordinates[0];
-                          if (coords && coords.length > 2) {
-                            const lats = coords.map(c => c[1]);
-                            const lngs = coords.map(c => c[0]);
-                            lat = lats.reduce((a, b) => a + b, 0) / lats.length;
-                            lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+          </button>
+        </div>
+        <MapContainer
+          center={mapCenter}
+          zoom={mapZoom}
+          minZoom={selectedEraObj.minZoom}
+          maxZoom={selectedEraObj.maxZoom}
+          style={{ height: "100%", width: "100%", borderRadius: "1rem", zIndex: 1, background: selectedEra === 'historical-basemaps' ? '#b3e0ff' : undefined }}
+          scrollWheelZoom={true}
+        >
+          <MapEventHandler />
+          <MapAnimator currentLine={linesToDraw[currentLineIdx] || null} animating={animating && !paused} />
+          {/* Map layer selection logic */}
+          {selectedEra === 'ohm' ? (
+            <OHMMapLibreLayer
+              enabled={true}
+              attribution={selectedEraObj.attribution}
+              year={selectedYear ?? (ohmYearData && ohmYearData.max)}
+              dateType={(() => {
+                const y = selectedYear ?? (ohmYearData && ohmYearData.max);
+                if (ohmYearData) {
+                  let type = y < 0 ? 'BCE' : 'CE';
+                  return type;
+                }
+                return 'CE';
+              })()}
+              key={(() => {
+                const y = selectedYear ?? (ohmYearData && ohmYearData.max);
+                const type = y < 0 ? 'BCE' : 'CE';
+                return `${y}-${type}`;
+              })()}
+            />
+          ) : selectedEra === 'historical-basemaps' ? (
+            <>
+              {historicalGeojsonLoading && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-20 text-blue-200">Loading historical map...</div>
+              )}
+              {historicalGeojsonError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 z-20 text-red-300">{historicalGeojsonError}</div>
+              )}
+              {historicalGeojson && (
+                <>
+                  <GeoJSON 
+                    data={historicalGeojson} 
+                    style={{ color: '#888', weight: 1, fillOpacity: 0.4 }} 
+                    key={selectedYear != null ? `historical-${selectedYear}` : 'historical'}
+                  />
+                  {/* Region labels for inhabited regions only, using inhabit_since/until, with clustering and dot */}
+                  {(() => {
+                    if (!historicalGeojson.features) return null;
+                    let zoom = mapZoom;
+                    const minRadius = 1;
+                    const maxRadius = 12;
+                    const minZoom = 2;
+                    const maxZoom = 10;
+                    const clusterRadius = Math.max(minRadius, maxRadius - ((zoom - minZoom) * (maxRadius - minRadius) / (maxZoom - minZoom)));
+                    const clusterThreshold = 4; // Only show individual labels at zoom >= 4
+                    let labelPoints = historicalGeojson.features.map((feature, idx) => {
+                      const props = feature.properties || {};
+                      let since = props.inhabit_since;
+                      let until = props.inhabit_until;
+                      const parseYear = y => {
+                        if (y == null) return null;
+                        if (typeof y === 'number') return y;
+                        if (typeof y === 'string') {
+                          if (/^\d+$/.test(y)) return parseInt(y, 10); // CE
+                          if (/^(-?\d+)$/.test(y)) return parseInt(y, 10); // negative
+                          if (/^bc\s*(\d+)$/i.test(y)) return -parseInt(y.match(/^bc\s*(\d+)$/i)[1], 10); // BCE
+                        }
+                        return null;
+                      };
+                      since = parseYear(since);
+                      until = parseYear(until);
+                      let inhabited = true;
+                      if (since != null && selectedYear < since) inhabited = false;
+                      if (until != null && selectedYear > until) inhabited = false;
+                      if (!inhabited) return null;
+                      // Get centroid
+                      let lat = null, lng = null;
+                      if (feature.geometry && feature.geometry.type && feature.geometry.coordinates) {
+                        try {
+                          if (feature.geometry.type === 'Polygon') {
+                            const coords = feature.geometry.coordinates[0];
+                            if (coords && coords.length > 2) {
+                              const lats = coords.map(c => c[1]);
+                              const lngs = coords.map(c => c[0]);
+                              lat = lats.reduce((a, b) => a + b, 0) / lats.length;
+                              lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+                            }
+                          } else if (feature.geometry.type === 'MultiPolygon') {
+                            const coords = feature.geometry.coordinates[0][0];
+                            if (coords && coords.length > 2) {
+                              const lats = coords.map(c => c[1]);
+                              const lngs = coords.map(c => c[0]);
+                              lat = lats.reduce((a, b) => a + b, 0) / lats.length;
+                              lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+                            }
                           }
-                        } else if (feature.geometry.type === 'MultiPolygon') {
-                          const coords = feature.geometry.coordinates[0][0];
-                          if (coords && coords.length > 2) {
-                            const lats = coords.map(c => c[1]);
-                            const lngs = coords.map(c => c[0]);
-                            lat = lats.reduce((a, b) => a + b, 0) / lats.length;
-                            lng = lngs.reduce((a, b) => a + b, 0) / lngs.length;
+                        } catch (e) { /* ignore */ }
+                      }
+                      if (lat == null || lng == null) return null;
+                      const label = props.name || props.label || props.admin || props.country || props.NAME || props.ABBREVN || props.SUBJECTO || props.PARTOF;
+                      if (!label) return null;
+                      return { lat, lng, label, idx };
+                    }).filter(Boolean);
+                    let clusters = [];
+                    if (zoom < clusterThreshold) {
+                      labelPoints.forEach(pt => {
+                        let found = false;
+                        for (let cluster of clusters) {
+                          const d = Math.sqrt(Math.pow(cluster.lat - pt.lat, 2) + Math.pow(cluster.lng - pt.lng, 2));
+                          if (d < clusterRadius) {
+                            cluster.points.push(pt);
+                            cluster.lat = (cluster.lat * (cluster.points.length - 1) + pt.lat) / cluster.points.length;
+                            cluster.lng = (cluster.lng * (cluster.points.length - 1) + pt.lng) / cluster.points.length;
+                            found = true;
+                            break;
                           }
                         }
-                      } catch (e) { /* ignore */ }
+                        if (!found) clusters.push({ lat: pt.lat, lng: pt.lng, points: [pt] });
+                      });
+                      // Always render clusters as circles, even if size 1, at low zoom
+                      return clusters.map((cluster, cidx) => (
+                        <Marker
+                          key={`region-label-cluster-${cidx}`}
+                          position={[cluster.lat, cluster.lng]}
+                          icon={L.divIcon({
+                            className: 'region-label-cluster',
+                            html: `<div style=\"background:rgba(24,24,32,0.85);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:2px solid #60a5fa;box-shadow:0 2px 8px #0008;font-weight:700;font-size:15px;color:#fff;\">${cluster.points.length}</div>`
+                          })}
+                          interactive={false}
+                        />
+                      ));
+                    } else {
+                      // Only render individual labels and dots when zoomed in
+                      return labelPoints.map((pt) => (
+                        <Marker
+                          key={`region-label-${pt.idx}`}
+                          position={[pt.lat, pt.lng]}
+                          icon={L.divIcon({
+                            className: 'region-label',
+                            html: `<span style=\"color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:10px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:normal;width:120px;line-height:1.2;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:block;\">${pt.label}</span>`
+                          })}
+                          interactive={false}
+                        />
+                      ));
                     }
-                    if (lat == null || lng == null) return null;
-                    const label = props.name || props.label || props.admin || props.country || props.NAME || props.ABBREVN || props.SUBJECTO || props.PARTOF;
-                    if (!label) return null;
-                    return { lat, lng, label, idx };
-                  }).filter(Boolean);
-                  let clusters = [];
-                  if (zoom < clusterThreshold) {
-                    labelPoints.forEach(pt => {
-                      let found = false;
-                      for (let cluster of clusters) {
-                        const d = Math.sqrt(Math.pow(cluster.lat - pt.lat, 2) + Math.pow(cluster.lng - pt.lng, 2));
-                        if (d < clusterRadius) {
-                          cluster.points.push(pt);
-                          cluster.lat = (cluster.lat * (cluster.points.length - 1) + pt.lat) / cluster.points.length;
-                          cluster.lng = (cluster.lng * (cluster.points.length - 1) + pt.lng) / cluster.points.length;
-                          found = true;
-                          break;
-                        }
-                      }
-                      if (!found) clusters.push({ lat: pt.lat, lng: pt.lng, points: [pt] });
-                    });
-                    // Always render clusters as circles, even if size 1, at low zoom
-                    return clusters.map((cluster, cidx) => (
-                      <Marker
-                        key={`region-label-cluster-${cidx}`}
-                        position={[cluster.lat, cluster.lng]}
-                        icon={L.divIcon({
-                          className: 'region-label-cluster',
-                          html: `<div style=\"background:rgba(24,24,32,0.85);border-radius:50%;width:38px;height:38px;display:flex;align-items:center;justify-content:center;border:2px solid #60a5fa;box-shadow:0 2px 8px #0008;font-weight:700;font-size:15px;color:#fff;\">${cluster.points.length}</div>`
-                        })}
-                        interactive={false}
-                      />
-                    ));
-                  } else {
-                    // Only render individual labels and dots when zoomed in
-                    return labelPoints.map((pt) => (
-                      <Marker
-                        key={`region-label-${pt.idx}`}
-                        position={[pt.lat, pt.lng]}
-                        icon={L.divIcon({
-                          className: 'region-label',
-                          html: `<span style=\"color:#fff;background:rgba(24,24,32,0.85);border-radius:8px;padding:2px 10px;font-weight:700;font-size:10px;box-shadow:0 2px 8px #0008;border:1px solid #60a5fa;text-shadow:0 1px 4px #000a;white-space:normal;width:120px;line-height:1.2;text-align:center;overflow-wrap:anywhere;word-break:break-word;display:block;\">${pt.label}</span>`
-                        })}
-                        interactive={false}
-                      />
-                    ));
-                  }
-                })()}
-              </>
-            )}
-          </>
-        ) : (
-          <TileLayer
-            attribution={selectedEraObj.attribution}
-            url={selectedEraObj.url}
-            errorTileUrl="https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
-          />
-        )}
-        {showEvents && viewMode === 'region' && regionList.map((region, idx) => {
-          const coords = regionCoords[region.toLowerCase()];
-          if (!coords) return null;
-          let isActiveRegion = false;
-          if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
-            isActiveRegion = linesToDraw[currentLineIdx].dests.some(dest => dest.name === region);
-          }
-          // Responsive circle size
-          const isMobileRegion = window.innerWidth < 640;
-          const baseRadiusRegion = isMobileRegion ? 12 : 10;
-          const activeRadiusRegion = isMobileRegion ? 22 : 16;
-          return (
-            <CircleMarker
-              key={region}
-              center={coords}
-              radius={isActiveRegion ? activeRadiusRegion : baseRadiusRegion}
-              fillColor={regionColor[region]}
-              color={isActiveRegion ? '#fff' : '#222'}
-              weight={isActiveRegion ? 10 : 2}
-              fillOpacity={isActiveRegion ? 1 : 0.85}
-              eventHandlers={{
-                click: () => handleMarkerClick(region)
-              }}
-              style={{
-                cursor: "pointer",
-                filter: isActiveRegion ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${regionColor[region]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
-                zIndex: isActiveRegion ? 1000 : undefined
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -10]}>{region} ({regionEvents[region].length} events)</Tooltip>
-            </CircleMarker>
-          );
-        })}
-        {showEvents && viewMode === 'country' && countryList.map((country, idx) => {
-          const coords = countryCoords[country.toLowerCase()];
-          if (!coords) return null;
-          let isActiveCountry = false;
-          if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
-            isActiveCountry = linesToDraw[currentLineIdx].dests.some(dest => dest.name === country);
-          }
-          // Responsive circle size
-          const isMobileCountry = window.innerWidth < 640;
-          const baseRadiusCountry = isMobileCountry ? 8 : 7;
-          const activeRadiusCountry = isMobileCountry ? 14 : 12;
-          return (
-            <CircleMarker
-              key={country}
-              center={coords}
-              radius={isActiveCountry ? activeRadiusCountry : baseRadiusCountry}
-              fillColor={countryColor[country]}
-              color={isActiveCountry ? '#fff' : '#222'}
-              weight={isActiveCountry ? 10 : 2}
-              fillOpacity={isActiveCountry ? 1 : 0.85}
-              eventHandlers={{
-                click: () => handleMarkerClick(country)
-              }}
-              style={{
-                cursor: "pointer",
-                filter: isActiveCountry ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${countryColor[country]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
-                zIndex: isActiveCountry ? 1000 : undefined
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -10]}>{country} ({countryEvents[country].length} events)</Tooltip>
-            </CircleMarker>
-          );
-        })}
-        {/* Animated lines */}
-        {showEvents && linesToDraw.slice(0, currentLineIdx + 1).map((line, idx) => (
-          idx === currentLineIdx && line.dests && line.eventTitle && (
-            line.dests.map((dest, dIdx) => (
-              dIdx === 0 ? (
-                <Marker
-                  key={idx + '-' + dIdx}
-                  position={dest.coords}
-                  icon={L.divIcon({
-                    className: 'event-label-marker',
-                    html: '<div></div>', // invisible marker
-                    iconSize: [1, 1],
-                    iconAnchor: [0, 0],
-                  })}
-                  interactive={false}
-                  zIndexOffset={1000}
-                >
-                  <Tooltip
-                    direction="top"
-                    offset={[0, -18]}
-                    permanent
-                    className="event-label-tooltip"
-                    opacity={1}
+                  })()}
+                </>
+              )}
+            </>
+          ) : (
+            <TileLayer
+              attribution={selectedEraObj.attribution}
+              url={selectedEraObj.url}
+              errorTileUrl="https://upload.wikimedia.org/wikipedia/commons/6/65/No-Image-Placeholder.svg"
+            />
+          )}
+          {showEvents && viewMode === 'region' && regionList.map((region, idx) => {
+            const coords = regionCoords[region.toLowerCase()];
+            if (!coords) return null;
+            let isActiveRegion = false;
+            if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
+              isActiveRegion = linesToDraw[currentLineIdx].dests.some(dest => dest.name === region);
+            }
+            // Responsive circle size
+            const isMobileRegion = window.innerWidth < 640;
+            const baseRadiusRegion = isMobileRegion ? 12 : 10;
+            const activeRadiusRegion = isMobileRegion ? 22 : 16;
+            return (
+              <CircleMarker
+                key={region}
+                center={coords}
+                radius={isActiveRegion ? activeRadiusRegion : baseRadiusRegion}
+                fillColor={regionColor[region]}
+                color={isActiveRegion ? '#fff' : '#222'}
+                weight={isActiveRegion ? 10 : 2}
+                fillOpacity={isActiveRegion ? 1 : 0.85}
+                eventHandlers={{
+                  click: () => handleMarkerClick(region)
+                }}
+                style={{
+                  cursor: "pointer",
+                  filter: isActiveRegion ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${regionColor[region]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
+                  zIndex: isActiveRegion ? 1000 : undefined
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -10]}>{region} ({regionEvents[region].length} events)</Tooltip>
+              </CircleMarker>
+            );
+          })}
+          {showEvents && viewMode === 'country' && countryList.map((country, idx) => {
+            const coords = countryCoords[country.toLowerCase()];
+            if (!coords) return null;
+            let isActiveCountry = false;
+            if (currentLineIdx >= 0 && linesToDraw[currentLineIdx] && linesToDraw[currentLineIdx].dests) {
+              isActiveCountry = linesToDraw[currentLineIdx].dests.some(dest => dest.name === country);
+            }
+            // Responsive circle size
+            const isMobileCountry = window.innerWidth < 640;
+            const baseRadiusCountry = isMobileCountry ? 8 : 7;
+            const activeRadiusCountry = isMobileCountry ? 14 : 12;
+            return (
+              <CircleMarker
+                key={country}
+                center={coords}
+                radius={isActiveCountry ? activeRadiusCountry : baseRadiusCountry}
+                fillColor={countryColor[country]}
+                color={isActiveCountry ? '#fff' : '#222'}
+                weight={isActiveCountry ? 10 : 2}
+                fillOpacity={isActiveCountry ? 1 : 0.85}
+                eventHandlers={{
+                  click: () => handleMarkerClick(country)
+                }}
+                style={{
+                  cursor: "pointer",
+                  filter: isActiveCountry ? `drop-shadow(0 0 0.5rem #fff) drop-shadow(0 0 1.5rem ${countryColor[country]}) drop-shadow(0 0 2.5rem #fff)` : undefined,
+                  zIndex: isActiveCountry ? 1000 : undefined
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -10]}>{country} ({countryEvents[country].length} events)</Tooltip>
+              </CircleMarker>
+            );
+          })}
+          {/* Animated lines */}
+          {showEvents && linesToDraw.slice(0, currentLineIdx + 1).map((line, idx) => (
+            idx === currentLineIdx && line.dests && line.eventTitle && (
+              line.dests.map((dest, dIdx) => (
+                dIdx === 0 ? (
+                  <Marker
+                    key={idx + '-' + dIdx}
+                    position={dest.coords}
+                    icon={L.divIcon({
+                      className: 'event-label-marker',
+                      html: '<div></div>', // invisible marker
+                      iconSize: [1, 1],
+                      iconAnchor: [0, 0],
+                    })}
+                    interactive={false}
+                    zIndexOffset={1000}
                   >
-                    <span style={{
-                      color: '#fff',
-                      background: 'rgba(24,24,32,0.85)',
-                      borderRadius: 8,
-                      padding: '2px 10px',
-                      fontWeight: 700,
-                      fontSize: 11,
-                      boxShadow: '0 2px 8px #0008',
-                      border: `1px solid ${dest.color}`,
-                      textShadow: '0 1px 4px #000a',
-                      whiteSpace: 'normal', // allow wrapping for date below
-                      wordBreak: 'keep-all',
-                      maxWidth: 260,
-                      lineHeight: 1.2,
-                      textAlign: 'center',
-                      overflowWrap: 'normal',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: 'inline-block',
-                    }}>
-                      {line.eventTitle}
-                      {line.year && (
-                        <span style={{
-                          display: 'block',
-                          fontWeight: 400,
-                          fontSize: 10,
-                          color: '#a5b4fc',
-                          marginTop: 2,
-                          letterSpacing: 0.5,
-                        }}>{line.year} {line.dateType || ''}</span>
-                      )}
-                    </span>
-                  </Tooltip>
-                </Marker>
-              ) : null
-            ))
-          )
-        ))}
-      </MapContainer>
+                    <Tooltip
+                      direction="top"
+                      offset={[0, -18]}
+                      permanent
+                      className="event-label-tooltip"
+                      opacity={1}
+                    >
+                      <span style={{
+                        color: '#fff',
+                        background: 'rgba(24,24,32,0.85)',
+                        borderRadius: 8,
+                        padding: '2px 10px',
+                        fontWeight: 700,
+                        fontSize: 11,
+                        boxShadow: '0 2px 8px #0008',
+                        border: `1px solid ${dest.color}`,
+                        textShadow: '0 1px 4px #000a',
+                        whiteSpace: 'normal', // allow wrapping for date below
+                        wordBreak: 'keep-all',
+                        maxWidth: 260,
+                        lineHeight: 1.2,
+                        textAlign: 'center',
+                        overflowWrap: 'normal',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: 'inline-block',
+                      }}>
+                        {line.eventTitle}
+                        {line.year && (
+                          <span style={{
+                            display: 'block',
+                            fontWeight: 400,
+                            fontSize: 10,
+                            color: '#a5b4fc',
+                            marginTop: 2,
+                            letterSpacing: 0.5,
+                          }}>{line.year} {line.dateType || ''}</span>
+                        )}
+                      </span>
+                    </Tooltip>
+                  </Marker>
+                ) : null
+              ))
+            )
+          ))}
+        </MapContainer>
+      </div>
     </div>
   );
+
+  // Only use portal for full screen, otherwise render normally
+  if (isFullScreen) {
+    return createPortal(mapJSX, document.body);
+  }
+  return mapJSX;
 };
 
 // Helper component to add MapLibre GL layer for OHM
