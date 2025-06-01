@@ -734,6 +734,11 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
     return () => { isMounted = false; };
   }, [selectedEra, apiUrl]);
 
+  // Filter availableHistoricalYears for historical-basemaps to only years >= -2000
+  const filteredHistoricalYears = React.useMemo(() => {
+    return availableHistoricalYears.filter(y => y >= -2000);
+  }, [availableHistoricalYears]);
+
   return (
     <div className={`w-full h-[500px] relative${selectedEra === 'ohm' ? ' pb-16' : ' pb-8'}`}>
       {/* Era/Century selector */}
@@ -852,7 +857,6 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
                     let val = Math.abs(y);
                     if (e.target.value === 'BCE') val = -val;
                     setTempYear(val);
-                    setSelectedYear(val);
                   }}
                   className="px-2 py-1 rounded border border-blue-400 bg-gray-800 text-blue-100 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 transition"
                   aria-label="Select BCE or CE"
@@ -865,30 +869,137 @@ const MapView = ({ events = [], onRegionSelect, setSelectedRegions, setSelectedC
           </div>
         </>
       )}
-      {/* Historical Basemaps year dropdown */}
-      {selectedEra === 'historical-basemaps' && (
-        <div className="w-full flex justify-center mb-2 gap-4">
-          <label htmlFor="historical-basemaps-year-select" className="text-white font-semibold mr-2">Year:</label>
-          {availableHistoricalYearsLoading ? (
-            <span className="text-blue-200">Loading years...</span>
-          ) : availableHistoricalYearsError ? (
-            <span className="text-red-300">{availableHistoricalYearsError}</span>
-          ) : (
-            <select
-              id="historical-basemaps-year-select"
-              className="px-3 py-1 rounded border border-blue-400 bg-gray-800 text-white shadow"
-              value={selectedYear ?? ''}
-              onChange={e => setSelectedYear(Number(e.target.value))}
-            >
-              <option value="" disabled>Select year</option>
-              {availableHistoricalYears.map(y => (
-                <option key={y} value={y}>
-                  {y < 0 ? `${Math.abs(y)} BCE` : `${y} CE`}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
+      {/* Historical Basemaps year slider (replaces dropdown) */}
+      {selectedEra === 'historical-basemaps' && filteredHistoricalYears && filteredHistoricalYears.length > 0 && (
+        <>
+          <style>{`
+            #historical-basemaps-year-slider::-webkit-slider-thumb {
+              width: 32px;
+              height: 32px;
+              background: #38bdf8;
+              border-radius: 50%;
+              border: 3px solid #fff;
+              box-shadow: 0 2px 8px #0004;
+              cursor: pointer;
+              -webkit-appearance: none;
+              appearance: none;
+            }
+            #historical-basemaps-year-slider::-moz-range-thumb {
+              width: 32px;
+              height: 32px;
+              background: #38bdf8;
+              border-radius: 50%;
+              border: 3px solid #fff;
+              box-shadow: 0 2px 8px #0004;
+              cursor: pointer;
+            }
+            #historical-basemaps-year-slider::-ms-thumb {
+              width: 32px;
+              height: 32px;
+              background: #38bdf8;
+              border-radius: 50%;
+              border: 3px solid #fff;
+              box-shadow: 0 2px 8px #0004;
+              cursor: pointer;
+            }
+          `}</style>
+          <div className="w-full flex flex-col items-center mb-2 gap-2">
+            <div className="flex items-center gap-3 w-full max-w-lg">
+              <span className="text-blue-200 font-mono text-xs min-w-[40px] text-right">
+                {filteredHistoricalYears[0] < 0 ? `${Math.abs(filteredHistoricalYears[0])} BCE` : `${filteredHistoricalYears[0]} CE`}
+              </span>
+              <input
+                id="historical-basemaps-year-slider"
+                type="range"
+                min={Math.min(...filteredHistoricalYears)}
+                max={Math.max(...filteredHistoricalYears)}
+                step={1}
+                value={tempYear != null ? tempYear : (selectedYear ?? Math.max(...filteredHistoricalYears))}
+                onChange={e => {
+                  setTempYear(Number(e.target.value));
+                }}
+                onMouseUp={e => {
+                  if (tempYear != null) {
+                    // Find closest available year <= tempYear
+                    let y = tempYear;
+                    let closest = filteredHistoricalYears.filter(yr => yr <= y).pop();
+                    if (closest == null) closest = filteredHistoricalYears[0];
+                    setSelectedYear(closest);
+                  }
+                  setTempYear(null);
+                }}
+                onTouchEnd={e => {
+                  if (tempYear != null) {
+                    let y = tempYear;
+                    let closest = filteredHistoricalYears.filter(yr => yr <= y).pop();
+                    if (closest == null) closest = filteredHistoricalYears[0];
+                    setSelectedYear(closest);
+                  }
+                  setTempYear(null);
+                }}
+                className="flex-1 accent-cyan-400 h-2 rounded-lg appearance-none cursor-pointer bg-gray-700"
+              />
+              <div className="text-blue-100 text-xs mt-1 flex items-center gap-2 justify-center">
+                <input
+                  type="number"
+                  min={Math.abs(Math.min(...filteredHistoricalYears))}
+                  max={Math.max(...filteredHistoricalYears)}
+                  value={(() => {
+                    const y = tempYear != null ? tempYear : (selectedYear ?? Math.max(...filteredHistoricalYears));
+                    return y < 0 ? Math.abs(y) : y;
+                  })()}
+                  onChange={e => {
+                    let val = Number(e.target.value);
+                    if (isNaN(val)) val = Math.abs(Math.min(...filteredHistoricalYears));
+                    // Determine BCE/CE from selector
+                    const era = (tempYear != null ? tempYear : (selectedYear ?? Math.max(...filteredHistoricalYears))) < 0 ? 'BCE' : 'CE';
+                    if (era === 'BCE') val = -Math.abs(val);
+                    if (era === 'CE') val = Math.abs(val);
+                    // Clamp
+                    if (val < Math.min(...filteredHistoricalYears)) val = Math.min(...filteredHistoricalYears);
+                    if (val > Math.max(...filteredHistoricalYears)) val = Math.max(...filteredHistoricalYears);
+                    setTempYear(val);
+                  }}
+                  onBlur={e => {
+                    if (tempYear != null) {
+                      let y = tempYear;
+                      let closest = filteredHistoricalYears.filter(yr => yr <= y).pop();
+                      if (closest == null) closest = filteredHistoricalYears[0];
+                      setSelectedYear(closest);
+                    }
+                    setTempYear(null);
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && tempYear != null) {
+                      let y = tempYear;
+                      let closest = filteredHistoricalYears.filter(yr => yr <= y).pop();
+                      if (closest == null) closest = filteredHistoricalYears[0];
+                      setSelectedYear(closest);
+                      setTempYear(null);
+                    }
+                  }}
+                  className="w-20 px-2 py-1 rounded border border-cyan-400 bg-gray-800 text-blue-100 font-mono text-xs text-center focus:outline-none focus:ring-2 focus:ring-cyan-400 transition"
+                  aria-label="Enter year manually"
+                />
+                <select
+                  value={(tempYear != null ? tempYear : (selectedYear ?? Math.max(...filteredHistoricalYears))) < 0 ? 'BCE' : 'CE'}
+                  onChange={e => {
+                    let y = tempYear != null ? tempYear : (selectedYear ?? Math.max(...filteredHistoricalYears));
+                    let val = Math.abs(y);
+                    if (e.target.value === 'BCE') val = -val;
+                    setTempYear(val);
+                    // Do not setSelectedYear here, wait for blur/enter
+                  }}
+                  className="px-2 py-1 rounded border border-cyan-400 bg-gray-800 text-blue-100 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-cyan-400 transition"
+                  aria-label="Select BCE or CE"
+                >
+                  <option value="CE">CE</option>
+                  <option value="BCE">BCE</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </>
       )}
       {/* Modal for timeline of events in selected region/country */}
       {modalOpen && (
@@ -1368,7 +1479,7 @@ function AnimationControlsDropdown({ animating, paused, currentLineIdx, linesToD
         aria-controls="animation-controls-panel"
         style={{ minWidth: 100 }}
         type="button"
-      >
+           >
         {open ? 'Hide Animation Controls' : 'Show Animation Controls'}
       </button>
       {open && (
