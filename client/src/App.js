@@ -16,7 +16,6 @@ function App() {
     const [eventsLoading, setEventsLoading] = useState(true);
     const [eventsError, setEventsError] = useState(null);
     // Filters/groupings
-    const [searchTerm, setSearchTerm] = useState("");
     const [dateFilter, setDateFilter] = useState({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' });
     const [regionFilter, setRegionFilter] = useState(null);
     const [zoomLevel, setZoomLevel] = useState(0); // 0: event, 1: century, 2: millennium
@@ -45,6 +44,8 @@ function App() {
     const [editError, setEditError] = useState("");
     // Tag Evolution view toggle
     const [showTagEvolution, setShowTagEvolution] = useState(false);
+    const [searchTerms, setSearchTerms] = useState([""]);
+    const [searchLogic, setSearchLogic] = useState("AND");
 
     // Fetch events function for use in Timeline
     const fetchEvents = async () => {
@@ -110,12 +111,30 @@ function App() {
     // Apply all filters (AND/OR logic for tags, books, regions, countries)
     const filteredEvents = (() => {
         if (!events || events.length === 0) return [];
-        let filtered = events.filter(event =>
-            event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            event.book_reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            event.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase() === searchTerm.toLowerCase()))
-        );
+        // --- MULTI FREE TEXT FILTER LOGIC ---
+        let filtered = events;
+        const nonEmptyTerms = searchTerms.map(t => t.trim()).filter(Boolean);
+        if (nonEmptyTerms.length > 0) {
+            if (searchLogic === "AND") {
+                filtered = filtered.filter(event =>
+                    nonEmptyTerms.every(term =>
+                        event.title.toLowerCase().includes(term.toLowerCase()) ||
+                        event.book_reference.toLowerCase().includes(term.toLowerCase()) ||
+                        event.description.toLowerCase().includes(term.toLowerCase()) ||
+                        (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase().includes(term.toLowerCase())))
+                    )
+                );
+            } else {
+                filtered = filtered.filter(event =>
+                    nonEmptyTerms.some(term =>
+                        event.title.toLowerCase().includes(term.toLowerCase()) ||
+                        event.book_reference.toLowerCase().includes(term.toLowerCase()) ||
+                        event.description.toLowerCase().includes(term.toLowerCase()) ||
+                        (Array.isArray(event.tags) && event.tags.some(tag => tag.toLowerCase().includes(term.toLowerCase())))
+                    )
+                );
+            }
+        }
         if (regionFilter) {
             filtered = filtered.filter(event => Array.isArray(event.regions) && event.regions.includes(regionFilter));
         }
@@ -165,7 +184,7 @@ function App() {
 
     // Compute if any filter is set (for Filters button highlight)
     const anyFilterSet = (
-        searchTerm.trim() !== '' ||
+        searchTerms.some(t => t.trim() !== '') ||
         dateFilter.startYear !== '' ||
         dateFilter.endYear !== '' ||
         selectedTags.length > 0 ||
@@ -367,8 +386,10 @@ function App() {
                         </button>
                         {/* Filters UI */}
                         <FiltersPopover
-                            searchTerm={searchTerm}
-                            setSearchTerm={setSearchTerm}
+                            searchTerms={searchTerms}
+                            setSearchTerms={setSearchTerms}
+                            searchLogic={searchLogic}
+                            setSearchLogic={setSearchLogic}
                             dateFilter={dateFilter}
                             setDateFilter={setDateFilter}
                             selectedTags={selectedTags}
@@ -472,8 +493,6 @@ function App() {
                         regionFilter={regionFilter}
                         setRegionFilter={setRegionFilter}
                         clearRegionFilter={clearRegionFilter}
-                        searchTerm={searchTerm}
-                        setSearchTerm={setSearchTerm}
                         dateFilter={dateFilter}
                         setDateFilter={setDateFilter}
                         zoomLevel={zoomLevel}

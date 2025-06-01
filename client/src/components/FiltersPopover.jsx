@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 
 function FiltersPopover({
-    searchTerm, setSearchTerm,
+    searchTerms, setSearchTerms,
+    searchLogic, setSearchLogic,
     dateFilter, setDateFilter,
     selectedTags, setSelectedTags,
     selectedBooks, setSelectedBooks,
@@ -53,26 +54,58 @@ function FiltersPopover({
     return (
         <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
             <h2 className="text-3xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Filters</h2>
-            {/* Centered Search Bar */}
-            <div className="flex justify-center w-full mb-4">
-                <div className="relative w-64">
-                    <input
-                        type="text"
-                        placeholder="Search anything..."
-                        className="p-3 w-64 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md pr-10"
-                        value={searchTerm}
-                        onChange={e => setSearchTerm(e.target.value)}
-                    />
-                    {searchTerm && (
+            {/* Multi Free Text Filters */}
+            <div className="flex flex-col items-center w-full mb-4">
+                <div className="flex flex-col gap-2 w-full items-center">
+                    {searchTerms.map((term, idx) => (
+                        <div key={idx} className="relative w-64 flex items-center mb-1">
+                            <input
+                                type="text"
+                                placeholder={`Search anything...${searchTerms.length > 1 ? ` (${idx + 1})` : ''}`}
+                                className="p-3 w-64 rounded-xl bg-gray-800/80 text-white text-center border border-blue-400 focus:outline-none focus:ring-2 focus:ring-pink-400 transition-all duration-300 shadow-md pr-10"
+                                value={term}
+                                onChange={e => setSearchTerms(terms => terms.map((t, i) => i === idx ? e.target.value : t))}
+                            />
+                            {term && (
+                                <button
+                                    type="button"
+                                    className="absolute right-8 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-pink-400 focus:outline-none"
+                                    onClick={() => setSearchTerms(terms => terms.map((t, i) => i === idx ? '' : t))}
+                                    aria-label="Clear search"
+                                >
+                                    ×
+                                </button>
+                            )}
+                            {searchTerms.length > 1 && (
+                                <button
+                                    type="button"
+                                    className="absolute right-1 top-1/2 transform -translate-y-1/2 text-red-400 hover:text-pink-400 focus:outline-none text-lg"
+                                    onClick={() => setSearchTerms(terms => terms.filter((_, i) => i !== idx))}
+                                    aria-label="Remove search field"
+                                >
+                                    –
+                                </button>
+                            )}
+                        </div>
+                    ))}
+                    <div className="flex gap-2 items-center mt-1">
                         <button
                             type="button"
-                            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-pink-400 focus:outline-none"
-                            onClick={() => setSearchTerm('')}
-                            aria-label="Clear search"
+                            className="px-2 py-1 rounded bg-blue-700 text-white text-xs border border-blue-400 hover:bg-blue-600"
+                            onClick={() => setSearchTerms(terms => [...terms, ''])}
                         >
-                            ×
+                            + Add Filter
                         </button>
-                    )}
+                        <select
+                            className="p-1 rounded bg-gray-800 text-white border border-blue-400 text-xs"
+                            value={searchLogic}
+                            onChange={e => setSearchLogic(e.target.value)}
+                        >
+                            <option value="AND">AND</option>
+                            <option value="OR">OR</option>
+                        </select>
+                        <span className="text-blue-200 text-xs">Logic</span>
+                    </div>
                 </div>
             </div>
             {/* Date Range Filter */}
@@ -297,7 +330,7 @@ function FiltersPopover({
                 className="mt-8 px-6 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition w-full"
                 onClick={() => {
                     setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' });
-                    setSearchTerm('');
+                    setSearchTerms([""]);
                     setSelectedTags([]);
                     setSelectedBooks([]);
                     setSelectedRegions([]);
