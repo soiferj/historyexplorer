@@ -177,10 +177,10 @@ router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
 
 // POST /events/dedupe-tags (admin only): Generate tag deduplication mapping using OpenAI embeddings and KNN clustering
 router.post("/dedupe-tags", verifyAllowedUser, async (req, res) => {
-    const { tags, threshold, jaccard } = req.body;
+    const { tags } = req.body;
     // Use env or fallback defaults
-    const embeddingThreshold = typeof threshold === 'number' ? threshold : (parseFloat(process.env.DEDUPE_EMBEDDING_THRESHOLD) || 0.7);
-    const jaccardThreshold = typeof jaccard === 'number' ? jaccard : (parseFloat(process.env.DEDUPE_JACCARD_THRESHOLD) || 0.8);
+    const embeddingThreshold = parseFloat(process.env.DEDUPE_EMBEDDING_THRESHOLD) || 0.7;
+    const jaccardThreshold = parseFloat(process.env.DEDUPE_JACCARD_THRESHOLD) || 0.8;
     if (!tags || !Array.isArray(tags) || tags.length === 0) {
         return res.status(400).json({ error: "Tags array is required" });
     }

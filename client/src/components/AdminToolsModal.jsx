@@ -94,12 +94,7 @@ function AdminToolsModal({
         setDedupeTagMapping(null);
         try {
             const allTags = getAllTags(allEvents);
-            // Fetch thresholds from env if available
-            const embeddingThreshold = process.env.REACT_APP_DEDUPE_EMBEDDING_THRESHOLD;
-            const jaccardThreshold = process.env.REACT_APP_DEDUPE_JACCARD_THRESHOLD;
             const body = { tags: allTags };
-            if (embeddingThreshold) body.threshold = parseFloat(embeddingThreshold);
-            if (jaccardThreshold) body.jaccard = parseFloat(jaccardThreshold);
             const response = await fetch(`${apiUrl}/events/dedupe-tags`, {
                 method: "POST",
                 headers: {
