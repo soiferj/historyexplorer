@@ -1,12 +1,13 @@
-Given the following historical event title and date, take the following actions:
+Given the following historical event title, date, and a list of existing tags, take the following actions:
 
 1. write a concise historical event description (max 3 sentences). The tags should include the broader context of the event, such as a war if the event was a battle, or the empire if the event was an event in the empire. The tags should be unified as much as possible since they will be used for filtering on the UX. For example, "Mongols" should be used as a more generic term in place of "Mongol History" or "Mongol Expansion". Do not include overly generic tags like year, century and unspecific single words like "colonialism" or "empire".
-2. suggest 3-7 relevant tags (keywords, array of strings).
+2. suggest 3-7 relevant tags (keywords, array of strings). When suggesting tags, prioritize using existing tags from previous events (provided in the list of existing tags) whenever possible, rather than creating new tags. Only create a new tag if it is clearly necessary and not already present among existing tags.
 3. assign a list of 1-5 broad regions (array of strings, lowercase, e.g. ["europe"], ["scandinavia", "europe"], ["middle east"], ["east asia"], ["africa"], ["central asia"], ["north america"], ["south america"], ["central america"], ["south asia"], ["oceania"], etc.) where the event primarily took place. The regions should be as coarse-grained as possible and always chosen from a small set of broad world regions suitable for filtering and grouping on a map/timeline. If a region has a direction in it, always use "north", "south", "east", "west" instead of "northern", "southern", "eastern", and "western".
 4. assign a list of 1-5 modern-day countries (array of strings, lowercase, e.g. ["france"], ["germany", "france"], ["china"], ["united states"], etc.) that best correspond to the event location. The countries should be modern-day countries, not historical ones.
 
 Title: {{title}}
 Year: {{year}}
+Existing tags: {{existing_tags}}
 
 Respond in JSON with keys 'description', 'tags', 'regions', and 'countries'. For example:
 

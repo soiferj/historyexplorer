@@ -8,7 +8,7 @@ const path = require("path");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-async function enrichEventWithLLM({ title, date }) {
+async function enrichEventWithLLM({ title, date, existing_tags }) {
     // Only pass the year to the LLM
     let year = date;
     if (typeof date === "string" && date.length >= 4) {
@@ -19,9 +19,12 @@ async function enrichEventWithLLM({ title, date }) {
     const promptPath = path.join(__dirname, "../data/prompt.txt");
     let promptTemplate = fs.readFileSync(promptPath, "utf-8");
     // Replace placeholders
-    const prompt = promptTemplate
+    let prompt = promptTemplate
         .replace("{{title}}", title)
         .replace("{{year}}", year);
+    if (prompt.includes("{{existing_tags}}")) {
+        prompt = prompt.replace("{{existing_tags}}", JSON.stringify(existing_tags || []));
+    }
     console.log("[OpenAI Prompt]", prompt); // Log the prompt for debugging
     const response = await openai.chat.completions.create({
         model: "gpt-4.1-nano",
@@ -55,8 +58,16 @@ router.post("/", verifyAllowedUser, async (req, res) => {
     let enrichedTags = tags;
     let enrichedRegions = regions;
     let enrichedCountries = countries;
+    // Get all existing tags from the database
+    const { data: allEvents, error: fetchError } = await supabase.from("events").select("tags");
+    let existingTags = [];
+    if (!fetchError && Array.isArray(allEvents)) {
+        const tagSet = new Set();
+        allEvents.forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => tagSet.add(tag)));
+        existingTags = Array.from(tagSet);
+    }
     if (!description || !tags || tags.length === 0 || !regions || regions.length === 0 || !countries || countries.length === 0) {
-        const enrichment = await enrichEventWithLLM({ title, date });
+        const enrichment = await enrichEventWithLLM({ title, date, existing_tags: existingTags });
         if (!description) enrichedDescription = enrichment.description;
         if (!tags || tags.length === 0) enrichedTags = enrichment.tags;
         if (!regions || regions.length === 0) enrichedRegions = enrichment.regions;
@@ -133,9 +144,17 @@ router.post("/remove-tag", verifyAllowedUser, async (req, res) => {
 // Enrich description only
 router.post("/enrich-description", verifyAllowedUser, async (req, res) => {
     const { title, date } = req.body;
+    // Get all existing tags from the database
+    const { data: allEvents, error: fetchError } = await supabase.from("events").select("tags");
+    let existingTags = [];
+    if (!fetchError && Array.isArray(allEvents)) {
+        const tagSet = new Set();
+        allEvents.forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => tagSet.add(tag)));
+        existingTags = Array.from(tagSet);
+    }
     if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
     try {
-        const enrichment = await enrichEventWithLLM({ title, date });
+        const enrichment = await enrichEventWithLLM({ title, date, existing_tags: existingTags });
         res.json({ description: enrichment.description, regions: enrichment.regions, countries: enrichment.countries });
     } catch (e) {
         res.status(500).json({ error: "Failed to enrich description" });
@@ -145,9 +164,17 @@ router.post("/enrich-description", verifyAllowedUser, async (req, res) => {
 // Enrich tags only
 router.post("/enrich-tags", verifyAllowedUser, async (req, res) => {
     const { title, date } = req.body;
+    // Get all existing tags from the database
+    const { data: allEvents, error: fetchError } = await supabase.from("events").select("tags");
+    let existingTags = [];
+    if (!fetchError && Array.isArray(allEvents)) {
+        const tagSet = new Set();
+        allEvents.forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => tagSet.add(tag)));
+        existingTags = Array.from(tagSet);
+    }
     if (!title || !date) return res.status(400).json({ error: "Title and date are required" });
     try {
-        const enrichment = await enrichEventWithLLM({ title, date });
+        const enrichment = await enrichEventWithLLM({ title, date, existing_tags: existingTags });
         res.json({ tags: enrichment.tags, regions: enrichment.regions, countries: enrichment.countries });
     } catch (e) {
         res.status(500).json({ error: "Failed to enrich tags" });
@@ -159,10 +186,18 @@ router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
     try {
         const { data: events, error } = await supabase.from("events").select("*");
         if (error) return res.status(500).json({ error: error.message });
+        // Get all existing tags from the database
+        const { data: allEvents, error: fetchError } = await supabase.from("events").select("tags");
+        let existingTags = [];
+        if (!fetchError && Array.isArray(allEvents)) {
+            const tagSet = new Set();
+            allEvents.forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => tagSet.add(tag)));
+            existingTags = Array.from(tagSet);
+        }
         let updated = 0;
         for (const event of events) {
             // Always regenerate and overwrite regions and countries
-            const enrichment = await enrichEventWithLLM({ title: event.title, date: event.date });
+            const enrichment = await enrichEventWithLLM({ title: event.title, date: event.date, existing_tags: existingTags });
             const updateObj = {};
             updateObj.regions = enrichment.regions || [];
             updateObj.countries = enrichment.countries || [];
