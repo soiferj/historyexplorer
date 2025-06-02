@@ -5,13 +5,14 @@ const { verifyAllowedUser } = require("../middleware/auth");
 const { OpenAI } = require("openai");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // POST /summary - Generate AI summary of a list of events
 router.post("/", async (req, res) => {
     try {
-        const { events } = req.body;
+        const { events, forceRegenerate = false } = req.body;
         if (!Array.isArray(events) || events.length === 0) {
             return res.status(400).json({ error: "Events array is required" });
         }
@@ -21,6 +22,19 @@ router.post("/", async (req, res) => {
             description: ev.description,
             year: ev.date ? String(ev.date).slice(0, 4) : undefined
         }));
+        // Create a hash of the minimalEvents array for cache key
+        const hash = crypto.createHash("sha256").update(JSON.stringify(minimalEvents)).digest("hex");
+        // Check Supabase cache unless forceRegenerate
+        if (!forceRegenerate) {
+            const { data: cacheData, error: cacheError } = await supabase
+                .from("summary_cache")
+                .select("summary")
+                .eq("hash", hash)
+                .single();
+            if (!cacheError && cacheData && cacheData.summary) {
+                return res.json({ summary: cacheData.summary, cached: true });
+            }
+        }
         // Load summary prompt template
         const promptPath = path.join(__dirname, "../data/summary_prompt.txt");
         let promptTemplate = fs.readFileSync(promptPath, "utf-8");
@@ -39,13 +53,16 @@ router.post("/", async (req, res) => {
         const content = response.choices[0].message.content;
         console.log("[LLM SUMMARY RESPONSE]", content); // Debug log
         let summary = "";
+        let cached = false;
         try {
             const parsed = JSON.parse(content);
             summary = parsed.summary;
         } catch (e) {
             summary = content;
         }
-        res.json({ summary });
+        // Store in Supabase cache (upsert)
+        await supabase.from("summary_cache").upsert({ hash, summary });
+        res.json({ summary, cached });
     } catch (e) {
         console.error("[LLM SUMMARY ERROR]", e);
         res.status(500).json({ error: "Failed to generate summary: " + e.message });
