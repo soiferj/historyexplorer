@@ -1116,9 +1116,17 @@ const Timeline = (props) => {
                             )}
                           </div>
                         )}
-                        <div className="text-lg text-white whitespace-pre-line text-left">
-                          {summaryText}
-                        </div>
+                        {summaryLoading && (
+                          <div style={{ textAlign: 'center', margin: '1em 0' }}>
+                            <Spinner /> Generating...
+                          </div>
+                        )}
+                        {/* Existing summary display logic follows, e.g. */}
+                        {!summaryLoading && summaryText && (
+                          <div className="text-lg text-white whitespace-pre-line text-left">
+                            {summaryText}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
