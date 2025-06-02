@@ -958,13 +958,13 @@ const Timeline = (props) => {
 
     // Only allow summary if a filter is set
     const summaryAllowed = (
-      (Array.isArray(selectedTags) && selectedTags.filter(Boolean).length > 0) ||
-      (Array.isArray(selectedBooks) && selectedBooks.filter(Boolean).length > 0) ||
-      (Array.isArray(selectedRegions) && selectedRegions.filter(Boolean).length > 0) ||
-      (Array.isArray(selectedCountries) && selectedCountries.filter(Boolean).length > 0) ||
-      (typeof tagSearchTerm === 'string' && tagSearchTerm.trim().length > 0) ||
-      (typeof bookSearchTerm === 'string' && bookSearchTerm.trim().length > 0) ||
-      (typeof regionSearchTerm === 'string' && regionSearchTerm.trim().length > 0) ||
+      (Array.isArray(props.selectedTags) && props.selectedTags.filter(Boolean).length > 0) ||
+      (Array.isArray(props.selectedBooks) && props.selectedBooks.filter(Boolean).length > 0) ||
+      (Array.isArray(props.selectedRegions) && props.selectedRegions.filter(Boolean).length > 0) ||
+      (Array.isArray(props.selectedCountries) && props.selectedCountries.filter(Boolean).length > 0) ||
+      (typeof props.tagSearchTerm === 'string' && props.tagSearchTerm.trim().length > 0) ||
+      (typeof props.bookSearchTerm === 'string' && props.bookSearchTerm.trim().length > 0) ||
+      (typeof props.regionSearchTerm === 'string' && props.regionSearchTerm.trim().length > 0) ||
       (Array.isArray(props.searchTerms) && props.searchTerms.some(t => t && t.trim().length > 0))
     );
 
