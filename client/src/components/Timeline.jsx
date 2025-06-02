@@ -1013,6 +1013,9 @@ const Timeline = (props) => {
             <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
                 {/* Zoom controls above the timeline */}
                 <div className="w-full flex justify-center mb-2 gap-2 items-center">
+              {/* Zoom controls above the timeline (commented out for now) */}
+              {false && (
+                <>
                   <button
                     className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 transition-all duration-200 ${zoomLevel === 2 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
                     onClick={() => setZoomLevel(z => Math.min(2, z + 1))}
@@ -1032,22 +1035,24 @@ const Timeline = (props) => {
                   >
                     Zoom +
                   </button>
-                  <button
-                    className="ml-4 px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-pink-400 text-white bg-pink-700 hover:bg-pink-800"
-                    onClick={() => {
-                      if (!summaryAllowed) {
-                        setShowEnableFilterModal(true);
-                        return;
-                      }
-                      handleGenerateSummary();
-                    }}
-                    disabled={summaryLoading}
-                    aria-label="Generate AI Summary"
-                    style={{ minWidth: 180 }}
-                  >
-                    {summaryLoading ? <><Spinner /> Generating Summary...</> : "AI Summary"}
-                  </button>
-                </div>
+                </>
+              )}
+              <button
+                className="ml-4 px-2 py-1 rounded font-bold shadow transition-all duration-200 border border-pink-400 text-white bg-pink-700 hover:bg-pink-800 text-xs sm:text-sm"
+                onClick={() => {
+                  if (!summaryAllowed) {
+                    setShowEnableFilterModal(true);
+                    return;
+                  }
+                  handleGenerateSummary();
+                }}
+                disabled={summaryLoading}
+                aria-label="Generate AI Summary"
+                style={{ minWidth: 80 }}
+              >
+                {summaryLoading ? <><Spinner /> Generating...</> : "AI Summary"}
+              </button>
+            </div>
 
                 {/* AI Timeline Summary Modal */}
                 {showSummaryModal && (
@@ -1231,7 +1236,7 @@ const Timeline = (props) => {
                                                     Cancel
                                                 </button>
                                                 <button
-                                                    className="px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-50"
+                                                    className="px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-60"
                                                     disabled={removalLoading}
                                                     onClick={async () => {
                                                         setRemovalLoading(true);
@@ -1415,11 +1420,13 @@ const Timeline = (props) => {
                                             <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                                                                                                <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book</label>
                                                 <div className="flex mb-2">
-                                                  <button type="button" className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editBookMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
-                                                  onClick={() => setEditBookMode('existing')}
-                                                  aria-pressed={editBookMode === 'existing'}
-                                                  style={{ marginRight: '-1px', zIndex: editBookMode === 'existing' ? 2 : 1 }}
-                                                  disabled={!!localEditForm.book_reference}
+                                                  <button
+                                                    type="button"
+                                                    className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editBookMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
+                                                    onClick={() => setEditBookMode('existing')}
+                                                    aria-pressed={editBookMode === 'existing'}
+                                                    style={{ marginRight: '-1px', zIndex: editBookMode === 'existing' ? 2 : 1 }}
+                                                    disabled={!!localEditForm.book_reference}
                                                   >
                                                     Existing
                                                   </button>
