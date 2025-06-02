@@ -524,6 +524,7 @@ function App() {
                         setEditError={setEditError}
                         // Remove the controls from Timeline itself
                         hideControls={true}
+                        searchTerms={searchTerms}
                     />
                 )}
             </div>

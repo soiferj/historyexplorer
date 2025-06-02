@@ -61,7 +61,12 @@ router.post("/", async (req, res) => {
             summary = content;
         }
         // Store in Supabase cache (upsert)
-        await supabase.from("summary_cache").upsert({ hash, summary });
+        const { error: upsertError, data: upsertData } = await supabase.from("summary_cache").upsert([{ hash, summary }]);
+        if (upsertError) {
+            console.error("[SUPABASE UPSERT ERROR]", upsertError);
+        } else {
+            console.log("[SUPABASE UPSERT SUCCESS]", upsertData);
+        }
         res.json({ summary, cached });
     } catch (e) {
         console.error("[LLM SUMMARY ERROR]", e);

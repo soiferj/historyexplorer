@@ -951,13 +951,21 @@ const Timeline = (props) => {
     const [summaryError, setSummaryError] = useState("");
     const [showSummaryModal, setShowSummaryModal] = useState(false); // NEW: controls summary modal
     const [showEnableFilterModal, setShowEnableFilterModal] = useState(false);
+    // Track if summary is from cache
+    const [summaryCached, setSummaryCached] = useState(false);
+    // Track if force regenerate is loading
+    const [forceRegenLoading, setForceRegenLoading] = useState(false);
 
     // Only allow summary if a filter is set
     const summaryAllowed = (
-      (selectedTags && selectedTags.length > 0) ||
-      (selectedBooks && selectedBooks.length > 0) ||
-      (selectedRegions && selectedRegions.length > 0) ||
-      (selectedCountries && selectedCountries.length > 0)
+      (Array.isArray(selectedTags) && selectedTags.filter(Boolean).length > 0) ||
+      (Array.isArray(selectedBooks) && selectedBooks.filter(Boolean).length > 0) ||
+      (Array.isArray(selectedRegions) && selectedRegions.filter(Boolean).length > 0) ||
+      (Array.isArray(selectedCountries) && selectedCountries.filter(Boolean).length > 0) ||
+      (typeof tagSearchTerm === 'string' && tagSearchTerm.trim().length > 0) ||
+      (typeof bookSearchTerm === 'string' && bookSearchTerm.trim().length > 0) ||
+      (typeof regionSearchTerm === 'string' && regionSearchTerm.trim().length > 0) ||
+      (Array.isArray(props.searchTerms) && props.searchTerms.some(t => t && t.trim().length > 0))
     );
 
     // Spinner SVG for loading indication
@@ -969,11 +977,12 @@ const Timeline = (props) => {
     );
 
     // Handler to generate summary
-    const handleGenerateSummary = async () => {
-      setSummaryLoading(true);
+    const handleGenerateSummary = async (forceRegenerate = false) => {
+      if (!forceRegenerate) setSummaryLoading(true);
       setSummaryError("");
       setSummaryText("");
-      setShowSummaryModal(true); // Open modal immediately
+      setSummaryCached(false);
+      if (!forceRegenerate) setShowSummaryModal(true); // Open modal immediately
       try {
         // Only send visible events (renderData or validEvents)
         const eventsToSummarize = Array.isArray(renderData)
@@ -996,15 +1005,17 @@ const Timeline = (props) => {
             "Content-Type": "application/json",
             ...(accessToken && { Authorization: `Bearer ${accessToken}` })
           },
-          body: JSON.stringify({ events: payload })
+          body: JSON.stringify({ events: payload, forceRegenerate })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || "Failed to generate summary");
         setSummaryText(data.summary);
+        setSummaryCached(!!data.cached);
       } catch (err) {
         setSummaryError(err.message);
       } finally {
-        setSummaryLoading(false);
+        if (!forceRegenerate) setSummaryLoading(false);
+        if (forceRegenerate) setForceRegenLoading(false);
       }
     };
 
@@ -1081,6 +1092,28 @@ const Timeline = (props) => {
                         {summaryError && (
                           <div className="w-full max-w-2xl mx-auto mb-4 p-4 rounded-xl bg-red-900/80 border border-red-400 text-red-200 text-center font-bold">
                             {summaryError}
+                          </div>
+                        )}
+                        {/* Show cache status and force regenerate button */}
+                        {summaryText && (
+                          <div className="mb-4 flex flex-col items-center gap-2">
+                            {summaryCached ? (
+                              <>
+                                <span className="text-xs text-yellow-300 font-semibold">Result loaded from cache.</span>
+                                <button
+                                  className="px-3 py-1 rounded bg-pink-700 text-white text-xs font-bold hover:bg-pink-800 border border-pink-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
+                                  disabled={forceRegenLoading}
+                                  onClick={() => {
+                                    setForceRegenLoading(true);
+                                    handleGenerateSummary(true);
+                                  }}
+                                >
+                                  {forceRegenLoading ? <><Spinner /> Regenerating...</> : "Force Regenerate"}
+                                </button>
+                              </>
+                            ) : (
+                              <span className="text-xs text-green-300 font-semibold">Fresh result (not cached).</span>
+                            )}
                           </div>
                         )}
                         <div className="text-lg text-white whitespace-pre-line text-left">
@@ -1434,7 +1467,7 @@ const Timeline = (props) => {
                                                     type="button"
                                                     className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editBookMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40${localEditForm.book_reference ? ' opacity-60 cursor-not-allowed' : ''}`}
                                                     onClick={() => {
-                                                      if (!localEditForm.book_reference) setEditBookMode('new');
+                                                                                                           if (!localEditForm.book_reference) setEditBookMode('new');
                                                     }}
                                                     aria-pressed={editBookMode === 'new'}
                                                     style={{ marginLeft: '-1px', zIndex: editBookMode === 'new' ? 2 : 1 }}
