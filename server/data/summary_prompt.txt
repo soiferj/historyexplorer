@@ -1,0 +1,4 @@
+Given a list of historical events (each with title, year, and description), generate a concise summary of the overall historical context, major themes, and significance of these events over time. Highlight key patterns, turning points, and the evolution of the narrative. The summary should be suitable for a general audience and help users understand the big picture. Respond in JSON with a single key 'summary' containing the summary text.
+
+Events:
+{{events}}

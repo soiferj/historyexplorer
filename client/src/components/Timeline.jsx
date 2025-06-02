@@ -96,6 +96,16 @@ const Timeline = (props) => {
     // Calculate filtered events (all matching events)
     // const filteredEvents = (() => { ... })(); // <-- REMOVE THIS BLOCK
 
+    // Add these state hooks near the top of the Timeline component, before any usage:
+    const [editBookMode, setEditBookMode] = useState("existing");
+    const [newBook, setNewBook] = useState("");
+    const [editTagMode, setEditTagMode] = useState("existing");
+    const [newTag, setNewTag] = useState("");
+    const [editRegionMode, setEditRegionMode] = useState("existing");
+    const [newRegion, setNewRegion] = useState("");
+    const [editCountryMode, setEditCountryMode] = useState("existing");
+    const [newCountry, setNewCountry] = useState("");
+
     // Helper to get all unique tags from filteredEvents, only include tags with more than 2 entries, sorted alphabetically (case-insensitive)
     function getAllTags(events) {
         const tagCount = {};
@@ -935,23 +945,19 @@ const Timeline = (props) => {
     const [backfillRegionsResult, setBackfillRegionsResult] = useState("");
     const [showBackfillRegionsModal, setShowBackfillRegionsModal] = useState(false);
 
-    // Helper to convert year/era to comparable number
-    function yearEraToComparable(year, era) {
-        if (!year) return null;
-        const y = parseInt(year, 10);
-        if (isNaN(y)) return null;
-        return era === 'BCE' ? -y : y;
-    }
+    // AI-generated summary state
+    const [summaryLoading, setSummaryLoading] = useState(false);
+    const [summaryText, setSummaryText] = useState("");
+    const [summaryError, setSummaryError] = useState("");
+    const [showSummaryModal, setShowSummaryModal] = useState(false); // NEW: controls summary modal
 
-    // Define local state for tag, book, and region filters
-    const [showTagFilter, setShowTagFilter] = useState(false);
-    const [showBookFilter, setShowBookFilter] = useState(false);
-    const [showRegionFilter, setShowRegionFilter] = useState(false);
-    const [showCountryFilter, setShowCountryFilter] = useState(false);
-    // Remove this line:
-    // const [selectedCountries, setSelectedCountries] = useState([]);
-    // Use the props version instead
-    const [countrySearchTerm, setCountrySearchTerm] = useState("");
+    // Only allow summary if a filter is set
+    const summaryAllowed = (
+      (selectedTags && selectedTags.length > 0) ||
+      (selectedBooks && selectedBooks.length > 0) ||
+      (selectedRegions && selectedRegions.length > 0) ||
+      (selectedCountries && selectedCountries.length > 0)
+    );
 
     // Spinner SVG for loading indication
     const Spinner = () => (
@@ -961,41 +967,115 @@ const Timeline = (props) => {
       </svg>
     );
 
-    // Add these state hooks near the top of the Timeline component, before any usage:
-    const [editBookMode, setEditBookMode] = useState("existing");
-    const [newBook, setNewBook] = useState("");
-    const [editTagMode, setEditTagMode] = useState("existing");
-    const [newTag, setNewTag] = useState("");
-    const [editRegionMode, setEditRegionMode] = useState("existing");
-    const [newRegion, setNewRegion] = useState("");
-    const [editCountryMode, setEditCountryMode] = useState("existing");
-    const [newCountry, setNewCountry] = useState("");
+    // Handler to generate summary
+    const handleGenerateSummary = async () => {
+      setSummaryLoading(true);
+      setSummaryError("");
+      setSummaryText("");
+      setShowSummaryModal(true); // Open modal immediately
+      try {
+        // Only send visible events (renderData or validEvents)
+        const eventsToSummarize = Array.isArray(renderData)
+          ? (renderData.flatMap(g => g.events ? g.events : g))
+          : validEvents;
+        // Remove duplicates by id
+        const uniqueEvents = Array.from(new Map(eventsToSummarize.map(ev => [ev.id, ev])).values());
+        // Only send minimal fields to the server
+        const payload = uniqueEvents.map(ev => ({
+          title: ev.title,
+          date: ev.date,
+          description: ev.description,
+          tags: ev.tags,
+          regions: ev.regions,
+          countries: ev.countries
+        }));
+        const response = await fetch(`${apiUrl}/summary`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+          },
+          body: JSON.stringify({ events: payload })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Failed to generate summary");
+        setSummaryText(data.summary);
+      } catch (err) {
+        setSummaryError(err.message);
+      } finally {
+        setSummaryLoading(false);
+      }
+    };
 
     return (
         <>
             <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
                 {/* Zoom controls above the timeline */}
-                {(
-                  <div className="w-full flex justify-center mb-2 gap-2">
-                    <button
-                      className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 transition-all duration-200 ${zoomLevel === 2 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
-                      onClick={() => setZoomLevel(z => Math.min(2, z + 1))}
-                      disabled={zoomLevel === 2}
-                      aria-label="Zoom Out"
+                <div className="w-full flex justify-center mb-2 gap-2 items-center">
+                  <button
+                    className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 transition-all duration-200 ${zoomLevel === 2 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                    onClick={() => setZoomLevel(z => Math.min(2, z + 1))}
+                    disabled={zoomLevel === 2}
+                    aria-label="Zoom Out"
+                  >
+                    Zoom -
+                  </button>
+                  <span className="px-2 py-1 text-blue-200 font-semibold select-none">
+                    {zoomLevel === 2 ? 'Millennium' : zoomLevel === 1 ? 'Century' : 'Event'}
+                  </span>
+                  <button
+                    className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 transition-all duration-200 ${zoomLevel === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
+                    onClick={() => setZoomLevel(z => Math.max(0, z - 1))}
+                    disabled={zoomLevel === 0}
+                    aria-label="Zoom In"
+                  >
+                    Zoom +
+                  </button>
+                  <button
+                    className="ml-4 px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-pink-400 text-white bg-pink-700 hover:bg-pink-800"
+                    onClick={handleGenerateSummary}
+                    disabled={!summaryAllowed || summaryLoading}
+                    aria-label="Generate AI Summary"
+                    style={{ minWidth: 180 }}
+                  >
+                    {summaryLoading ? <><Spinner /> Generating Summary...</> : "AI Timeline Summary"}
+                  </button>
+                </div>
+
+                {/* AI Timeline Summary Modal */}
+                {showSummaryModal && (
+                  <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ marginTop: '6rem' }}>
+                    {/* Modal overlay */}
+                    <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => setShowSummaryModal(false)} />
+                    {/* Modal content */}
+                    <div
+                      className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
+                      style={{
+                        maxHeight: '70vh',
+                        overflow: 'hidden',
+                        margin: '1rem',
+                        boxSizing: 'border-box',
+                      }}
                     >
-                      Zoom -
-                    </button>
-                    <span className="px-2 py-1 text-blue-200 font-semibold select-none">
-                      {zoomLevel === 2 ? 'Millennium' : zoomLevel === 1 ? 'Century' : 'Event'}
-                    </span>
-                    <button
-                      className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 transition-all duration-200 ${zoomLevel === 0 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
-                      onClick={() => setZoomLevel(z => Math.max(0, z - 1))}
-                      disabled={zoomLevel === 0}
-                      aria-label="Zoom In"
-                    >
-                      Zoom +
-                    </button>
+                      <button
+                        className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
+                        onClick={() => setShowSummaryModal(false)}
+                        aria-label="Close summary modal"
+                      >
+                        &times;
+                      </button>
+                      <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
+                        <h2 className="text-3xl font-bold text-blue-400 fancy-heading mb-4 text-center">AI-Generated Timeline Summary</h2>
+                        {summaryError && (
+                          <div className="w-full max-w-2xl mx-auto mb-4 p-4 rounded-xl bg-red-900/80 border border-red-400 text-red-200 text-center font-bold">
+                            {summaryError}
+                          </div>
+                        )}
+                        <div className="text-lg text-white whitespace-pre-line text-left">
+                          {summaryText}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {/* World Map button at the top of timeline controls */}
@@ -1105,7 +1185,7 @@ const Timeline = (props) => {
                                             {removalError && <div className="text-red-400 mb-2">{removalError}</div>}
                                             <div className="flex gap-4 mt-2">
                                                 <button
-                                                    className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
+                                                    className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-500 hover:bg-gray-500"
                                                     onClick={() => setShowDeleteConfirm(false)}
                                                     disabled={removalLoading}
                                                 >
@@ -1416,7 +1496,7 @@ const Timeline = (props) => {
                                                     className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editTagMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
                                                     onClick={() => setEditTagMode('new')}
                                                     aria-pressed={editTagMode === 'new'}
-                                                    style={{ marginLeft: '-1px', zIndex: editTagMode === 'new' ? 2 : 1 }}
+                                                  style={{ marginLeft: '-1px', zIndex: editTagMode === 'new' ? 2 : 1 }}
                                                   >
                                                     New
                                                   </button>

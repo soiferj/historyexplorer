@@ -31,6 +31,9 @@ app.use("/allowed-emails", allowedEmailsRouter);
 const historicalMapRouter = require("./routes/historicalMap");
 app.use("/historical-map", historicalMapRouter);
 
+const summaryRouter = require("./routes/summary");
+app.use("/summary", summaryRouter);
+
 // Middleware to verify Supabase JWT and check allow-list
 async function verifyAllowedUser(req, res, next) {
     try {
