@@ -950,6 +950,7 @@ const Timeline = (props) => {
     const [summaryText, setSummaryText] = useState("");
     const [summaryError, setSummaryError] = useState("");
     const [showSummaryModal, setShowSummaryModal] = useState(false); // NEW: controls summary modal
+    const [showEnableFilterModal, setShowEnableFilterModal] = useState(false);
 
     // Only allow summary if a filter is set
     const summaryAllowed = (
@@ -1033,12 +1034,18 @@ const Timeline = (props) => {
                   </button>
                   <button
                     className="ml-4 px-4 py-2 rounded font-bold shadow transition-all duration-200 border border-pink-400 text-white bg-pink-700 hover:bg-pink-800"
-                    onClick={handleGenerateSummary}
-                    disabled={!summaryAllowed || summaryLoading}
+                    onClick={() => {
+                      if (!summaryAllowed) {
+                        setShowEnableFilterModal(true);
+                        return;
+                      }
+                      handleGenerateSummary();
+                    }}
+                    disabled={summaryLoading}
                     aria-label="Generate AI Summary"
                     style={{ minWidth: 180 }}
                   >
-                    {summaryLoading ? <><Spinner /> Generating Summary...</> : "AI Timeline Summary"}
+                    {summaryLoading ? <><Spinner /> Generating Summary...</> : "AI Summary"}
                   </button>
                 </div>
 
@@ -1074,6 +1081,38 @@ const Timeline = (props) => {
                         <div className="text-lg text-white whitespace-pre-line text-left">
                           {summaryText}
                         </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* Enable Filter Modal */}
+                {showEnableFilterModal && (
+                  <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ marginTop: '6rem' }}>
+                    <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => setShowEnableFilterModal(false)} />
+                    <div
+                      className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-pink-400/60 w-full max-w-md z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#ff512f22] to-[#ff512f22] backdrop-blur-xl"
+                      style={{
+                        maxHeight: '40vh',
+                        overflow: 'hidden',
+                        margin: '1rem',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      <button
+                        className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
+                        onClick={() => setShowEnableFilterModal(false)}
+                        aria-label="Close modal"
+                      >
+                        &times;
+                      </button>
+                      <div className="w-full text-center">
+                        <h2 className="text-2xl font-bold text-pink-400 mb-4">Please enable a filter to use the AI summary</h2>
+                        <button
+                          className="mt-4 px-4 py-2 rounded bg-blue-700 text-white font-bold hover:bg-blue-800 border border-blue-300 shadow"
+                          onClick={() => setShowEnableFilterModal(false)}
+                        >
+                          OK
+                        </button>
                       </div>
                     </div>
                   </div>
