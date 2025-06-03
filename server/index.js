@@ -34,6 +34,9 @@ app.use("/historical-map", historicalMapRouter);
 const summaryRouter = require("./routes/summary");
 app.use("/summary", summaryRouter);
 
+const chatbotRouter = require("./routes/chatbot");
+app.use("/chatbot", chatbotRouter);
+
 // Middleware to verify Supabase JWT and check allow-list
 async function verifyAllowedUser(req, res, next) {
     try {

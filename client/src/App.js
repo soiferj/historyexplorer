@@ -6,6 +6,7 @@ import AddEventForm from "./components/AddEventForm";
 import FiltersPopover from "./components/FiltersPopover";
 import AdminToolsModal from "./components/AdminToolsModal";
 import TagEvolutionChart from "./components/TagEvolutionChart";
+import Chatbot from "./components/Chatbot";
 import "./index.css";
 
 function App() {
@@ -528,6 +529,8 @@ function App() {
                     />
                 )}
             </div>
+            {/* Floating Chatbot */}
+            <Chatbot userId={session?.user?.id || null} />
         </div>
     );
 }
