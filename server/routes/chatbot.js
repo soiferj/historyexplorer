@@ -32,6 +32,7 @@ async function getAllEvents() {
 router.post('/', async (req, res) => {
   const { conversationId, message, userId } = req.body;
   let convId = conversationId;
+  console.log('[Chatbot] Incoming request:', { conversationId, message, userId });
   try {
     // 1. Create conversation if needed
     if (!convId) {
@@ -40,6 +41,7 @@ router.post('/', async (req, res) => {
         .insert([{ user_id: userId }])
         .select()
         .single();
+      console.log('[Chatbot] Created conversation:', conv, convErr);
       if (convErr) throw convErr;
       convId = conv.id;
     }
@@ -47,11 +49,14 @@ router.post('/', async (req, res) => {
     const { error: msgErr } = await supabase
       .from('messages')
       .insert([{ conversation_id: convId, sender: 'user', content: message }]);
+    console.log('[Chatbot] Stored user message:', msgErr);
     if (msgErr) throw msgErr;
     // 3. Fetch conversation history
     const messages = await getConversationMessages(convId);
+    console.log('[Chatbot] Conversation history:', messages);
     // 4. Fetch events (for context)
     const events = await getAllEvents();
+    console.log('[Chatbot] Events count:', events.length);
     // 5. Call AI model (stub for now)
     // TODO: Replace with real AI call
     const botReply = `This is a placeholder answer. You asked: "${message}". (Events in DB: ${events.length})`;
@@ -59,11 +64,14 @@ router.post('/', async (req, res) => {
     const { error: botErr } = await supabase
       .from('messages')
       .insert([{ conversation_id: convId, sender: 'bot', content: botReply }]);
+    console.log('[Chatbot] Stored bot reply:', botErr);
     if (botErr) throw botErr;
     // 7. Return conversationId and all messages
     const updatedMessages = await getConversationMessages(convId);
+    console.log('[Chatbot] Returning messages:', updatedMessages);
     res.json({ conversationId: convId, messages: updatedMessages });
   } catch (err) {
+    console.error('[Chatbot] Error:', err);
     res.status(500).json({ error: err.message });
   }
 });
