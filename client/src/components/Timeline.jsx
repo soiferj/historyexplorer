@@ -1108,7 +1108,7 @@ const Timeline = (props) => {
                                     handleGenerateSummary(true);
                                   }}
                                 >
-                                  {forceRegenLoading ? <><Spinner /> Regenerating...</> : "Force Regenerate"}
+                                  {forceRegenLoading ? <><Spinner /> Regenerating...</> : "Regenerate Summary"}
                                 </button>
                               </>
                             ) : (
