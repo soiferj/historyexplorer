@@ -1088,7 +1088,7 @@ const Timeline = (props) => {
                         &times;
                       </button>
                       <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
-                        <h2 className="text-3xl font-bold text-blue-400 fancy-heading mb-4 text-center">AI-Generated Timeline Summary</h2>
+                        <h2 className="text-3xl font-bold text-blue-400 fancy-heading mb-4 text-center">AI-Generated Summary</h2>
                         {summaryError && (
                           <div className="w-full max-w-2xl mx-auto mb-4 p-4 rounded-xl bg-red-900/80 border border-red-400 text-red-200 text-center font-bold">
                             {summaryError}
