@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: './keepalive' # set this to the path to your Azure Function project
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: './functions' # updated to new folder name
   NODE_VERSION: '18.x' # Azure Functions supports Node 18.x, use 20.x only if your app requires it
 
 jobs:

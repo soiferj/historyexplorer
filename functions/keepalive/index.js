@@ -6,7 +6,7 @@
  * Deploy this folder as an Azure Function App.
  */
 
-export async function run(context, myTimer) {
+module.exports = async function (context, myTimer) {
     const url = "https://historyexplorerserver.onrender.com/events";
     try {
         const res = await fetch(url);
@@ -14,4 +14,4 @@ export async function run(context, myTimer) {
     } catch (err) {
         context.log(`Ping failed: ${err}`);
     }
-}
+};
