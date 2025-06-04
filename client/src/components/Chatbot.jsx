@@ -24,6 +24,7 @@ function Chatbot({ userId }) {
     setError("");
     const userMsg = { sender: "user", content: input };
     setMessages((msgs) => [...msgs, userMsg]);
+    setInput(""); // Clear input immediately after submit
     try {
       const res = await fetch(`${API_URL}/chatbot`, {
         method: "POST",
@@ -38,7 +39,6 @@ function Chatbot({ userId }) {
       const data = await res.json();
       setConversationId(data.conversationId);
       setMessages(data.messages);
-      setInput("");
     } catch (err) {
       setError(err.message);
     } finally {
@@ -63,13 +63,28 @@ function Chatbot({ userId }) {
         <div className="fixed bottom-6 right-6 z-50 w-80 max-w-[95vw] bg-gray-900 rounded-2xl shadow-2xl border border-blue-300 flex flex-col animate-fade-in-modal">
           <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-700 to-pink-700 rounded-t-2xl">
             <span className="font-bold text-white text-lg">History AI</span>
-            <button
-              className="text-white text-2xl font-bold hover:text-pink-200 focus:outline-none"
-              onClick={() => setOpen(false)}
-              aria-label="Close chat"
-            >
-              &times;
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                className="text-xs bg-blue-400 hover:bg-blue-500 text-white rounded px-2 py-1 mr-2 transition-all duration-200"
+                onClick={() => {
+                  setMessages([]);
+                  setConversationId(null);
+                  setError("");
+                }}
+                aria-label="Start new conversation"
+                type="button"
+              >
+                New Chat
+              </button>
+              <button
+                className="text-white text-2xl font-bold hover:text-pink-200 focus:outline-none"
+                onClick={() => setOpen(false)}
+                aria-label="Close chat"
+                type="button"
+              >
+                &times;
+              </button>
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-2 bg-gray-800" style={{ maxHeight: 400 }}>
             {messages.length === 0 && (
@@ -91,6 +106,17 @@ function Chatbot({ userId }) {
                 </div>
               </div>
             ))}
+            {loading && (
+              <div className="my-2 flex justify-start">
+                <div className="px-3 py-2 rounded-xl max-w-[80%] text-sm shadow bg-gray-700 text-gray-100 flex items-center">
+                  <span className="typing">
+                    <span className="dot">.</span>
+                    <span className="dot">.</span>
+                    <span className="dot">.</span>
+                  </span>
+                </div>
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
           {error && <div className="text-red-400 text-xs px-4 pb-1">{error}</div>}
@@ -114,6 +140,24 @@ function Chatbot({ userId }) {
           </form>
         </div>
       )}
+      <style>{`
+  .typing .dot {
+    animation: blink 1.4s infinite both;
+    font-size: 1.5em;
+    margin-right: 2px;
+    opacity: 0.5;
+  }
+  .typing .dot:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  .typing .dot:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+  @keyframes blink {
+    0%, 80%, 100% { opacity: 0.2; }
+    40% { opacity: 1; }
+  }
+`}</style>
     </>
   );
 }
