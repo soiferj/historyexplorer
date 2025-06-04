@@ -104,4 +104,26 @@ router.post('/', async (req, res) => {
   }
 });
 
+// DELETE all chatbot conversations and messages
+router.post('/delete-all', async (req, res) => {
+  try {
+    // Delete all messages first (to avoid FK constraint issues)
+    const { error: msgErr } = await supabase
+      .from('messages')
+      .delete()
+      .not('id', 'is', null); // delete all rows
+    if (msgErr) throw msgErr;
+    // Delete all conversations
+    const { error: convErr } = await supabase
+      .from('conversations')
+      .delete()
+      .not('id', 'is', null); // delete all rows
+    if (convErr) throw convErr;
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Chatbot] Delete all error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

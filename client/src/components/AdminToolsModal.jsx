@@ -18,6 +18,9 @@ function AdminToolsModal({
     const [showDedupeTagsModal, setShowDedupeTagsModal] = useState(false);
     const [dedupeTagMapping, setDedupeTagMapping] = useState(null);
     const [showDedupeConfirmModal, setShowDedupeConfirmModal] = useState(false);
+    const [deleteChatbotLoading, setDeleteChatbotLoading] = useState(false);
+    const [deleteChatbotResult, setDeleteChatbotResult] = useState("");
+    const [showDeleteChatbotModal, setShowDeleteChatbotModal] = useState(false);
     const apiUrl = process.env.REACT_APP_API_URL;
 
     // Helper to get all unique tags from allEvents
@@ -144,6 +147,31 @@ function AdminToolsModal({
             setDedupeTagsResult("Failed to apply dedupe mapping.");
         } finally {
             setDedupeTagsLoading(false);
+        }
+    }
+
+    // Delete All Chatbot Conversations
+    async function handleDeleteAllChatbot() {
+        setDeleteChatbotLoading(true);
+        setDeleteChatbotResult("");
+        try {
+            const response = await fetch(`${apiUrl}/chatbot/delete-all`, {
+                method: "POST",
+                headers: {
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setDeleteChatbotResult("All chatbot conversations deleted.");
+                setShowDeleteChatbotModal(false);
+            } else {
+                setDeleteChatbotResult(data.error || "Failed to delete conversations.");
+            }
+        } catch (err) {
+            setDeleteChatbotResult("Failed to delete conversations.");
+        } finally {
+            setDeleteChatbotLoading(false);
         }
     }
 
@@ -317,6 +345,49 @@ function AdminToolsModal({
                                 onClick={handleConfirmDedupeTags}
                             >
                                 {dedupeTagsLoading ? "Applying..." : "Proceed with Deduplication"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <hr className="my-6 border-yellow-400/40" />
+            {/* Delete All Chatbot Conversations Section */}
+            <h3 className="text-lg font-semibold text-pink-300 mb-2">Chatbot Tools</h3>
+            <div className="w-full flex flex-col items-center mb-6">
+                <button
+                    className="px-4 py-2 rounded bg-pink-700 text-white font-bold hover:bg-pink-800 border border-pink-300 shadow disabled:opacity-50"
+                    disabled={deleteChatbotLoading}
+                    onClick={() => setShowDeleteChatbotModal(true)}
+                >
+                    {deleteChatbotLoading ? "Deleting..." : "Delete All Chatbot Conversations"}
+                </button>
+                {deleteChatbotResult && (
+                    <div className="mt-2 text-pink-200 text-sm">{deleteChatbotResult}</div>
+                )}
+            </div>
+            {/* Confirm Delete All Chatbot Conversations Modal */}
+            {showDeleteChatbotModal && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+                    <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowDeleteChatbotModal(false)} />
+                    <div className="relative glass p-6 rounded-2xl shadow-2xl border border-pink-400 w-full max-w-sm z-70 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#ff5e6233] to-[#ffb88c33] backdrop-blur-lg">
+                        <h3 className="text-lg font-bold mb-2 text-pink-300">Confirm Delete All Conversations</h3>
+                        <div className="mb-4 text-center text-pink-200">
+                            Are you sure you want to <span className="font-bold text-pink-300">delete ALL chatbot conversations</span>? This action cannot be undone.
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                            <button
+                                className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
+                                onClick={() => setShowDeleteChatbotModal(false)}
+                                disabled={deleteChatbotLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-4 py-2 rounded bg-pink-700 text-white font-bold hover:bg-pink-800 border border-pink-300 shadow disabled:opacity-50"
+                                disabled={deleteChatbotLoading}
+                                onClick={handleDeleteAllChatbot}
+                            >
+                                {deleteChatbotLoading ? "Deleting..." : "Confirm Delete All"}
                             </button>
                         </div>
                     </div>
