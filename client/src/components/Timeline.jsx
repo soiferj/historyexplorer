@@ -1048,25 +1048,28 @@ const Timeline = (props) => {
                   </button>
                 </>
               )}
-              <button
-                className="ml-4 px-2 py-1 rounded font-bold shadow transition-all duration-200 border border-pink-400 text-white bg-pink-700 hover:bg-pink-800 text-xs sm:text-sm"
-                onClick={() => {
-                  if (!summaryAllowed) {
-                    setShowEnableFilterModal(true);
-                    return;
-                  }
-                  handleGenerateSummary();
-                }}
-                disabled={summaryLoading}
-                aria-label="Generate AI Summary"
-                style={{ minWidth: 80 }}
-              >
-                {summaryLoading ? <><Spinner /> Generating...</> : "AI Summary"}
-              </button>
+              {/* AI Summary only for admins */}
+              {props.isAllowed && (
+                <button
+                  className="ml-4 px-2 py-1 rounded font-bold shadow transition-all duration-200 border border-pink-400 text-white bg-pink-700 hover:bg-pink-800 text-xs sm:text-sm"
+                  onClick={() => {
+                    if (!summaryAllowed) {
+                      setShowEnableFilterModal(true);
+                      return;
+                    }
+                    handleGenerateSummary();
+                  }}
+                  disabled={summaryLoading}
+                  aria-label="Generate AI Summary"
+                  style={{ minWidth: 80 }}
+                >
+                  {summaryLoading ? <><Spinner /> Generating...</> : "AI Summary"}
+                </button>
+              )}
             </div>
 
                 {/* AI Timeline Summary Modal */}
-                {showSummaryModal && (
+                {props.isAllowed && showSummaryModal && (
                   <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ marginTop: '6rem' }}>
                     {/* Modal overlay */}
                     <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => setShowSummaryModal(false)} />
@@ -1132,7 +1135,7 @@ const Timeline = (props) => {
                   </div>
                 )}
                 {/* Enable Filter Modal */}
-                {showEnableFilterModal && (
+                {props.isAllowed && showEnableFilterModal && (
                   <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ marginTop: '6rem' }}>
                     <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => setShowEnableFilterModal(false)} />
                     <div

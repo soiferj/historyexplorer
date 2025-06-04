@@ -526,11 +526,12 @@ function App() {
                         // Remove the controls from Timeline itself
                         hideControls={true}
                         searchTerms={searchTerms}
+                        isAllowed={isAllowed} // Pass admin status to Timeline
                     />
                 )}
             </div>
             {/* Floating Chatbot */}
-            <Chatbot userId={session?.user?.id || null} />
+            {isAllowed && <Chatbot userId={session?.user?.id || null} />}
         </div>
     );
 }
