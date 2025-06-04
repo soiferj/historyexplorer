@@ -51,7 +51,7 @@ function Chatbot({ userId }) {
       {/* Floating Chat Button */}
       {!open && (
         <button
-          className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-white rounded-full shadow-lg w-16 h-16 flex items-center justify-center text-3xl font-bold transition-all duration-300"
+          className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center text-2xl font-bold transition-all duration-300"
           onClick={() => setOpen(true)}
           aria-label="Open chat"
         >
@@ -77,7 +77,7 @@ function Chatbot({ userId }) {
                 New Chat
               </button>
               <button
-                className="text-white text-2xl font-bold hover:text-pink-200 focus:outline-none"
+                className="text-white text-3xl sm:text-2xl font-bold hover:text-pink-200 focus:outline-none p-2 sm:p-0 rounded-full transition-all duration-200 min-w-[2.5rem] min-h-[2.5rem] flex items-center justify-center"
                 onClick={() => setOpen(false)}
                 aria-label="Close chat"
                 type="button"
