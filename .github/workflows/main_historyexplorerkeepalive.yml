@@ -55,6 +55,7 @@ jobs:
           name: node-app
 
       - name: List files to debug path
+        shell: bash
         run: |
           pwd
           ls -lR
