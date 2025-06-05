@@ -47,6 +47,8 @@ function App() {
     const [showTagEvolution, setShowTagEvolution] = useState(false);
     const [searchTerms, setSearchTerms] = useState([""]);
     const [searchLogic, setSearchLogic] = useState("AND");
+    // Add state for hamburger menu
+    const [showMenu, setShowMenu] = useState(false);
 
     // Fetch events function for use in Timeline
     const fetchEvents = async () => {
@@ -244,6 +246,16 @@ function App() {
             <div className="w-full flex flex-wrap items-center justify-between px-3 sm:px-8 pt-3 sm:pt-4 z-60 gap-2">
                 <h1 className="fancy-heading text-xl sm:text-3xl font-extrabold text-blue-200 text-left whitespace-nowrap truncate max-w-[60vw]">History Explorer</h1>
                 <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 min-w-0">
+                    {/* Hamburger menu button */}
+                    <button
+                        className="flex items-center justify-center w-10 h-10 rounded-full bg-gray-800 hover:bg-blue-700 text-white focus:outline-none mr-2"
+                        onClick={() => setShowMenu(v => !v)}
+                        aria-label="Open menu"
+                    >
+                        <svg className="w-7 h-7" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
                     {session?.user && (
                         <span className="text-blue-200 font-semibold drop-shadow text-xs sm:text-sm truncate max-w-[40vw]">{session.user.email}</span>
                     )}
@@ -254,6 +266,47 @@ function App() {
                     )}
                 </div>
             </div>
+            {/* Hamburger menu dropdown */}
+            {showMenu && (
+                <div className="fixed inset-0 z-50 flex items-start justify-end">
+                    <div className="fixed inset-0 bg-black/30" onClick={() => setShowMenu(false)} />
+                    <div className="relative bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl shadow-2xl border-2 border-blue-400/60 rounded-l-3xl mt-4 mr-2 p-6 w-64 flex flex-col gap-4 animate-fade-in-modal z-60">
+                        <button
+                            className="absolute top-3 right-3 text-2xl text-blue-200 hover:text-pink-400 focus:outline-none"
+                            onClick={() => setShowMenu(false)}
+                            aria-label="Close menu"
+                        >
+                            &times;
+                        </button>
+                        <button
+                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${!showMap && !showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                            onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowMenu(false); }}
+                        >
+                            Timeline
+                        </button>
+                        <button
+                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                            onClick={() => { setShowMap(true); setShowTagEvolution(false); setShowMenu(false); }}
+                        >
+                            World Map
+                        </button>
+                        <button
+                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                            onClick={() => { setShowMap(false); setShowTagEvolution(true); setShowMenu(false); }}
+                        >
+                            Tag Evolution
+                        </button>
+                        {isAllowed && (
+                            <button
+                                className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left bg-gray-700 hover:bg-blue-700`}
+                                onClick={() => { setShowAdminToolsModal(true); setRemovalSelectedTags([]); setRemovalError(""); setShowMenu(false); }}
+                            >
+                                Admin Tools
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
             {/* Always-visible controls: Add Event, Filters, Admin Tools */}
             <div className="w-full flex flex-wrap justify-center z-10 mb-4 gap-3 flex-row items-center mt-4">
                 {isAllowed && (
@@ -263,16 +316,6 @@ function App() {
                             onClick={() => setShowForm(true)}
                         >
                             Add New Event
-                        </button>
-                        <button
-                            className="px-2 py-1 text-sm sm:px-4 sm:py-2 sm:text-base rounded bg-gradient-to-r from-blue-700 to-pink-700 hover:from-blue-800 hover:to-pink-800 font-bold text-white shadow transition-all duration-200 border border-white/20 ml-2"
-                            onClick={() => {
-                                setShowAdminToolsModal(true);
-                                setRemovalSelectedTags([]);
-                                setRemovalError("");
-                            }}
-                        >
-                            Admin Tools
                         </button>
                     </>
                 )}
@@ -297,24 +340,7 @@ function App() {
             </div>
             {/* Timeline/Map/Tag Evolution toggle and region filter below controls */}
             <div className="w-full flex justify-center mb-4 gap-4">
-                <button
-                    className={`px-2 py-1 sm:px-4 sm:py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white text-sm sm:text-base ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                    onClick={() => { setShowMap(true); setShowTagEvolution(false); }}
-                >
-                    World Map
-                </button>
-                <button
-                    className={`px-2 py-1 sm:px-4 sm:py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white text-sm sm:text-base ${!showMap && !showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                    onClick={() => { setShowMap(false); setShowTagEvolution(false); }}
-                >
-                    Timeline
-                </button>
-                <button
-                    className={`px-2 py-1 sm:px-4 sm:py-2 rounded font-bold shadow transition-all duration-200 border border-blue-400 text-white text-sm sm:text-base ${showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                    onClick={() => { setShowMap(false); setShowTagEvolution(true); }}
-                >
-                    Tag Evolution
-                </button>
+                {/* Removed World Map, Timeline, Tag Evolution buttons from here, now in hamburger menu */}
                 {regionFilter && (
                     <button
                         className="ml-2 px-3 py-2 rounded bg-pink-700 text-white font-bold border border-pink-300 shadow"
