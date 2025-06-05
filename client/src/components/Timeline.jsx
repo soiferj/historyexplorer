@@ -325,21 +325,8 @@ const Timeline = (props) => {
                 .attr("fill", "#f472b6")
                 .style("cursor", "pointer")
                 .on("click", (event, d) => {
-                    setZoomLevel(1);
-                    setTimeout(() => {
-                        if (!timelineContainerRef.current) return;
-                        // Use d.events[0] to scroll to the first event in this millennium
-                        const firstEvent = d.events[0];
-                        // Use validEvents instead of filteredEvents for findIndex
-                        const idx = validEvents.findIndex(ev => ev === firstEvent);
-                        if (idx >= 0) {
-                            const itemHeight = isMobile ? 80 : 100;
-                            timelineContainerRef.current.scrollTo({
-                                top: Math.max(0, (itemHeight * idx) - 40),
-                                behavior: 'smooth'
-                            });
-                        }
-                    }, 100);
+                    if (typeof setEditMode === 'function') setEditMode(false);
+                    setSelectedEvent(d);
                 })
                 .style("opacity", 0)
                 .transition()
@@ -572,7 +559,10 @@ const Timeline = (props) => {
                                         .attr("d", arc.outerRadius(r));
                                 }
                             })
-                            .on("click", (event) => setSelectedEvent(d));
+                            .on("click", (event) => {
+                                if (typeof setEditMode === 'function') setEditMode(false);
+                                setSelectedEvent(d);
+                            });
                     });
             } else {
                 // Multi-tag circle rendering (only if multiple tags and no other filters)
@@ -633,7 +623,10 @@ const Timeline = (props) => {
                                             .attr("d", arc.outerRadius(r));
                                     }
                                 })
-                                .on("click", (event) => setSelectedEvent(d));
+                                .on("click", (event) => {
+                                    if (typeof setEditMode === 'function') setEditMode(false);
+                                    setSelectedEvent(d);
+                                });
                         });
                 } else {
                     svg.selectAll("circle")
@@ -679,7 +672,10 @@ const Timeline = (props) => {
                                     .attr("r", 14);
                             }
                         })
-                        .on("click", (event, d) => setSelectedEvent(d))
+                        .on("click", (event, d) => {
+                            if (typeof setEditMode === 'function') setEditMode(false);
+                            setSelectedEvent(d);
+                        })
                         .style("opacity", 0)
                         .transition()
                         .duration(500)
@@ -711,7 +707,10 @@ const Timeline = (props) => {
                 .append("g")
                 .attr("class", "event-label")
                 .attr("transform", (d, i) => `translate(${textX},${yScale(i)})`)
-                .on("click", (event, d) => setSelectedEvent(d)) // Make the whole label group clickable
+                .on("click", (event, d) => {
+                    if (typeof setEditMode === 'function') setEditMode(false);
+                    setSelectedEvent(d);
+                }) // Make the whole label group clickable
                 .each(function (d) {
                     const g = d3.select(this);
                     if (isMobile) {
@@ -1454,6 +1453,7 @@ const Timeline = (props) => {
                         setShowModal={() => {
                             setShowEventModal(false);
                             setSelectedEvent(null);
+                            if (typeof setEditMode === 'function') setEditMode(false);
                         }}
                         showModal={showEventModal}
                     />
