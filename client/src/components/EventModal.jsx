@@ -28,15 +28,15 @@ const EventModal = ({
 }) => {
   if (!selectedEvent || !showModal) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ marginTop: '6rem' }}>
+    <div className="fixed inset-0 z-[9999] flex items-start justify-center" style={{ marginTop: '6rem' }}>
       {/* Modal overlay - allow click to close */}
       <div
-        className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]"
+        className="fixed inset-0 z-[9999] bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]"
         onClick={setShowModal}
         style={{ cursor: 'pointer' }}
       />
       <div
-        className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
+        className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-[10000] flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl text-center"
         style={{
           maxHeight: '70vh',
           overflow: 'hidden',

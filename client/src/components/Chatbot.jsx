@@ -67,44 +67,63 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
 
   // Helper: render message content with clickable event links
   function renderMessageWithLinks(content, eventLinks) {
-    if (!eventLinks || eventLinks.length === 0) return <ReactMarkdown className="prose prose-invert max-w-none">{content}</ReactMarkdown>;
-    let result = [];
-    let lastIndex = 0;
-    let key = 0;
+    if (!eventLinks || eventLinks.length === 0) return (
+      <div className="prose prose-invert max-w-none">
+        <ReactMarkdown>{content}</ReactMarkdown>
+      </div>
+    );
+    // To avoid overlapping/duplicate replacements, process links in order of decreasing text length
+    const sortedLinks = [...eventLinks].sort((a, b) => (b.text.length - a.text.length));
     let workingContent = content;
-    // For each event link, replace the first occurrence of the text with a clickable link
-    eventLinks.forEach(link => {
-      const { id, text } = link;
-      if (!id || !text) return;
-      const idx = workingContent.indexOf(text, lastIndex);
-      if (idx === -1) return;
-      // Push text before the link
-      if (idx > lastIndex) {
-        result.push(workingContent.slice(lastIndex, idx));
-      }
-      // Find the event by id (strip 'event:' prefix if present)
-      const eventId = id.startsWith('event:') ? id.slice(6) : id;
-      const event = events.find(ev => String(ev.id) === String(eventId));
-      result.push(
-        <button
-          key={key++}
-          className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
-          style={{ cursor: 'pointer' }}
-          onClick={() => {
-            if (event && setSelectedEvent) setSelectedEvent(event);
-          }}
-          type="button"
-        >
-          {text}
-        </button>
-      );
-      lastIndex = idx + text.length;
-    });
-    // Push any remaining text
-    if (lastIndex < workingContent.length) {
-      result.push(workingContent.slice(lastIndex));
+    let result = [];
+    let key = 0;
+    let lastIndex = 0;
+    // Build a regex to match any of the link texts (escape special chars)
+    const escapeRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const linkTexts = sortedLinks.map(l => escapeRegExp(l.text));
+    if (linkTexts.length === 0) {
+      return <ReactMarkdown>{content}</ReactMarkdown>;
     }
-    return result;
+    const regex = new RegExp(linkTexts.join('|'), 'g');
+    let match;
+    let lastPos = 0;
+    while ((match = regex.exec(workingContent)) !== null) {
+      const matchText = match[0];
+      const matchIndex = match.index;
+      // Push text before the link
+      if (matchIndex > lastPos) {
+        result.push(workingContent.slice(lastPos, matchIndex));
+      }
+      // Find the link object for this text
+      const link = sortedLinks.find(l => l.text === matchText);
+      if (link) {
+        const eventId = link.id.startsWith('event:') ? link.id.slice(6) : link.id;
+        const event = events.find(ev => String(ev.id) === String(eventId));
+        result.push(
+          <button
+            key={key++}
+            className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
+            style={{ cursor: 'pointer' }}
+            onClick={() => {
+              if (event && setSelectedEvent) setSelectedEvent(event);
+            }}
+            type="button"
+          >
+            {matchText}
+          </button>
+        );
+      } else {
+        result.push(matchText);
+      }
+      lastPos = matchIndex + matchText.length;
+    }
+    // Push any remaining text
+    if (lastPos < workingContent.length) {
+      result.push(workingContent.slice(lastPos));
+    }
+    return result.length === 1 && typeof result[0] === 'string'
+      ? <ReactMarkdown>{result[0]}</ReactMarkdown>
+      : <>{result}</>;
   }
 
   return (

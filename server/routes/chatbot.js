@@ -34,10 +34,9 @@ async function getAllEvents() {
 // Helper: build OpenAI prompt
 function buildChatbotPrompt(events, messages, question) {
   const promptTemplate = fs.readFileSync(path.join(__dirname, '../data/chatbot_prompt.txt'), 'utf8');
-  // Format events as a readable string, using the [event:ID](Title) markdown link format
+  // Format events as a readable string
   const eventsStr = events.map(ev => {
-    // Use the [event:ID](Event Title) format for LLM to copy
-    return `- [event:${ev.id}] (${ev.date || ''}): ${ev.description || ''}`;
+    return `- id:\"${ev.id}\" title:${ev.title} year:${ev.date || ''} description:${ev.description || ''}`;
   }).join('\n');
   // Format conversation history
   const historyStr = messages.map(m => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.content}`).join('\n');

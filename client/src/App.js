@@ -7,6 +7,7 @@ import FiltersPopover from "./components/FiltersPopover";
 import AdminToolsModal from "./components/AdminToolsModal";
 import TagEvolutionChart from "./components/TagEvolutionChart";
 import Chatbot from "./components/Chatbot";
+import EventModal from "./components/EventModal";
 import "./index.css";
 
 function App() {
@@ -236,6 +237,9 @@ function App() {
         };
     }, [session?.access_token]);
     const isAllowed = session?.user && allowedEmails.map(e => e.toLowerCase()).includes(session.user.email.toLowerCase());
+
+    // Add state for controlling EventModal visibility
+    const showEventModal = !!selectedEvent;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0f2027] via-[#2c5364] to-[#232526] flex flex-col relative overflow-x-hidden">
@@ -558,6 +562,20 @@ function App() {
             </div>
             {/* Floating Chatbot */}
             {isAllowed && <Chatbot userId={session?.user?.id || null} events={events} setSelectedEvent={setSelectedEvent} />}
+
+            {/* Event Modal (always rendered at root, above all other modals) */}
+            <EventModal
+                selectedEvent={selectedEvent}
+                setShowModal={() => setSelectedEvent(null)}
+                showModal={showEventModal}
+                // Pass through editMode and handlers if needed, or leave as undefined
+                editMode={editMode}
+                setEditMode={setEditMode}
+                editError={editError}
+                setEditError={setEditError}
+                isAllowed={isAllowed}
+                // ...other props as needed (add here if you use editing)
+            />
         </div>
     );
 }
