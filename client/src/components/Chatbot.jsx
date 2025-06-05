@@ -11,6 +11,7 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [model, setModel] = useState("gpt-4.1-nano"); // Add model selection state
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -35,6 +36,7 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
           conversationId,
           message: input,
           userId,
+          model, // Send selected model
         }),
       });
       if (!res.ok) throw new Error("Failed to get response");
@@ -72,12 +74,10 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     );
-    // To avoid overlapping/duplicate replacements, process links in order of decreasing text length
     const sortedLinks = [...eventLinks].sort((a, b) => (b.text.length - a.text.length));
     let workingContent = content;
     let result = [];
     let key = 0;
-    let lastIndex = 0;
     // Build a regex to match any of the link texts (escape special chars)
     const escapeRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const linkTexts = sortedLinks.map(l => escapeRegExp(l.text));
@@ -92,50 +92,48 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
       const matchIndex = match.index;
       // Push text before the link
       if (matchIndex > lastPos) {
-        result.push(workingContent.slice(lastPos, matchIndex));
+        const textSegment = workingContent.slice(lastPos, matchIndex);
+        if (textSegment) {
+          result.push(
+            <ReactMarkdown key={key++}>{textSegment}</ReactMarkdown>
+          );
+        }
       }
       // Find the link object for this text
       const link = sortedLinks.find(l => l.text === matchText);
       if (link) {
         const eventId = link.id.startsWith('event:') ? link.id.slice(6) : link.id;
-        // Basic stricter matching: id must exist and text must appear in title or description (case-insensitive)
-        const event = events.find(ev => {
-          if (String(ev.id) !== String(eventId)) return false;
-          const text = link.text.toLowerCase();
-          return (
-            (ev.title && ev.title.toLowerCase().includes(text)) ||
-            (ev.description && ev.description.toLowerCase().includes(text))
-          );
-        });
-        if (event) {
-          result.push(
-            <button
-              key={key++}
-              className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
-              style={{ cursor: 'pointer' }}
-              onClick={() => {
-                if (setSelectedEvent) setSelectedEvent(event);
-              }}
-              type="button"
-            >
-              {matchText}
-            </button>
-          );
-        } else {
-          result.push(matchText);
-        }
+        const event = events.find(ev => String(ev.id) === String(eventId));
+        result.push(
+          <button
+            key={key++}
+            className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
+            style={{ cursor: 'pointer' }}
+            onClick={() => {
+              if (event && setSelectedEvent) setSelectedEvent(event);
+            }}
+            type="button"
+          >
+            {matchText}
+          </button>
+        );
       } else {
-        result.push(matchText);
+        result.push(
+          <ReactMarkdown key={key++}>{matchText}</ReactMarkdown>
+        );
       }
       lastPos = matchIndex + matchText.length;
     }
     // Push any remaining text
     if (lastPos < workingContent.length) {
-      result.push(workingContent.slice(lastPos));
+      const textSegment = workingContent.slice(lastPos);
+      if (textSegment) {
+        result.push(
+          <ReactMarkdown key={key++}>{textSegment}</ReactMarkdown>
+        );
+      }
     }
-    return result.length === 1 && typeof result[0] === 'string'
-      ? <ReactMarkdown>{result[0]}</ReactMarkdown>
-      : <>{result}</>;
+    return <div className="prose prose-invert max-w-none">{result}</div>;
   }
 
   return (
@@ -194,6 +192,20 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
                   &times;
                 </button>
               </div>
+            </div>
+            {/* Model selector below top bar */}
+            <div className="w-full flex justify-end px-4 pt-2 pb-1">
+              <label htmlFor="model-select" className="text-xs text-blue-200 mr-2 self-center">Model:</label>
+              <select
+                id="model-select"
+                value={model}
+                onChange={e => setModel(e.target.value)}
+                className="rounded bg-gray-900 text-blue-200 border border-blue-400 px-2 py-1 text-xs focus:outline-none shadow-sm hover:border-pink-400 transition-colors duration-150"
+                style={{ minWidth: 120 }}
+              >
+                <option value="gpt-4.1-nano">gpt-4.1-nano</option>
+                <option value="gpt-4.1-mini">gpt-4.1-mini</option>
+              </select>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-2 bg-transparent" style={{ maxHeight: 400 }}>
               {messages.length === 0 && (

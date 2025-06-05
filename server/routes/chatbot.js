@@ -49,9 +49,9 @@ function buildChatbotPrompt(events, messages, question) {
 
 // POST /api/chatbot
 router.post('/', async (req, res) => {
-  const { conversationId, message, userId } = req.body;
+  const { conversationId, message, userId, model } = req.body;
   let convId = conversationId;
-  console.log('[Chatbot] Incoming request:', { conversationId, message, userId });
+  console.log('[Chatbot] Incoming request:', { conversationId, message, userId, model });
   try {
     // 1. Create conversation if needed
     if (!convId) {
@@ -79,13 +79,14 @@ router.post('/', async (req, res) => {
     // 5. Call OpenAI
     const prompt = buildChatbotPrompt(events, messages, message);
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const selectedModel = model === 'gpt-4.1-mini' ? 'gpt-4.1-mini' : 'gpt-4.1-nano';
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-nano',
+      model: selectedModel,
       messages: [
         { role: 'system', content: 'You are a helpful AI history assistant.' },
         { role: 'user', content: prompt }
       ],
-      max_tokens: 512,
+      max_tokens: 1024,
       temperature: 0.1
     });
     const botReply = completion.choices[0].message.content.trim();
