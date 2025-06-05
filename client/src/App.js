@@ -50,6 +50,11 @@ function App() {
     const [searchLogic, setSearchLogic] = useState("AND");
     // Add state for hamburger menu
     const [showMenu, setShowMenu] = useState(false);
+    // Add state for localEditForm
+    const [localEditForm, setLocalEditForm] = useState(null);
+    // Add state for editBookMode and newBook
+    const [editBookMode, setEditBookMode] = useState('existing');
+    const [newBook, setNewBook] = useState('');
 
     // Fetch events function for use in Timeline
     const fetchEvents = async () => {
@@ -240,6 +245,107 @@ function App() {
 
     // Add state for controlling EventModal visibility
     const showEventModal = !!selectedEvent;
+
+    // --- LIFTED HANDLERS FOR MODAL ---
+    // These handlers use state from App.js and are passed to both Timeline and EventModal
+    const startEditEvent = () => {
+        if (!selectedEvent) return;
+        setEditMode(true);
+        setLocalEditForm({
+            title: selectedEvent.title || '',
+            description: selectedEvent.description || '',
+            book_reference: selectedEvent.book_reference || '',
+            year: selectedEvent.date ? new Date(selectedEvent.date).getFullYear().toString() : '',
+            tags: Array.isArray(selectedEvent.tags) ? selectedEvent.tags : (selectedEvent.tags ? selectedEvent.tags.split(/,\s*/) : []),
+            date_type: selectedEvent.date_type || 'CE',
+            regions: Array.isArray(selectedEvent.regions) ? selectedEvent.regions : (selectedEvent.regions ? selectedEvent.regions.split(/,\s*/) : []),
+            countries: Array.isArray(selectedEvent.countries) ? selectedEvent.countries : (selectedEvent.countries ? selectedEvent.countries.split(/,\s*/) : []),
+        });
+    };
+
+    // Add: handleEditSubmit for EventModal
+    const handleEditSubmit = async (e) => {
+        if (e) e.preventDefault();
+        setEditError("");
+        try {
+            const apiUrl = process.env.REACT_APP_API_URL;
+            const paddedYear = localEditForm.year ? localEditForm.year.toString().padStart(4, "0") : "";
+            const tagsArr = Array.isArray(localEditForm.tags) ? localEditForm.tags : (localEditForm.tags ? localEditForm.tags.split(/,\s*/) : []);
+            const regionsArr = Array.isArray(localEditForm.regions) ? localEditForm.regions : (localEditForm.regions ? localEditForm.regions.split(/,\s*/) : []);
+            const countriesArr = Array.isArray(localEditForm.countries) ? localEditForm.countries : (localEditForm.countries ? localEditForm.countries.split(/,\s*/) : []);
+            const response = await fetch(`${apiUrl}/events/${selectedEvent._id || selectedEvent.id}`,
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
+                    },
+                    body: JSON.stringify({
+                        ...localEditForm,
+                        date: paddedYear ? `${paddedYear}-01-01` : undefined,
+                        tags: tagsArr,
+                        regions: regionsArr,
+                        countries: countriesArr,
+                    })
+                }
+            );
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Failed to update event");
+            setEditMode(false);
+            setSelectedEvent(null);
+            await fetchEvents();
+        } catch (err) {
+            setEditError(err.message);
+        }
+    };
+
+    const handleDeleteEvent = async () => {
+        if (!selectedEvent) return;
+        if (!window.confirm("Are you sure you want to delete this event?")) return;
+        try {
+            const apiUrl = process.env.REACT_APP_API_URL;
+            const response = await fetch(`${apiUrl}/events/${selectedEvent._id || selectedEvent.id}`, {
+                method: "DELETE",
+                headers: {
+                    ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
+                }
+            });
+            if (!response.ok) throw new Error("Failed to delete event");
+            setSelectedEvent(null);
+            setEditMode(false);
+            await fetchEvents();
+        } catch (err) {
+            alert("Error deleting event: " + (err.message || err));
+        }
+    };
+
+    // Add a handler for edit form changes
+    const handleEditChange = (e) => {
+        const { name, value } = e.target;
+        setLocalEditForm(f => ({ ...f, [name]: value }));
+    };
+
+    // Utility functions for unique values (same as Timeline)
+    const getAllBooks = (events) => {
+        const bookSet = new Set();
+        (events || []).forEach(ev => ev.book_reference && bookSet.add(ev.book_reference));
+        return Array.from(bookSet).sort((a, b) => a.localeCompare(b));
+    };
+    const getAllTags = (events) => {
+        const tagSet = new Set();
+        (events || []).forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => tagSet.add(tag)));
+        return Array.from(tagSet).sort((a, b) => a.localeCompare(b));
+    };
+    const getAllRegions = (events) => {
+        const regionSet = new Set();
+        (events || []).forEach(ev => Array.isArray(ev.regions) && ev.regions.forEach(region => regionSet.add(region)));
+        return Array.from(regionSet).sort((a, b) => a.localeCompare(b));
+    };
+    const getAllCountries = (events) => {
+        const countrySet = new Set();
+        (events || []).forEach(ev => Array.isArray(ev.countries) && ev.countries.forEach(country => countrySet.add(country)));
+        return Array.from(countrySet).sort((a, b) => a.localeCompare(b));
+    };
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0f2027] via-[#2c5364] to-[#232526] flex flex-col relative overflow-x-hidden">
@@ -553,10 +659,11 @@ function App() {
                         setEditMode={setEditMode}
                         editError={editError}
                         setEditError={setEditError}
-                        // Remove the controls from Timeline itself
                         hideControls={true}
                         searchTerms={searchTerms}
-                        isAllowed={isAllowed} // Pass admin status to Timeline
+                        isAllowed={isAllowed}
+                        startEditEvent={startEditEvent}
+                        handleDeleteEvent={handleDeleteEvent}
                     />
                 )}
             </div>
@@ -568,13 +675,27 @@ function App() {
                 selectedEvent={selectedEvent}
                 setShowModal={() => setSelectedEvent(null)}
                 showModal={showEventModal}
-                // Pass through editMode and handlers if needed, or leave as undefined
                 editMode={editMode}
                 setEditMode={setEditMode}
                 editError={editError}
                 setEditError={setEditError}
                 isAllowed={isAllowed}
-                // ...other props as needed (add here if you use editing)
+                startEditEvent={startEditEvent}
+                handleDeleteEvent={handleDeleteEvent}
+                localEditForm={localEditForm}
+                setLocalEditForm={setLocalEditForm}
+                handleEditChange={handleEditChange}
+                editBookMode={editBookMode}
+                setEditBookMode={setEditBookMode}
+                newBook={newBook}
+                setNewBook={setNewBook}
+                getAllBooks={getAllBooks}
+                getAllTags={getAllTags}
+                getAllRegions={getAllRegions}
+                getAllCountries={getAllCountries}
+                validEvents={events}
+                handleEditSubmit={handleEditSubmit}
+                // ...other props as needed
             />
         </div>
     );

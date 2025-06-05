@@ -911,6 +911,7 @@ const Timeline = (props) => {
             });
             if (!response.ok) throw new Error("Failed to delete event");
             setSelectedEvent(null);
+            setShowEventModal(false); // Ensure modal closes after delete
             // Refetch events and update timeline
             const eventsRes = await fetch(`${apiUrl}/events`);
             const newEvents = await eventsRes.json();
