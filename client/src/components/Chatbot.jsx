@@ -3,7 +3,8 @@ import ReactMarkdown from "react-markdown";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
-function Chatbot({ userId }) {
+// Add props for events and setSelectedEvent
+function Chatbot({ userId, events = [], setSelectedEvent }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -46,6 +47,65 @@ function Chatbot({ userId }) {
       setLoading(false);
     }
   };
+
+  // Helper: extract JSON event links from the end of the message
+  function extractEventLinks(content) {
+    // Look for a JSON array at the end of the message
+    const jsonMatch = content.match(/\[\s*{[\s\S]*}\s*\]$/);
+    if (!jsonMatch) return [];
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch {
+      return [];
+    }
+  }
+
+  // Helper: remove the JSON event links from the message content
+  function stripEventLinks(content) {
+    return content.replace(/\[\s*{[\s\S]*}\s*\]$/, '').trim();
+  }
+
+  // Helper: render message content with clickable event links
+  function renderMessageWithLinks(content, eventLinks) {
+    if (!eventLinks || eventLinks.length === 0) return <ReactMarkdown className="prose prose-invert max-w-none">{content}</ReactMarkdown>;
+    let result = [];
+    let lastIndex = 0;
+    let key = 0;
+    let workingContent = content;
+    // For each event link, replace the first occurrence of the text with a clickable link
+    eventLinks.forEach(link => {
+      const { id, text } = link;
+      if (!id || !text) return;
+      const idx = workingContent.indexOf(text, lastIndex);
+      if (idx === -1) return;
+      // Push text before the link
+      if (idx > lastIndex) {
+        result.push(workingContent.slice(lastIndex, idx));
+      }
+      // Find the event by id (strip 'event:' prefix if present)
+      const eventId = id.startsWith('event:') ? id.slice(6) : id;
+      const event = events.find(ev => String(ev.id) === String(eventId));
+      result.push(
+        <button
+          key={key++}
+          className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
+          style={{ cursor: 'pointer' }}
+          onClick={() => {
+            if (event && setSelectedEvent) setSelectedEvent(event);
+          }}
+          type="button"
+        >
+          {text}
+        </button>
+      );
+      lastIndex = idx + text.length;
+    });
+    // Push any remaining text
+    if (lastIndex < workingContent.length) {
+      result.push(workingContent.slice(lastIndex));
+    }
+    return result;
+  }
 
   return (
     <>
@@ -108,24 +168,34 @@ function Chatbot({ userId }) {
               {messages.length === 0 && (
                 <div className="text-gray-400 text-sm text-center mt-8">Ask me anything about history!</div>
               )}
-              {messages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`my-2 flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`px-3 py-2 rounded-xl max-w-[80%] text-sm shadow ${
-                      msg.sender === "user"
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-700 text-gray-100"
-                    }`}
-                  >
-                    {msg.sender === "user"
-                      ? msg.content
-                      : <ReactMarkdown className="prose prose-invert max-w-none">{msg.content}</ReactMarkdown>}
-                  </div>
-                </div>
-              ))}
+              {messages.map((msg, idx) => {
+                if (msg.sender === "user") {
+                  return (
+                    <div
+                      key={idx}
+                      className={`my-2 flex justify-end`}
+                    >
+                      <div className="px-3 py-2 rounded-xl max-w-[80%] text-sm shadow bg-blue-500 text-white">
+                        {msg.content}
+                      </div>
+                    </div>
+                  );
+                } else {
+                  // For bot messages, extract event links and strip them from the visible content
+                  const eventLinks = extractEventLinks(msg.content);
+                  const visibleContent = stripEventLinks(msg.content);
+                  return (
+                    <div
+                      key={idx}
+                      className={`my-2 flex justify-start`}
+                    >
+                      <div className="px-3 py-2 rounded-xl max-w-[80%] text-sm shadow bg-gray-700 text-gray-100">
+                        {renderMessageWithLinks(visibleContent, eventLinks)}
+                      </div>
+                    </div>
+                  );
+                }
+              })}
               {loading && (
                 <div className="my-2 flex justify-start">
                   <div className="px-3 py-2 rounded-xl max-w-[80%] text-sm shadow bg-gray-700 text-gray-100 flex items-center">

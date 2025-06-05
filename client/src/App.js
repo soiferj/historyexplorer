@@ -557,7 +557,7 @@ function App() {
                 )}
             </div>
             {/* Floating Chatbot */}
-            {isAllowed && <Chatbot userId={session?.user?.id || null} />}
+            {isAllowed && <Chatbot userId={session?.user?.id || null} events={events} setSelectedEvent={setSelectedEvent} />}
         </div>
     );
 }
