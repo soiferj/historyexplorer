@@ -90,12 +90,12 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
     while ((match = regex.exec(workingContent)) !== null) {
       const matchText = match[0];
       const matchIndex = match.index;
-      // Push text before the link
+      // Push text before the link as a span (inline)
       if (matchIndex > lastPos) {
         const textSegment = workingContent.slice(lastPos, matchIndex);
         if (textSegment) {
           result.push(
-            <ReactMarkdown key={key++}>{textSegment}</ReactMarkdown>
+            <span key={key++}>{textSegment}</span>
           );
         }
       }
@@ -108,7 +108,7 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
           <button
             key={key++}
             className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', display: 'inline', background: 'none' }}
             onClick={() => {
               if (event && setSelectedEvent) setSelectedEvent(event);
             }}
@@ -119,21 +119,21 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
         );
       } else {
         result.push(
-          <ReactMarkdown key={key++}>{matchText}</ReactMarkdown>
+          <span key={key++}>{matchText}</span>
         );
       }
       lastPos = matchIndex + matchText.length;
     }
-    // Push any remaining text
+    // Push any remaining text as a span (inline)
     if (lastPos < workingContent.length) {
       const textSegment = workingContent.slice(lastPos);
       if (textSegment) {
         result.push(
-          <ReactMarkdown key={key++}>{textSegment}</ReactMarkdown>
+          <span key={key++}>{textSegment}</span>
         );
       }
     }
-    return <div className="prose prose-invert max-w-none">{result}</div>;
+    return <div className="prose prose-invert max-w-none" style={{ display: 'inline' }}>{result}</div>;
   }
 
   return (
