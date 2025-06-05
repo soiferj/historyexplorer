@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import * as d3 from "d3";
+import EventModal from './EventModal';
 
 // Color palette for tags/books (define once for use in both UI and D3)
 const colorPalette = [
@@ -1019,6 +1020,18 @@ const Timeline = (props) => {
       }
     };
 
+    // Add state for controlling the EventModal visibility
+    const [showEventModal, setShowEventModal] = useState(false);
+
+    // When an event is selected, open the modal
+    useEffect(() => {
+      if (selectedEvent) {
+        setShowEventModal(true);
+      } else {
+        setShowEventModal(false);
+      }
+    }, [selectedEvent]);
+
     return (
         <>
             <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
@@ -1414,499 +1427,35 @@ const Timeline = (props) => {
                     <svg ref={svgRef} className="timeline-svg w-full min-w-[340px] sm:min-w-0" />
                 </div>
 
-                {selectedEvent && (
-                    <div className="fixed inset-0 z-50 flex items-start justify-center" style={{ marginTop: '6rem' }}>
-                        {/* Modal overlay */}
-                        <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => { setSelectedEvent(null); setEditMode(false); }} />
-                        {/* Modal content */}
-                        <div
-                            className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl"
-                            style={{
-                                maxHeight: '70vh',
-                                overflow: 'hidden',
-                                margin: '1rem',
-                                boxSizing: 'border-box',
-                            }}
-                        >
-                            <button
-                                className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
-                                onClick={() => { setSelectedEvent(null); setEditMode(false); }}
-                                aria-label="Close modal"
-                            >
-                                &times;
-                            </button>
-                                                       {/* Scrollable content wrapper for mobile */}
-                            <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
-                                {/* Edit mode toggle */}
-                                {editMode ? (
-                                    <div style={{width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)'}}>
-                                        <form onSubmit={handleEditSubmit} className="w-full flex flex-col gap-8 items-center">
-                                            {/* Error at the top */}
-                                                                                       {editError && <div className="text-red-400 mb-4 text-center w-full max-w-md mx-auto font-semibold">{editError}</div>}
-                                            <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Edit Event</h2>
-                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-title">Title</label>
-                                                <input id="edit-title" name="title" value={localEditForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
-                                            </div>
-                                            <div className="flex flex-row gap-4 w-full max-w-md mx-auto">
-                                                <div className="flex flex-col gap-2 text-left w-1/2">
-                                                    <label className="font-semibold text-blue-200" htmlFor="edit-year">Year</label>
-                                                    <input id="edit-year" name="year" value={localEditForm.year} onChange={handleEditChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" maxLength={4} />
-                                                </div>
-                                                <div className="flex flex-col gap-2 text-left w-1/2">
-                                                    <label className="font-semibold text-blue-200" htmlFor="edit-date_type">Date Type</label>
-                                                    <select id="edit-date_type" name="date_type" value={localEditForm.date_type} onChange={handleEditChange} className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner">
-                                                        <option value="BCE">BCE</option>
-                                                        <option value="CE">CE</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-book_reference">Book</label>
-                                                <div className="flex mb-2">
-                                                  <button
-                                                    type="button"
-                                                    className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editBookMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
-                                                    onClick={() => setEditBookMode('existing')}
-                                                    aria-pressed={editBookMode === 'existing'}
-                                                    style={{ marginRight: '-1px', zIndex: editBookMode === 'existing' ? 2 : 1 }}
-                                                    disabled={!!localEditForm.book_reference}
-                                                  >
-                                                    Existing
-                                                  </button>
-                                                  <button
-                                                    type="button"
-                                                    className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editBookMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40${localEditForm.book_reference ? ' opacity-60 cursor-not-allowed' : ''}`}
-                                                    onClick={() => {
-                                                                                                           if (!localEditForm.book_reference) setEditBookMode('new');
-                                                    }}
-                                                    aria-pressed={editBookMode === 'new'}
-                                                    style={{ marginLeft: '-1px', zIndex: editBookMode === 'new' ? 2 : 1 }}
-                                                    disabled={!!localEditForm.book_reference}
-                                                  >
-                                                    New
-                                                  </button>
-                                                </div>
-                                                {editBookMode === 'existing' ? (
-                                                  <div className="flex flex-wrap gap-2">
-                                                    {localEditForm.book_reference ? (
-                                                      <span className="bg-pink-200 text-pink-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                                                        {localEditForm.book_reference}
-                                                        <button type="button" className="ml-1 text-pink-600 hover:text-pink-800 font-bold" aria-label={`Remove book ${localEditForm.book_reference}`} onClick={() => setLocalEditForm(f => ({ ...f, book_reference: "" }))}>&times;</button>
-                                                      </span>
-                                                    ) : (
-                                                      <>
-                                                        <span className="text-gray-400 italic">No book</span>
-                                                        <select
-                                                          className="ml-2 p-1 rounded bg-gray-700 text-white border border-blue-400/40 text-xs"
-                                                          value=""
-                                                          onChange={e => {
-                                                            const val = e.target.value;
-                                                            if (val) setLocalEditForm(f => ({ ...f, book_reference: val }));
-                                                          }}
-                                                        >
-                                                          <option value="">+ Add book...</option>
-                                                          {getAllBooks(validEvents).map(book => (
-                                                            <option key={book} value={book}>{book}</option>
-                                                          ))}
-                                                        </select>
-                                                      </>
-                                                    )}
-                                                  </div>
-                                                ) : (
-                                                  <div className="flex gap-2">
-                                                    <input type="text" value={newBook} onChange={e => setNewBook(e.target.value)} placeholder="Add book" className="p-2 rounded bg-gray-800/80 text-white border border-blue-400/40 placeholder:text-gray-400" />
-                                                    <button
-                                                      type="button"
-                                                      className="px-2 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
-                                                      disabled={!!localEditForm.book_reference || !newBook}
-                                                      onClick={() => {
-                                                        if (newBook && !localEditForm.book_reference) {
-                                                          setLocalEditForm(f => ({ ...f, book_reference: newBook }));
-                                                          setNewBook("");
-                                                          setEditBookMode('existing');
-                                                        }
-                                                      }}
-                                                    >Add</button>
-                                                  </div>
-                                                )}
-                                            </div>
-                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-description">Description</label>
-                                                <textarea id="edit-description" name="description" value={localEditForm.description} onChange={handleEditChange} placeholder="Description" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner min-h-[80px] resize-vertical placeholder:text-gray-400" />
-                                                <button
-                                                    type="button"
-                                                    className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
-                                                    disabled={regenDescriptionLoading}
-                                                    onClick={async () => {
-                                                        setEditError("");
-                                                        setRegenDescriptionLoading(true);
-                                                                                                               try {
-                                                            const response = await fetch(`${apiUrl}/events/enrich-description`, {
-                                                                method: "POST",
-                                                                headers: {
-                                                                    "Content-Type": "application/json",
-                                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                                                                },
-                                                                body: JSON.stringify({
-                                                                    title: localEditForm.title,
-                                                                    date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
-                                                                })
-                                                            });
-                                                            const data = await response.json();
-                                                            if (data && data.description) {
-                                                                setLocalEditForm(f => ({ ...f, description: data.description }));
-                                                            } else if (data && data.error) {
-                                                                setEditError("Failed to regenerate description: " + data.error);
-                                                            } else {
-                                                                setEditError("Failed to regenerate description");
-                                                            }
-                                                        } catch (err) {
-                                                            setEditError("Failed to regenerate description");
-                                                        } finally {
-                                                            setRegenDescriptionLoading(false);
-                                                        }
-                                                    }}
-                                                >
-                                                    {regenDescriptionLoading ? "Regenerating..." : "Regenerate Description"}
-                                                </button>
-                                            </div>
-                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-tags">Tags</label>
-                                                <div className="flex mb-2">
-                                                  <button type="button" className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editTagMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
-                                                  onClick={() => setEditTagMode('existing')}
-                                                  aria-pressed={editTagMode === 'existing'}
-                                                  style={{ marginRight: '-1px', zIndex: editTagMode === 'existing' ? 2 : 1 }}
-                                                  >
-                                                    Existing
-                                                  </button>
-                                                  <button
-                                                    type="button"
-                                                    className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editTagMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
-                                                    onClick={() => setEditTagMode('new')}
-                                                    aria-pressed={editTagMode === 'new'}
-                                                  style={{ marginLeft: '-1px', zIndex: editTagMode === 'new' ? 2 : 1 }}
-                                                  >
-                                                    New
-                                                  </button>
-                                                </div>
-                                                {editTagMode === 'existing' ? (
-                                                  <div className="flex flex-wrap gap-2">
-                                                    {(localEditForm.tags || []).map((tag, idx) => (
-                                                      <span key={tag} className="bg-blue-200 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                                                        {tag}
-                                                        <button type="button" className="ml-1 text-pink-600 hover:text-pink-800 font-bold" aria-label={`Remove tag ${tag}`} onClick={() => setLocalEditForm(f => ({ ...f, tags: f.tags.filter((t, i) => i !== idx) }))}>&times;</button>
-                                                      </span>
-                                                    ))}
-                                                    {localEditForm.tags?.length === 0 && <span className="text-gray-400 italic">No tags</span>}
-                                                    <select
-                                                      className="ml-2 p-1 rounded bg-gray-700 text-white border border-blue-400/40 text-xs"
-                                                      value=""
-                                                      onChange={e => {
-                                                        const val = e.target.value;
-                                                        if (val && !localEditForm.tags.includes(val)) {
-                                                          setLocalEditForm(f => ({ ...f, tags: [...(f.tags || []), val] }));
-                                                        }
-                                                      }}
-                                                    >
-                                                      <option value="">+ Add tag...</option>
-                                                      {getAllTags(allEvents).filter(tag => !localEditForm.tags.includes(tag)).map(tag => (
-                                                        <option key={tag} value={tag}>{tag}</option>
-                                                      ))}
-                                                    </select>
-                                                  </div>
-                                                ) : (
-                                                  <div className="flex gap-2">
-                                                    <input type="text" value={newTag} onChange={e => setNewTag(e.target.value)} placeholder="Add tag" className="p-2 rounded bg-gray-800/80 text-white border border-blue-400/40 placeholder:text-gray-400" />
-                                                    <button type="button" className="px-2 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow" onClick={() => {
-                                                      if (newTag && !localEditForm.tags.includes(newTag)) {
-                                                        setLocalEditForm(f => ({ ...f, tags: [...(f.tags || []), newTag] }));
-                                                        setNewTag("");
-                                                        setEditTagMode('existing');
-                                                      }
-                                                    }}>Add</button>
-                                                  </div>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
-                                                    disabled={regenTagsLoading}
-                                                    onClick={async () => {
-                                                      setEditError("");
-                                                      setRegenTagsLoading(true);
-                                                      try {
-                                                        const response = await fetch(`${apiUrl}/events/enrich-tags`, {
-                                                          method: "POST",
-                                                          headers: {
-                                                            "Content-Type": "application/json",
-                                                            ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                                                          },
-                                                          body: JSON.stringify({
-                                                            title: localEditForm.title,
-                                                            date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
-                                                          })
-                                                        });
-                                                        const data = await response.json();
-                                                        if (data && data.tags) {
-                                                          setLocalEditForm(f => ({ ...f, tags: data.tags }));
-                                                        } else if (data && data.error) {
-                                                          setEditError("Failed to regenerate tags: " + data.error);
-                                                        } else {
-                                                          setEditError("Failed to regenerate tags");
-                                                        }
-                                                      } catch (err) {
-                                                        setEditError("Failed to regenerate tags");
-                                                      } finally {
-                                                        setRegenTagsLoading(false);
-                                                      }
-                                                    }}
-                                                >
-                                                  {regenTagsLoading ? "Regenerating..." : "Regenerate Tags"}
-                                                </button>
-                                            </div>
-                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-regions">Regions</label>
-                                                <div className="flex mb-2">
-                                                  <button type="button" className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editRegionMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
-                                                  onClick={() => setEditRegionMode('existing')}
-                                                  aria-pressed={editRegionMode === 'existing'}
-                                                  style={{ marginRight: '-1px', zIndex: editRegionMode === 'existing' ? 2 : 1 }}
-                                                  >
-                                                    Existing
-                                                  </button>
-                                                  <button
-                                                    type="button"
-                                                    className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editRegionMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
-                                                    onClick={() => setEditRegionMode('new')}
-                                                    aria-pressed={editRegionMode === 'new'}
-                                                    style={{ marginLeft: '-1px', zIndex: editRegionMode === 'new' ? 2 : 1 }}
-                                                  >
-                                                    New
-                                                  </button>
-                                                </div>
-                                                {editRegionMode === 'existing' ? (
-                                                  <div className="flex flex-wrap gap-2">
-                                                    {(localEditForm.regions || []).map((region, idx) => (
-                                                      <span key={region} className="bg-green-200 text-green-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                                                        {region}
-                                                        <button type="button" className="ml-1 text-pink-600 hover:text-pink-800 font-bold" aria-label={`Remove region ${region}`} onClick={() => setLocalEditForm(f => ({ ...f, regions: f.regions.filter((r, i) => i !== idx) }))}>&times;</button>
-                                                      </span>
-                                                    ))}
-                                                    {localEditForm.regions?.length === 0 && <span className="text-gray-400 italic">No regions</span>}
-                                                    <select
-                                                      className="ml-2 p-1 rounded bg-gray-700 text-white border border-blue-400/40 text-xs"
-                                                      value=""
-                                                      onChange={e => {
-                                                        const val = e.target.value;
-                                                        if (val && !localEditForm.regions.includes(val)) {
-                                                          setLocalEditForm(f => ({ ...f, regions: [...(f.regions || []), val] }));
-                                                        }
-                                                      }}
-                                                    >
-                                                      <option value="">+ Add region...</option>
-                                                      {getAllRegions(allEvents).filter(region => !localEditForm.regions.includes(region)).map(region => (
-                                                        <option key={region} value={region}>{region}</option>
-                                                      ))}
-                                                    </select>
-                                                  </div>
-                                                ) : (
-                                                  <div className="flex gap-2">
-                                                    <input type="text" value={newRegion} onChange={e => setNewRegion(e.target.value)} placeholder="Add region" className="p-2 rounded bg-gray-800/80 text-white border border-blue-400/40 placeholder:text-gray-400" />
-                                                    <button type="button" className="px-2 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow" onClick={() => {
-                                                      if (newRegion && !localEditForm.regions.includes(newRegion)) {
-                                                        setLocalEditForm(f => ({ ...f, regions: [...(f.regions || []), newRegion] }));
-                                                        setNewRegion("");
-                                                        setEditRegionMode('existing');
-                                                      }
-                                                    }}>Add</button>
-                                                  </div>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
-                                                    disabled={regenRegionsLoading}
-                                                    onClick={async () => {
-                                                      setEditError("");
-                                                      setRegenRegionsLoading(true);
-                                                      try {
-                                                        const response = await fetch(`${apiUrl}/events/enrich-tags`, {
-                                                          method: "POST",
-                                                          headers: {
-                                                            "Content-Type": "application/json",
-                                                            ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                                                          },
-                                                          body: JSON.stringify({
-                                                            title: localEditForm.title,
-                                                            date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
-                                                          })
-                                                        });
-                                                        const data = await response.json();
-                                                        if (data && Array.isArray(data.regions)) {
-                                                          setLocalEditForm(f => ({ ...f, regions: data.regions }));
-                                                        } else if (data && data.error) {
-                                                          setEditError("Failed to regenerate regions: " + data.error);
-                                                        } else {
-                                                          setEditError("Failed to regenerate regions");
-                                                        }
-                                                      } catch (err) {
-                                                        setEditError("Failed to regenerate regions");
-                                                      } finally {
-                                                        setRegenRegionsLoading(false);
-                                                      }
-                                                    }}
-                                                  >
-                                                    {regenRegionsLoading ? "Regenerating..." : "Regenerate Regions"}
-                                                  </button>
-                                            </div>
-                                            <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
-                                                                                               <label className="font-semibold text-blue-200" htmlFor="edit-countries">Countries</label>
-                                                <div className="flex mb-2">
-                                                  <button type="button" className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${editCountryMode === 'existing' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
-                                                  onClick={() => setEditCountryMode('existing')}
-                                                  aria-pressed={editCountryMode === 'existing'}
-                                                  style={{ marginRight: '-1px', zIndex: editCountryMode === 'existing' ? 2 : 1 }}
-                                                  >
-                                                    Existing
-                                                  </button>
-                                                  <button
-                                                    type="button"
-                                                    className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${editCountryMode === 'new' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
-                                                    onClick={() => setEditCountryMode('new')}
-                                                    aria-pressed={editCountryMode === 'new'}
-                                                    style={{ marginLeft: '-1px', zIndex: editCountryMode === 'new' ? 2 : 1 }}
-                                                  >
-                                                    New
-                                                  </button>
-                                                </div>
-                                                {editCountryMode === 'existing' ? (
-                                                  <div className="flex flex-wrap gap-2">
-                                                    {(localEditForm.countries || []).map((country, idx) => (
-                                                      <span key={country} className="bg-yellow-200 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
-                                                        {country}
-                                                        <button type="button" className="ml-1 text-pink-600 hover:text-pink-800 font-bold" aria-label={`Remove country ${country}`} onClick={() => setLocalEditForm(f => ({ ...f, countries: f.countries.filter((c, i) => i !== idx) }))}>&times;</button>
-                                                      </span>
-                                                    ))}
-                                                    {localEditForm.countries?.length === 0 && <span className="text-gray-400 italic">No countries</span>}
-                                                    <select
-                                                      className="ml-2 p-1 rounded bg-gray-700 text-white border border-blue-400/40 text-xs"
-                                                      value=""
-                                                      onChange={e => {
-                                                        const val = e.target.value;
-                                                        if (val && !localEditForm.countries.includes(val)) {
-                                                          setLocalEditForm(f => ({ ...f, countries: [...(f.countries || []), val] }));
-                                                        }
-                                                      }}
-                                                    >
-                                                      <option value="">+ Add country...</option>
-                                                      {getAllCountries(allEvents).filter(country => !localEditForm.countries.includes(country)).map(country => (
-                                                        <option key={country} value={country}>{country}</option>
-                                                      ))}
-                                                    </select>
-                                                  </div>
-                                                ) : (
-                                                  <div className="flex gap-2">
-                                                    <input type="text" value={newCountry} onChange={e => setNewCountry(e.target.value)} placeholder="Add country" className="p-2 rounded bg-gray-800/80 text-white border border-blue-400/40 placeholder:text-gray-400" />
-                                                    <button type="button" className="px-2 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow" onClick={() => {
-                                                      if (newCountry && !localEditForm.countries.includes(newCountry)) {
-                                                        setLocalEditForm(f => ({ ...f, countries: [...(f.countries || []), newCountry] }));
-                                                        setNewCountry("");
-                                                        setEditCountryMode('existing');
-                                                      }
-                                                    }}>Add</button>
-                                                  </div>
-                                                )}
-                                                <button
-                                                    type="button"
-                                                    className="mt-2 px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow self-end disabled:opacity-60 disabled:cursor-not-allowed"
-                                                    disabled={regenCountriesLoading}
-                                                    onClick={async () => {
-                                                      setEditError("");
-                                                      setRegenCountriesLoading(true);
-                                                      try {
-                                                        const response = await fetch(`${apiUrl}/events/enrich-tags`, {
-                                                          method: "POST",
-                                                          headers: {
-                                                            "Content-Type": "application/json",
-                                                            ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                                                          },
-                                                          body: JSON.stringify({
-                                                            title: localEditForm.title,
-                                                            date: localEditForm.year ? `${localEditForm.year.padStart(4, "0")}-01-01` : undefined
-                                                          })
-                                                        });
-                                                        const data = await response.json();
-                                                        if (data && Array.isArray(data.countries)) {
-                                                          setLocalEditForm(f => ({ ...f, countries: data.countries }));
-                                                        } else if (data && data.error) {
-                                                          setEditError("Failed to regenerate countries: " + data.error);
-                                                        } else {
-                                                          setEditError("Failed to regenerate countries");
-                                                        }
-                                                      } catch (err) {
-                                                        setEditError("Failed to regenerate countries");
-                                                      } finally {
-                                                        setRegenCountriesLoading(false);
-                                                      }
-                                                    }}
-                                                  >
-                                                    {regenCountriesLoading ? "Regenerating..." : "Regenerate Countries"}
-                                                  </button>
-                                            </div>
-                                            <div className="flex gap-2 mt-2 justify-center w-full max-w-md mx-auto">
-                                                <button type="submit" className="bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 p-3 rounded-xl font-bold text-white shadow-xl transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed glow w-full" disabled={submitting}>
-                                                  {submitting ? (<><Spinner />Saving...</>) : "Save"}
-                                                </button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                ) : (
-                                    <>
-                                        {/* Title */}
-                                        <h2 className="text-3xl font-bold text-blue-400 fancy-heading">{selectedEvent.title}</h2>
-                                        {/* Year */}
-                                        <p className="text-blue-200 mb-2 text-lg">{new Date(selectedEvent.date).getFullYear()} {selectedEvent.date_type}</p>
-                                        {/* Book Reference */}
-                                        {selectedEvent.book_reference && (
-                                            <p className="mt-2 text-pink-300">Book: {selectedEvent.book_reference}</p>
-                                        )}
-                                        {/* Description */}
-                                        <p className="text-gray-200 mb-4 whitespace-pre-line">{selectedEvent.description}</p>
-                                        {/* Tags */}
-                                        {selectedEvent.tags && selectedEvent.tags.length > 0 && (
-                                            <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                                                <span className="bg-gradient-to-r from-blue-200 to-pink-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic shadow">
-                                                    <span className="italic font-normal text-gray-700 mr-1">Tags: </span>{selectedEvent.tags.join(", ")}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {/* Regions */}
-                                        {selectedEvent.regions && selectedEvent.regions.length > 0 && (
-                                            <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                                                <span className="bg-gradient-to-r from-blue-200 to-pink-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic shadow">
-                                                    <span className="italic font-normal text-gray-700 mr-1">Regions: </span>{selectedEvent.regions.join(", ")}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {/* Countries */}
-                                        {selectedEvent.countries && selectedEvent.countries.length > 0 && (
-                                            <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                                                <span className="bg-gradient-to-r from-blue-200 to-pink-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic shadow">
-                                                    <span className="italic font-normal text-gray-700 mr-1">Countries: </span>{selectedEvent.countries.join(", ")}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {isAllowed && (
-                                            <div className="flex flex-row gap-2 mt-6 justify-center opacity-70 hover:opacity-100 transition-opacity">
-                                                <button className="bg-gradient-to-r from-blue-500 to-pink-500 text-white px-4 py-2 rounded glow font-bold shadow transition-all duration-300" onClick={startEditEvent}>Edit</button>
-                                                <button className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded font-bold shadow hover:from-red-600 hover:to-pink-700 transition-all duration-300" onClick={handleDeleteEvent}>Delete</button>
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </div>
-                        </div>
-                    </div>
+                {selectedEvent && showEventModal && (
+                    <EventModal
+                        selectedEvent={selectedEvent}
+                        editMode={editMode}
+                        handleEditSubmit={handleEditSubmit}
+                        handleEditChange={handleEditChange}
+                        localEditForm={localEditForm}
+                        editError={editError}
+                        editBookMode={editBookMode}
+                        setEditBookMode={setEditBookMode}
+                        newBook={newBook}
+                        setNewBook={setNewBook}
+                        getAllBooks={getAllBooks}
+                        validEvents={validEvents}
+                        regenDescriptionLoading={regenDescriptionLoading}
+                        regenTagsLoading={regenTagsLoading}
+                        regenRegionsLoading={regenRegionsLoading}
+                        regenCountriesLoading={regenCountriesLoading}
+                        handleDeleteEvent={handleDeleteEvent}
+                        startEditEvent={startEditEvent}
+                        submitting={submitting}
+                        Spinner={Spinner}
+                        isAllowed={isAllowed}
+                        setShowModal={() => {
+                            setShowEventModal(false);
+                            setSelectedEvent(null);
+                        }}
+                        showModal={showEventModal}
+                    />
                 )}
             </div>
         </>
