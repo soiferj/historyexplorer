@@ -47,6 +47,57 @@ function buildChatbotPrompt(events, messages, question) {
     .replace('{question}', question);
 }
 
+// Helper: fetch events with filters
+async function getFilteredEvents(filters) {
+  console.log('[Chatbot] getFilteredEvents filters:', filters);
+  let { data, error } = await supabase.from('events').select('*');
+  if (error) throw error;
+  let filtered = data || [];
+  // If neither filter, return all
+  if ((!filters.tags || filters.tags.length === 0) && (!filters.text || filters.text.length === 0)) {
+    return filtered;
+  }
+  // Prepare lowercase filters
+  const filterTagsLower = (filters.tags || []).map(t => t.toLowerCase());
+  const textFiltersLower = (filters.text || []).map(t => t.toLowerCase());
+  // OR-join: keep event if it matches tag OR text
+  filtered = filtered.filter(ev => {
+    let tagMatch = false;
+    let textMatch = false;
+    if (filterTagsLower.length > 0 && Array.isArray(ev.tags)) {
+      tagMatch = ev.tags.some(tag => filterTagsLower.includes(tag.toLowerCase()));
+    }
+    if (textFiltersLower.length > 0) {
+      const title = (ev.title || '').toLowerCase();
+      const description = (ev.description || '').toLowerCase();
+      textMatch = textFiltersLower.some(t => title.includes(t) || description.includes(t));
+    }
+    return tagMatch || textMatch;
+  });
+  console.log('[Chatbot] getFilteredEvents result after OR filter:', filtered.length);
+  return filtered;
+}
+
+// Helper: build filter prompt for LLM
+function buildFilterPrompt(messages, question, tags) {
+  const promptTemplate = fs.readFileSync(path.join(__dirname, '../data/chatbot_filter_prompt.txt'), 'utf8');
+  const historyStr = messages.map(m => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.content}`).join('\n');
+  const tagsStr = tags.join('\n');
+  return promptTemplate
+    .replace('{tags}', tagsStr)
+    .replace('{history}', historyStr)
+    .replace('{question}', question);
+}
+
+// Helper: fetch all unique tags from events
+async function getAllTags() {
+  const { data, error } = await supabase.from('events').select('tags');
+  if (error) throw error;
+  const tagSet = new Set();
+  (data || []).forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => tagSet.add(tag)));
+  return Array.from(tagSet).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+}
+
 // POST /api/chatbot
 router.post('/', async (req, res) => {
   const { conversationId, message, userId, model } = req.body;
@@ -73,13 +124,39 @@ router.post('/', async (req, res) => {
     // 3. Fetch conversation history
     const messages = await getConversationMessages(convId);
     console.log('[Chatbot] Conversation history:', messages);
-    // 4. Fetch events (for context)
-    const events = await getAllEvents();
-    console.log('[Chatbot] Events count:', events.length);
-    // 5. Call OpenAI
-    const prompt = buildChatbotPrompt(events, messages, message);
+    // 3.5. Fetch all unique tags
+    const tags = await getAllTags();
+    // 4. Use LLM to generate event filters
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const filterPrompt = buildFilterPrompt(messages, message, tags);
     const selectedModel = model === 'gpt-4.1-mini' ? 'gpt-4.1-mini' : 'gpt-4.1-nano';
+    const filterCompletion = await openai.chat.completions.create({
+      model: selectedModel,
+      messages: [
+        { role: 'system', content: 'You are an expert at generating search filters for historical events.' },
+        { role: 'user', content: filterPrompt }
+      ],
+      max_tokens: 256,
+      temperature: 0.1
+    });
+    let filters = { text: [], tags: [], dateRange: [] };
+    try {
+      filters = JSON.parse(filterCompletion.choices[0].message.content);
+    } catch (e) {
+      console.warn('[Chatbot] Could not parse filters, using all events.', e);
+    }
+    console.log('[Chatbot] Filters selected:', filters);
+    // 5. Fetch filtered events
+    let events = [];
+    try {
+      events = await getFilteredEvents(filters);
+    } catch (e) {
+      console.warn('[Chatbot] Error fetching filtered events, falling back to all events.', e);
+      events = await getAllEvents();
+    }
+    console.log('[Chatbot] Filtered events count:', events.length);
+    // 6. Call OpenAI for chatbot reply
+    const prompt = buildChatbotPrompt(events, messages, message);
     const completion = await openai.chat.completions.create({
       model: selectedModel,
       messages: [
@@ -90,13 +167,13 @@ router.post('/', async (req, res) => {
       temperature: 0.1
     });
     const botReply = completion.choices[0].message.content.trim();
-    // 6. Store bot response
+    // 7. Store bot response
     const { error: botErr } = await supabase
       .from('messages')
       .insert([{ conversation_id: convId, sender: 'bot', content: botReply }]);
     console.log('[Chatbot] Stored bot reply:', botErr);
     if (botErr) throw botErr;
-    // 7. Return conversationId and all messages
+    // 8. Return conversationId and all messages
     const updatedMessages = await getConversationMessages(convId);
     console.log('[Chatbot] Returning messages:', updatedMessages);
     res.json({ conversationId: convId, messages: updatedMessages });

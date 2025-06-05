@@ -1,0 +1,11 @@
+Given the following conversation and user question, suggest filters (free text, tags from the provided list, or date ranges) to select relevant historical events from a database. Output as a JSON object, e.g. { "text": ["Napoleon", "battle"], "tags": ["war", "revolution"], "dateRange": ["100 BCE", "44 BCE"] }
+
+Date ranges should be years, such as '100 BCE', '44 BCE', '100 CE', or '200 CE' (not timestamps).
+
+Available tags:
+{tags}
+
+Conversation:
+{history}
+Question:
+{question}
