@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -119,7 +120,9 @@ function Chatbot({ userId }) {
                         : "bg-gray-700 text-gray-100"
                     }`}
                   >
-                    {msg.content}
+                    {msg.sender === "user"
+                      ? msg.content
+                      : <ReactMarkdown className="prose prose-invert max-w-none">{msg.content}</ReactMarkdown>}
                   </div>
                 </div>
               ))}
