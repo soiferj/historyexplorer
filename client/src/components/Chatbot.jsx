@@ -98,20 +98,32 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
       const link = sortedLinks.find(l => l.text === matchText);
       if (link) {
         const eventId = link.id.startsWith('event:') ? link.id.slice(6) : link.id;
-        const event = events.find(ev => String(ev.id) === String(eventId));
-        result.push(
-          <button
-            key={key++}
-            className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
-            style={{ cursor: 'pointer' }}
-            onClick={() => {
-              if (event && setSelectedEvent) setSelectedEvent(event);
-            }}
-            type="button"
-          >
-            {matchText}
-          </button>
-        );
+        // Basic stricter matching: id must exist and text must appear in title or description (case-insensitive)
+        const event = events.find(ev => {
+          if (String(ev.id) !== String(eventId)) return false;
+          const text = link.text.toLowerCase();
+          return (
+            (ev.title && ev.title.toLowerCase().includes(text)) ||
+            (ev.description && ev.description.toLowerCase().includes(text))
+          );
+        });
+        if (event) {
+          result.push(
+            <button
+              key={key++}
+              className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
+              style={{ cursor: 'pointer' }}
+              onClick={() => {
+                if (setSelectedEvent) setSelectedEvent(event);
+              }}
+              type="button"
+            >
+              {matchText}
+            </button>
+          );
+        } else {
+          result.push(matchText);
+        }
       } else {
         result.push(matchText);
       }

@@ -36,7 +36,8 @@ function buildChatbotPrompt(events, messages, question) {
   const promptTemplate = fs.readFileSync(path.join(__dirname, '../data/chatbot_prompt.txt'), 'utf8');
   // Format events as a readable string
   const eventsStr = events.map(ev => {
-    return `- id:\"${ev.id}\" title:${ev.title} year:${ev.date || ''} description:${ev.description || ''}`;
+    // Quote all property values for clarity
+    return `- id: "${ev.id}" title: "${ev.title}" year: "${ev.date || ''}" description: "${ev.description || ''}"`;
   }).join('\n');
   // Format conversation history
   const historyStr = messages.map(m => `${m.sender === 'user' ? 'User' : 'AI'}: ${m.content}`).join('\n');
