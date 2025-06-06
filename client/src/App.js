@@ -668,7 +668,7 @@ function App() {
                 )}
             </div>
             {/* Floating Chatbot */}
-            {isAllowed && <Chatbot userId={session?.user?.id || null} events={events} setSelectedEvent={setSelectedEvent} />}
+            {isAllowed && <Chatbot userId={session?.user?.id || null} events={events} setSelectedEvent={setSelectedEvent} setEditMode={setEditMode} />}
 
             {/* Event Modal (always rendered at root, above all other modals) */}
             <EventModal

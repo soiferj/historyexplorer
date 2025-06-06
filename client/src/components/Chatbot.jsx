@@ -4,7 +4,7 @@ import ReactMarkdown from "react-markdown";
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 // Add props for events and setSelectedEvent
-function Chatbot({ userId, events = [], setSelectedEvent }) {
+function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -117,9 +117,9 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
   // Helper: render message content with clickable event links
   function renderMessageWithLinks(content, eventLinks) {
     if (!eventLinks || eventLinks.length === 0) return (
-      <div className="prose prose-invert max-w-none">
+      <span className="prose prose-invert max-w-none">
         <ReactMarkdown>{content}</ReactMarkdown>
-      </div>
+      </span>
     );
     // Defensive: ensure safeEventLinks is an array of objects with a text property
     const safeEventLinks = Array.isArray(eventLinks) ? eventLinks.filter(l => l && typeof l.text === 'string') : [];
@@ -159,7 +159,10 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
             className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
             style={{ cursor: 'pointer', display: 'inline', background: 'none' }}
             onClick={() => {
-              if (event && setSelectedEvent) setSelectedEvent(event);
+              if (event && setSelectedEvent) {
+                setSelectedEvent(event);
+                if (typeof setEditMode === 'function') setEditMode(false);
+              }
             }}
             type="button"
           >
@@ -182,7 +185,7 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
         );
       }
     }
-    return <div className="prose prose-invert max-w-none" style={{ display: 'inline' }}>{result}</div>;
+    return <span className="prose prose-invert max-w-none" style={{ display: 'inline' }}>{result}</span>;
   }
 
   return (
