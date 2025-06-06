@@ -23,6 +23,53 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;
+    // Admin command: /id
+    if (input.trim() === '/id') {
+      setMessages((msgs) => [
+        ...msgs,
+        { sender: 'user', content: input },
+        { sender: 'bot', content: conversationId ? `Conversation ID: ${conversationId}` : 'No conversation ID yet.' }
+      ]);
+      setInput("");
+      return;
+    }
+    // Admin command: /debug
+    if (input.trim() === '/debug') {
+      setLoading(true);
+      setMessages((msgs) => [
+        ...msgs,
+        { sender: 'user', content: input }
+      ]);
+      setInput("");
+      setError("");
+      try {
+        if (!conversationId) throw new Error('No conversation ID yet.');
+        const res = await fetch(`${API_URL}/chatbot/debug`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ conversationId })
+        });
+        if (!res.ok) throw new Error('Failed to fetch debug info');
+        const data = await res.json();
+        // Defensive: ensure data exists and messages is always an array
+        let safeMessages = [];
+        if (data && data.messages && typeof data.messages.length === 'number' && Array.isArray(data.messages)) {
+          safeMessages = data.messages;
+        }
+        setMessages((msgs) => [
+          ...msgs,
+          { sender: 'bot', content: 'Raw chat history from DB:\n' + JSON.stringify(safeMessages, null, 2) }
+        ]);
+      } catch (err) {
+        setMessages((msgs) => [
+          ...msgs,
+          { sender: 'bot', content: `Debug error: ${err.message}` }
+        ]);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     setLoading(true);
     setError("");
     const userMsg = { sender: "user", content: input };
@@ -74,7 +121,9 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
         <ReactMarkdown>{content}</ReactMarkdown>
       </div>
     );
-    const sortedLinks = [...eventLinks].sort((a, b) => (b.text.length - a.text.length));
+    // Defensive: ensure safeEventLinks is an array of objects with a text property
+    const safeEventLinks = Array.isArray(eventLinks) ? eventLinks.filter(l => l && typeof l.text === 'string') : [];
+    const sortedLinks = [...safeEventLinks].sort((a, b) => (b.text.length - a.text.length));
     let workingContent = content;
     let result = [];
     let key = 0;
@@ -225,6 +274,19 @@ function Chatbot({ userId, events = [], setSelectedEvent }) {
                   );
                 } else {
                   // For bot messages, extract event links and strip them from the visible content
+                  // Special case: render /debug output as raw, unformatted text
+                  if (msg.content && msg.content.startsWith('Raw chat history from DB:')) {
+                    return (
+                      <div
+                        key={idx}
+                        className={`my-2 flex justify-start`}
+                      >
+                        <pre className="px-3 py-2 rounded-xl max-w-[80%] text-xs shadow bg-gray-800 text-pink-200 overflow-x-auto whitespace-pre-wrap">
+                          {msg.content}
+                        </pre>
+                      </div>
+                    );
+                  }
                   const eventLinks = extractEventLinks(msg.content);
                   const visibleContent = stripEventLinks(msg.content);
                   return (

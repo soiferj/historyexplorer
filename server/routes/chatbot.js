@@ -183,6 +183,20 @@ router.post('/', async (req, res) => {
   }
 });
 
+// POST /api/chatbot/debug
+router.post('/debug', async (req, res) => {
+  const { conversationId } = req.body;
+  if (!conversationId) {
+    return res.status(400).json({ error: 'Missing conversationId' });
+  }
+  try {
+    const messages = await getConversationMessages(conversationId);
+    res.json({ conversationId, messages });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE all chatbot conversations and messages
 router.post('/delete-all', async (req, res) => {
   try {
