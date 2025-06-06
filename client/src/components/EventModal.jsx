@@ -46,6 +46,11 @@ const EventModal = ({
   const [regionError, setRegionError] = useState("");
   const [countryError, setCountryError] = useState("");
 
+  // --- Confirm Delete Modal State ---
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
   // Async add-new handlers for tag/region/country
   const handleAddNewTag = async () => {
     const val = newTagInput.trim();
@@ -112,6 +117,50 @@ const EventModal = ({
   };
 
   if (!selectedEvent || !showModal) return null;
+
+  // --- Confirm Delete Modal (matches Timeline.jsx style) ---
+  const renderDeleteConfirmModal = () => (
+    <div className="fixed inset-0 z-[10001] flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+      <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowDeleteConfirm(false)} />
+      <div className="relative glass p-6 rounded-2xl shadow-2xl border border-red-400 w-full max-w-sm z-[10002] flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#ff512f33] to-[#ff512f33] backdrop-blur-lg">
+        <h3 className="text-lg font-bold mb-2 text-red-300">Confirm Delete</h3>
+        <div className="mb-4 text-center text-red-200">
+          Are you sure you want to delete this event?
+          <div className="mt-2 mb-2 text-red-300 font-bold">{selectedEvent.title}</div>
+        </div>
+        {deleteError && <div className="text-red-400 mb-2">{deleteError}</div>}
+        <div className="flex gap-4 mt-2">
+          <button
+            className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
+            onClick={() => setShowDeleteConfirm(false)}
+            disabled={deleteLoading}
+          >
+            Cancel
+          </button>
+          <button
+            className="px-4 py-2 rounded bg-red-700 text-white font-bold hover:bg-red-800 border border-red-300 shadow disabled:opacity-60"
+            disabled={deleteLoading}
+            onClick={async () => {
+              setDeleteLoading(true);
+              setDeleteError("");
+              try {
+                await handleDeleteEvent();
+                setShowDeleteConfirm(false);
+                if (typeof setShowModal === 'function') setShowModal();
+              } catch (err) {
+                setDeleteError(err.message || 'Failed to delete event');
+              } finally {
+                setDeleteLoading(false);
+              }
+            }}
+          >
+            {deleteLoading ? "Deleting..." : "Confirm Delete"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="fixed inset-0 z-[9999] flex items-start justify-center" style={{ marginTop: '6rem' }}>
       {/* Modal overlay - allow click to close */}
@@ -137,6 +186,7 @@ const EventModal = ({
         >
           &times;
         </button>
+        {showDeleteConfirm && renderDeleteConfirmModal()}
         <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
           {editMode ? (
             localEditForm && typeof localEditForm === 'object' && Object.keys(localEditForm).length > 0 ? (
@@ -487,8 +537,8 @@ const EventModal = ({
               )}
               {isAllowed && (
                 <div className="flex flex-row gap-2 mt-6 justify-center opacity-70 hover:opacity-100 transition-opacity">
-                  <button className="bg-gradient-to-r from-blue-500 to-pink-500 text-white px-4 py-2 rounded glow font-bold shadow transition-all duration-300" onClick={() => {console.log('Edit clicked'); startEditEvent();}}>Edit</button>
-                  <button className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded font-bold shadow hover:from-red-600 hover:to-pink-700 transition-all duration-300" onClick={() => {console.log('Delete clicked'); handleDeleteEvent();}}>Delete</button>
+                  <button className="bg-gradient-to-r from-blue-500 to-pink-500 text-white px-4 py-2 rounded glow font-bold shadow transition-all duration-300" onClick={() => { startEditEvent(); }}>Edit</button>
+                  <button className="bg-gradient-to-r from-red-500 to-pink-600 text-white px-4 py-2 rounded font-bold shadow hover:from-red-600 hover:to-pink-700 transition-all duration-300" onClick={() => setShowDeleteConfirm(true)}>Delete</button>
                 </div>
               )}
             </>
