@@ -1062,7 +1062,7 @@ const Timeline = (props) => {
                 </>
               )}
               {/* AI Summary only for admins */}
-              {props.isAllowed && (
+              {props.isAllowed && summaryAllowed && (
                 <button
                   className="ml-4 px-2 py-1 rounded font-bold shadow transition-all duration-200 border border-pink-400 text-white bg-pink-700 hover:bg-pink-800 text-xs sm:text-sm"
                   onClick={() => {
