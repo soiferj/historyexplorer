@@ -52,68 +52,26 @@ const EventModal = ({
   const [deleteError, setDeleteError] = useState("");
 
   // Async add-new handlers for tag/region/country
-  const handleAddNewTag = async () => {
+  const handleAddNewTag = () => {
     const val = newTagInput.trim();
     if (!val || localEditForm.tags.includes(val)) return;
-    setTagLoading(true);
-    setTagError("");
-    try {
-      const res = await fetch(`${apiUrl}/events/tags`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tag: val })
-      });
-      if (!res.ok) throw new Error('Failed to add tag');
-      setLocalEditForm(f => ({ ...f, tags: [...f.tags, val] }));
-      setNewTagInput("");
-      setEditTagMode('existing');
-    } catch (err) {
-      setTagError('Could not add tag.');
-    } finally {
-      setTagLoading(false);
-    }
+    setLocalEditForm(f => ({ ...f, tags: [...f.tags, val] }));
+    setNewTagInput("");
+    setEditTagMode('existing');
   };
-  const handleAddNewRegion = async () => {
+  const handleAddNewRegion = () => {
     const val = newRegionInput.trim();
     if (!val || localEditForm.regions.includes(val)) return;
-    setRegionLoading(true);
-    setRegionError("");
-    try {
-      const res = await fetch(`${apiUrl}/events/regions`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ region: val })
-      });
-      if (!res.ok) throw new Error('Failed to add region');
-      setLocalEditForm(f => ({ ...f, regions: [...f.regions, val] }));
-      setNewRegionInput("");
-      setEditRegionMode('existing');
-    } catch (err) {
-      setRegionError('Could not add region.');
-    } finally {
-      setRegionLoading(false);
-    }
+    setLocalEditForm(f => ({ ...f, regions: [...f.regions, val] }));
+    setNewRegionInput("");
+    setEditRegionMode('existing');
   };
-  const handleAddNewCountry = async () => {
+  const handleAddNewCountry = () => {
     const val = newCountryInput.trim();
     if (!val || localEditForm.countries.includes(val)) return;
-    setCountryLoading(true);
-    setCountryError("");
-    try {
-      const res = await fetch(`${apiUrl}/events/countries`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ country: val })
-      });
-      if (!res.ok) throw new Error('Failed to add country');
-      setLocalEditForm(f => ({ ...f, countries: [...f.countries, val] }));
-      setNewCountryInput("");
-      setEditCountryMode('existing');
-    } catch (err) {
-      setCountryError('Could not add country.');
-    } finally {
-      setCountryLoading(false);
-    }
+    setLocalEditForm(f => ({ ...f, countries: [...f.countries, val] }));
+    setNewCountryInput("");
+    setEditCountryMode('existing');
   };
 
   if (!selectedEvent || !showModal) return null;
