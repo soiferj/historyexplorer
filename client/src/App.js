@@ -301,7 +301,6 @@ function App() {
 
     const handleDeleteEvent = async () => {
         if (!selectedEvent) return;
-        if (!window.confirm("Are you sure you want to delete this event?")) return;
         try {
             const apiUrl = process.env.REACT_APP_API_URL;
             const response = await fetch(`${apiUrl}/events/${selectedEvent._id || selectedEvent.id}`, {

@@ -900,7 +900,6 @@ const Timeline = (props) => {
 
     const handleDeleteEvent = async () => {
         if (!selectedEvent) return;
-        if (!window.confirm("Are you sure you want to delete this event?")) return;
         try {
             const response = await fetch(`${apiUrl}/events/${selectedEvent._id || selectedEvent.id}`, {
                 method: "DELETE",
