@@ -60,6 +60,7 @@ const modelRegistry = {
   'gpt-4.1-mini': () => new OpenAIProvider('gpt-4.1-mini'),
   // Add more OpenAI models here
   'mistral-small': () => new AzureProvider('mistral-small', process.env.AZURE_MISTRAL_SMALL_DEPLOYMENT || 'mistral-small'),
+  'llama-3-8b-instruct': () => new AzureProvider('llama-3-8b-instruct', process.env.AZURE_LLAMA3_8B_DEPLOYMENT || 'Meta-Llama-3.1-8B-Instruct'),
   // Add more Azure models here, e.g.:
   // 'mistral-medium': () => new AzureProvider('mistral-medium', process.env.AZURE_MISTRAL_MEDIUM_DEPLOYMENT)
 };
