@@ -97,21 +97,37 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
     }
   };
 
-  // Helper: extract JSON event links from the end of the message
+  // Helper: extract event links in the format text [event:id]
   function extractEventLinks(content) {
-    // Look for a JSON array at the end of the message
-    const jsonMatch = content.match(/\[\s*{[\s\S]*}\s*\]$/);
-    if (!jsonMatch) return [];
-    try {
-      return JSON.parse(jsonMatch[0]);
-    } catch {
-      return [];
+    // Find all [event:id] patterns and their preceding text
+    const regex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:([\w-]+)\]/g;
+    let match;
+    const links = [];
+    let used = new Set();
+    while ((match = regex.exec(content)) !== null) {
+      let text = (match[1] || '').trim();
+      if (!text && match.index > 0) {
+        // Fallback: get up to 8 words before the citation
+        const before = content.slice(0, match.index).split(/\s+/);
+        text = before.slice(-8).join(' ');
+      }
+      // Remove leading articles
+      text = text.replace(/^(the|a|an|in)\s+/i, '').trim();
+      // Remove trailing punctuation
+      text = text.replace(/[.,;:!?]+$/, '');
+      // Only add if text is not empty and not already used (avoid duplicate links)
+      if (text && !used.has(match[3])) {
+        links.push({ text, id: `event:${match[3]}` });
+        used.add(match[3]);
+      }
     }
+    return links;
   }
 
-  // Helper: remove the JSON event links from the message content
+  // Helper: remove the event links from the message content (replace [event:id] with nothing)
   function stripEventLinks(content) {
-    return content.replace(/\[\s*{[\s\S]*}\s*\]$/, '').trim();
+    // Remove the citation marker and any leading whitespace
+    return content.replace(/\s*\[event:[\w-]+\]/g, '');
   }
 
   // Helper: render message content with clickable event links
@@ -122,67 +138,54 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       </span>
     );
     // Defensive: ensure safeEventLinks is an array of objects with a text property
-    const safeEventLinks = Array.isArray(eventLinks) ? eventLinks.filter(l => l && typeof l.text === 'string') : [];
+    const safeEventLinks = Array.isArray(eventLinks) ? eventLinks.filter(l => l && typeof l.text === 'string' && l.text) : [];
+    // Sort by length descending to avoid partial matches
     const sortedLinks = [...safeEventLinks].sort((a, b) => (b.text.length - a.text.length));
     let workingContent = content;
     let result = [];
     let key = 0;
-    // Build a regex to match any of the link texts (escape special chars)
-    const escapeRegExp = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const linkTexts = sortedLinks.map(l => escapeRegExp(l.text));
-    if (linkTexts.length === 0) {
-      return <ReactMarkdown>{content}</ReactMarkdown>;
-    }
-    const regex = new RegExp(linkTexts.join('|'), 'g');
-    let match;
-    let lastPos = 0;
-    while ((match = regex.exec(workingContent)) !== null) {
-      const matchText = match[0];
-      const matchIndex = match.index;
+    let lastIndex = 0;
+    // For each event link, replace the first occurrence of its text with a clickable button
+    for (const link of sortedLinks) {
+      // Use a case-insensitive search for the clickable text
+      const regex = new RegExp(link.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      const match = regex.exec(workingContent.slice(lastIndex));
+      if (!match) continue;
+      const idx = lastIndex + match.index;
       // Push text before the link as a span (inline)
-      if (matchIndex > lastPos) {
-        const textSegment = workingContent.slice(lastPos, matchIndex);
+      if (idx > lastIndex) {
+        const textSegment = workingContent.slice(lastIndex, idx);
         if (textSegment) {
-          result.push(
-            <span key={key++}>{textSegment}</span>
-          );
+          result.push(<span key={key++}>{textSegment}</span>);
         }
       }
-      // Find the link object for this text
-      const link = sortedLinks.find(l => l.text === matchText);
-      if (link) {
-        const eventId = link.id.startsWith('event:') ? link.id.slice(6) : link.id;
-        const event = events.find(ev => String(ev.id) === String(eventId));
+      const eventId = link.id.startsWith('event:') ? link.id.slice(6) : link.id;
+      const event = events.find(ev => String(ev.id) === String(eventId));
+      if (event) {
         result.push(
           <button
             key={key++}
             className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
             style={{ cursor: 'pointer', display: 'inline', background: 'none' }}
             onClick={() => {
-              if (event && setSelectedEvent) {
-                setSelectedEvent(event);
-                if (typeof setEditMode === 'function') setEditMode(false);
-              }
+              if (setSelectedEvent) setSelectedEvent(event);
+              if (typeof setEditMode === 'function') setEditMode(false);
             }}
             type="button"
           >
-            {matchText}
+            {match[0]}
           </button>
         );
       } else {
-        result.push(
-          <span key={key++}>{matchText}</span>
-        );
+        result.push(<span key={key++}>{match[0]}</span>);
       }
-      lastPos = matchIndex + matchText.length;
+      lastIndex = idx + match[0].length;
     }
     // Push any remaining text as a span (inline)
-    if (lastPos < workingContent.length) {
-      const textSegment = workingContent.slice(lastPos);
+    if (lastIndex < workingContent.length) {
+      const textSegment = workingContent.slice(lastIndex);
       if (textSegment) {
-        result.push(
-          <span key={key++}>{textSegment}</span>
-        );
+        result.push(<span key={key++}>{textSegment}</span>);
       }
     }
     return <span className="prose prose-invert max-w-none" style={{ display: 'inline' }}>{result}</span>;
