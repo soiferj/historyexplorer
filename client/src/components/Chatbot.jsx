@@ -117,6 +117,24 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       text = text.replace(/[.,;:!?]+$/, '');
       // Remove leading/trailing non-alphanumeric or parenthesis characters (e.g., markdown - or *)
       text = text.replace(/^[^a-zA-Z0-9(\)]+|[^a-zA-Z0-9(\)]+$/g, '');
+      // --- New logic: Start at first capital letter and take last at most 6 words ---
+      // Find the first capital letter and slice from there, but ensure a space before if needed
+      const capIdx = text.search(/[A-Z]/);
+      if (capIdx > 0) {
+        // Insert a space if not already present
+        if (text[capIdx - 1] !== ' ') {
+          text = text.slice(0, capIdx) + ' ' + text.slice(capIdx);
+        }
+        text = text.slice(capIdx);
+      } else if (capIdx === 0) {
+        // Already starts with a capital letter
+        // do nothing
+      }
+      // Take only the last at most 6 words
+      const words = text.split(/\s+/);
+      if (words.length > 4) {
+        text = words.slice(-4).join(' ');
+      }
       // Only add if text is not empty and not already used (avoid duplicate links)
       if (text && !used.has(match[3])) {
         links.push({ text, id: `event:${match[3]}` });
@@ -135,29 +153,29 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
   // Helper: render message content with clickable event links
   function renderMessageWithLinks(content, eventLinks) {
     if (!eventLinks || eventLinks.length === 0) return (
-      <span className="prose prose-invert max-w-none">
+      <span className="prose prose-invert max-w-none text-left">
         <ReactMarkdown>{content}</ReactMarkdown>
       </span>
     );
-    // Defensive: ensure safeEventLinks is an array of objects with a text property
     const safeEventLinks = Array.isArray(eventLinks) ? eventLinks.filter(l => l && typeof l.text === 'string' && l.text) : [];
     let workingContent = content;
     let result = [];
     let key = 0;
     let lastIndex = 0;
-    // For each event link, replace the first occurrence of its text with a clickable button
     for (const link of safeEventLinks) {
-      // Use a case-insensitive search for the clickable text
       const regex = new RegExp(link.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       const match = regex.exec(workingContent.slice(lastIndex));
-      console.log(workingContent.slice(lastIndex));
       if (!match) continue;
       const idx = lastIndex + match.index;
-      // Push text before the link as a span (inline)
+      // Render markdown for text before the link
       if (idx > lastIndex) {
         const textSegment = workingContent.slice(lastIndex, idx);
         if (textSegment) {
-          result.push(<span key={key++}>{textSegment}</span>);
+          result.push(
+            <span key={key++} className="prose prose-invert max-w-none text-left" style={{ display: 'inline' }}>
+              <ReactMarkdown components={{p: 'span'}}>{textSegment}</ReactMarkdown>
+            </span>
+          );
         }
       }
       const eventId = link.id.startsWith('event:') ? link.id.slice(6) : link.id;
@@ -166,8 +184,8 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
         result.push(
           <button
             key={key++}
-            className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline"
-            style={{ cursor: 'pointer', display: 'inline', background: 'none' }}
+            className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline text-left"
+            style={{ cursor: 'pointer', display: 'inline', background: 'none', textAlign: 'left' }}
             onClick={() => {
               if (setSelectedEvent) setSelectedEvent(event);
               if (typeof setEditMode === 'function') setEditMode(false);
@@ -178,18 +196,26 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
           </button>
         );
       } else {
-        result.push(<span key={key++}>{match[0]}</span>);
+        result.push(
+          <span key={key++} className="prose prose-invert max-w-none text-left" style={{ display: 'inline' }}>
+            <ReactMarkdown components={{p: 'span'}}>{match[0]}</ReactMarkdown>
+          </span>
+        );
       }
       lastIndex = idx + match[0].length;
     }
-    // Push any remaining text as a span (inline)
+    // Render markdown for any remaining text
     if (lastIndex < workingContent.length) {
       const textSegment = workingContent.slice(lastIndex);
       if (textSegment) {
-        result.push(<span key={key++}>{textSegment}</span>);
+        result.push(
+          <span key={key++} className="prose prose-invert max-w-none text-left" style={{ display: 'inline' }}>
+            <ReactMarkdown components={{p: 'span'}}>{textSegment}</ReactMarkdown>
+          </span>
+        );
       }
     }
-    return <span className="prose prose-invert max-w-none" style={{ display: 'inline' }}>{result}</span>;
+    return <span className="prose prose-invert max-w-none text-left" style={{ display: 'inline', textAlign: 'left' }}>{result}</span>;
   }
 
   return (
