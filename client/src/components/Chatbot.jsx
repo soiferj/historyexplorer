@@ -257,9 +257,9 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
               >
                 <option value="gpt-4.1-nano">gpt-4.1-nano</option>
                 <option value="gpt-4.1-mini">gpt-4.1-mini</option>
-                <option value="mistral-small">mistral-small (Azure)</option>
-                <option value="llama-3-8b-instruct">llama-3-8b-instruct (Azure)</option>
-                <option value="mistral-nemo">mistral-nemo (Azure)</option>
+                <option value="mistral-small">mistral-small</option>
+                <option value="llama-3-8b-instruct">llama-3-8b-instruct</option>
+                <option value="mistral-nemo">mistral-nemo</option>
               </select>
             </div>
             <div className="flex-1 overflow-y-auto px-4 py-2 bg-transparent" style={{ maxHeight: 400 }}>
