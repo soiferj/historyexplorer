@@ -182,24 +182,29 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       const event = events.find(ev => String(ev.id) === String(eventId));
       if (event) {
         result.push(
-          <button
-            key={key++}
-            className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline text-left"
-            style={{ cursor: 'pointer', display: 'inline', background: 'none', textAlign: 'left' }}
-            onClick={() => {
-              if (setSelectedEvent) setSelectedEvent(event);
-              if (typeof setEditMode === 'function') setEditMode(false);
-            }}
-            type="button"
-          >
-            {match[0]}
-          </button>
+          <React.Fragment key={key++}>
+            {" "}
+            <button
+              className="underline text-pink-300 hover:text-blue-300 font-semibold focus:outline-none bg-transparent border-0 p-0 m-0 inline text-left"
+              style={{ cursor: 'pointer', display: 'inline', background: 'none', textAlign: 'left' }}
+              onClick={() => {
+                if (setSelectedEvent) setSelectedEvent(event);
+                if (typeof setEditMode === 'function') setEditMode(false);
+              }}
+              type="button"
+            >
+              {match[0]}
+            </button>
+          </React.Fragment>
         );
       } else {
         result.push(
-          <span key={key++} className="prose prose-invert max-w-none text-left" style={{ display: 'inline' }}>
-            <ReactMarkdown components={{p: 'span'}}>{match[0]}</ReactMarkdown>
-          </span>
+          <React.Fragment key={key++}>
+            {" "}
+            <span className="prose prose-invert max-w-none text-left" style={{ display: 'inline' }}>
+              <ReactMarkdown components={{p: 'span'}}>{match[0]}</ReactMarkdown>
+            </span>
+          </React.Fragment>
         );
       }
       lastIndex = idx + match[0].length;
