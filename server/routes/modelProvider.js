@@ -1,6 +1,5 @@
 const { default: ModelClient } = require("@azure-rest/ai-inference");
 const { AzureKeyCredential } = require("@azure/core-auth");
-const { json } = require("express");
 const { OpenAI } = require('openai');
 
 class ModelProvider {
@@ -18,7 +17,7 @@ class OpenAIProvider extends ModelProvider {
     this.openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   }
   async chatCompletion(messages, options = {}) {
-    const { max_tokens = 1024, temperature = 0.1 } = options;
+    const { max_tokens = 2048, temperature = 0.1 } = options;
     const resp = await this.openai.chat.completions.create({
       model: this.modelName,
       messages,
@@ -38,7 +37,7 @@ class AzureProvider extends ModelProvider {
     this.client = new ModelClient(this.endpoint, new AzureKeyCredential(this.key));
   }
   async chatCompletion(messages, options = {}) {
-    const { max_tokens = 1024, temperature = 0.1 } = options;
+    const { max_tokens = 2048, temperature = 0.1 } = options;
     // Convert OpenAI message format to Azure's
     const result = await this.client.path('/chat/completions')
         .post({
@@ -58,11 +57,9 @@ class AzureProvider extends ModelProvider {
 const modelRegistry = {
   'gpt-4.1-nano': () => new OpenAIProvider('gpt-4.1-nano'),
   'gpt-4.1-mini': () => new OpenAIProvider('gpt-4.1-mini'),
-  // Add more OpenAI models here
   'mistral-small': () => new AzureProvider('mistral-small', process.env.AZURE_MISTRAL_SMALL_DEPLOYMENT || 'mistral-small'),
   'llama-3-8b-instruct': () => new AzureProvider('llama-3-8b-instruct', process.env.AZURE_LLAMA3_8B_DEPLOYMENT || 'Meta-Llama-3.1-8B-Instruct'),
-  // Add more Azure models here, e.g.:
-  // 'mistral-medium': () => new AzureProvider('mistral-medium', process.env.AZURE_MISTRAL_MEDIUM_DEPLOYMENT)
+  'mistral-nemo': () => new AzureProvider('mistral-nemo', process.env.AZURE_MISTRAL_NEMO_DEPLOYMENT || 'Mistral-Nemo'),
 };
 
 function getModelProvider(modelName) {
