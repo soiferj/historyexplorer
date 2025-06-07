@@ -115,6 +115,8 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       text = text.replace(/^(the|a|an|in)\s+/i, '').trim();
       // Remove trailing punctuation
       text = text.replace(/[.,;:!?]+$/, '');
+      // Remove leading/trailing non-alphanumeric or parenthesis characters (e.g., markdown - or *)
+      text = text.replace(/^[^a-zA-Z0-9(\)]+|[^a-zA-Z0-9(\)]+$/g, '');
       // Only add if text is not empty and not already used (avoid duplicate links)
       if (text && !used.has(match[3])) {
         links.push({ text, id: `event:${match[3]}` });
@@ -139,17 +141,16 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
     );
     // Defensive: ensure safeEventLinks is an array of objects with a text property
     const safeEventLinks = Array.isArray(eventLinks) ? eventLinks.filter(l => l && typeof l.text === 'string' && l.text) : [];
-    // Sort by length descending to avoid partial matches
-    const sortedLinks = [...safeEventLinks].sort((a, b) => (b.text.length - a.text.length));
     let workingContent = content;
     let result = [];
     let key = 0;
     let lastIndex = 0;
     // For each event link, replace the first occurrence of its text with a clickable button
-    for (const link of sortedLinks) {
+    for (const link of safeEventLinks) {
       // Use a case-insensitive search for the clickable text
       const regex = new RegExp(link.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
       const match = regex.exec(workingContent.slice(lastIndex));
+      console.log(workingContent.slice(lastIndex));
       if (!match) continue;
       const idx = lastIndex + match.index;
       // Push text before the link as a span (inline)
