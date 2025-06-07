@@ -4,7 +4,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
-const { OpenAI } = require('openai');
+const { getModelProvider } = require('./modelProvider');
 
 // Setup Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -127,21 +127,20 @@ router.post('/', async (req, res) => {
     // 3.5. Fetch all unique tags
     const tags = await getAllTags();
     // 4. Use LLM to generate event filters
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const filterPrompt = buildFilterPrompt(messages, message, tags);
-    const selectedModel = model === 'gpt-4.1-mini' ? 'gpt-4.1-mini' : 'gpt-4.1-nano';
-    const filterCompletion = await openai.chat.completions.create({
-      model: selectedModel,
-      messages: [
-        { role: 'system', content: 'You are an expert at generating search filters for historical events.' },
-        { role: 'user', content: filterPrompt }
-      ],
-      max_tokens: 256,
-      temperature: 0.1
-    });
     let filters = { text: [], tags: [], dateRange: [] };
+    let filterCompletion;
+    const selectedModel = model || 'gpt-4.1-nano';
+    const provider = getModelProvider(selectedModel);
+    // Build filter prompt
+    const filterPrompt = buildFilterPrompt(messages, message, tags);
+    const filterMessages = [
+      { role: 'system', content: 'You are an expert at generating search filters for historical events.' },
+      { role: 'user', content: filterPrompt }
+    ];
+    let filterRaw;
     try {
-      filters = JSON.parse(filterCompletion.choices[0].message.content);
+      filterRaw = await provider.chatCompletion(filterMessages, { max_tokens: 256, temperature: 0.1 });
+      filters = JSON.parse(filterRaw);
     } catch (e) {
       console.warn('[Chatbot] Could not parse filters, using all events.', e);
     }
@@ -155,18 +154,19 @@ router.post('/', async (req, res) => {
       events = await getAllEvents();
     }
     console.log('[Chatbot] Filtered events count:', events.length);
-    // 6. Call OpenAI for chatbot reply
+    // 6. Call LLM for chatbot reply
     const prompt = buildChatbotPrompt(events, messages, message);
-    const completion = await openai.chat.completions.create({
-      model: selectedModel,
-      messages: [
-        { role: 'system', content: 'You are a helpful AI history assistant.' },
-        { role: 'user', content: prompt }
-      ],
-      max_tokens: 1024,
-      temperature: 0.1
-    });
-    const botReply = completion.choices[0].message.content.trim();
+    const chatMessages = [
+      { role: 'system', content: 'You are a helpful AI history assistant.' },
+      { role: 'user', content: prompt }
+    ];
+    let botReply;
+    try {
+      botReply = await provider.chatCompletion(chatMessages, { max_tokens: 1024, temperature: 0.1 });
+    } catch (e) {
+      console.error('[Chatbot] Error getting bot reply:', e);
+      throw e;
+    }
     // 7. Store bot response
     const { error: botErr } = await supabase
       .from('messages')
