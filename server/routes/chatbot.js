@@ -89,13 +89,23 @@ function buildFilterPrompt(messages, question, tags) {
     .replace('{question}', question);
 }
 
-// Helper: fetch all unique tags from events
+// Helper: fetch all unique tags from events (only tags with 2+ events)
 async function getAllTags() {
   const { data, error } = await supabase.from('events').select('tags');
   if (error) throw error;
-  const tagSet = new Set();
-  (data || []).forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => tagSet.add(tag)));
-  return Array.from(tagSet).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+  const tagCounts = {};
+  (data || []).forEach(ev => {
+    if (Array.isArray(ev.tags)) {
+      ev.tags.forEach(tag => {
+        if (!tag) return;
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      });
+    }
+  });
+  // Only include tags that appear in 2 or more events
+  return Object.keys(tagCounts)
+    .filter(tag => tagCounts[tag] >= 2)
+    .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 }
 
 // POST /api/chatbot

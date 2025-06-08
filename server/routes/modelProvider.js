@@ -49,6 +49,7 @@ class AzureProvider extends ModelProvider {
             },
         });
     // Azure returns choices as an array
+    console.log('Azure response:', JSON.stringify(result.body));
     return result.body.choices[0].message.content.trim();
   }
 }
