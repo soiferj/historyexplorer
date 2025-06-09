@@ -181,6 +181,10 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       const eventId = link.id.startsWith('event:') ? link.id.slice(6) : link.id;
       const event = events.find(ev => String(ev.id) === String(eventId));
       if (event) {
+        // Determine if a space is needed after the link
+        const afterIdx = idx + match[0].length;
+        const nextChar = workingContent[afterIdx];
+        const needsSpace = nextChar && /[\w(\[]/.test(nextChar);
         result.push(
           <React.Fragment key={key++}>
             {" "}
@@ -194,16 +198,20 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
               type="button"
             >
               {match[0]}
-            </button>
+            </button>{needsSpace ? ' ' : ''}
           </React.Fragment>
         );
       } else {
+        // Determine if a space is needed after the link
+        const afterIdx = idx + match[0].length;
+        const nextChar = workingContent[afterIdx];
+        const needsSpace = nextChar && /[\w(\[]/.test(nextChar);
         result.push(
           <React.Fragment key={key++}>
             {" "}
             <span className="prose prose-invert max-w-none text-left" style={{ display: 'inline' }}>
               <ReactMarkdown components={{p: 'span'}}>{match[0]}</ReactMarkdown>
-            </span>
+            </span>{needsSpace ? ' ' : ''}
           </React.Fragment>
         );
       }
