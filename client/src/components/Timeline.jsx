@@ -1037,7 +1037,7 @@ const Timeline = (props) => {
                 {/* Zoom controls above the timeline */}
                 <div className="w-full flex justify-center mb-2 gap-2 items-center">
               {/* Zoom controls above the timeline (commented out for now) */}
-              {false && (
+              {(
                 <>
                   <button
                     className={`px-3 py-1 rounded font-bold shadow border border-blue-400 text-white bg-gray-700 transition-all duration-200 ${zoomLevel === 2 ? 'opacity-60 cursor-not-allowed' : 'hover:bg-blue-700'}`}
