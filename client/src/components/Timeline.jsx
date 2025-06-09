@@ -1045,7 +1045,7 @@ const Timeline = (props) => {
                     disabled={zoomLevel === 2}
                     aria-label="Zoom Out"
                   >
-                    Zoom -
+                    -
                   </button>
                   <span className="px-2 py-1 text-blue-200 font-semibold select-none">
                     {zoomLevel === 2 ? 'Millennium' : zoomLevel === 1 ? 'Century' : 'Event'}
@@ -1056,7 +1056,7 @@ const Timeline = (props) => {
                     disabled={zoomLevel === 0}
                     aria-label="Zoom In"
                   >
-                    Zoom +
+                    +
                   </button>
                 </>
               )}
