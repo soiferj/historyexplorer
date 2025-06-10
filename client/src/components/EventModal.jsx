@@ -274,9 +274,12 @@ const EventModal = ({
                       }}
                     >
                       <option value="">Add existing tag...</option>
-                      {getAllTags(validEvents).filter(tag => !localEditForm.tags.includes(tag)).map(tag => (
-                        <option key={tag} value={tag}>{tag}</option>
-                      ))}
+                      {getAllTags(validEvents)
+                        .filter(tag => !localEditForm.tags.includes(tag))
+                        .filter(tag => validEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(tag)).length >= 2)
+                        .map(tag => (
+                          <option key={tag} value={tag}>{tag}</option>
+                        ))}
                     </select>
                   ) : (
                     <div className="flex flex-row w-full max-w-xs">
