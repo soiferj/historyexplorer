@@ -41,9 +41,9 @@ router.post("/", async (req, res) => {
         // Insert events as JSON
         let prompt = promptTemplate.replace("{{events}}", JSON.stringify(minimalEvents, null, 2));
         console.log("[LLM SUMMARY REQUEST]", prompt); // Debug log
-        // Get default model from config
-        const defaultModel = await getConfigValue("default_model");
-        const provider = getModelProvider(defaultModel);
+        // Get summary model from config
+        const summaryModel = await getConfigValue("summary_model");
+        const provider = getModelProvider(summaryModel);
         const responseContent = await provider.chatCompletion([
             { role: "system", content: "You are a helpful assistant for an app that displays information about historical events." },
             { role: "user", content: prompt }

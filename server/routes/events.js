@@ -26,8 +26,8 @@ async function enrichEventWithLLM({ title, date, existing_tags }) {
     }
     console.log("[OpenAI Prompt]", prompt); // Log the prompt for debugging
     // Use config-based model provider
-    const defaultModel = await getConfigValue("default_model");
-    const provider = getModelProvider(defaultModel);
+    const eventsModel = await getConfigValue("events_model");
+    const provider = getModelProvider(eventsModel);
     let responseContent;
     try {
         responseContent = await provider.chatCompletion([
