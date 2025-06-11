@@ -123,14 +123,26 @@ function FiltersPopover({
                             placeholder="Year"
                             className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
                         />
-                        <select
-                            value={dateFilter.startEra}
-                            onChange={e => setDateFilter(f => ({ ...f, startEra: e.target.value }))}
-                            className="p-2 rounded-xl bg-gray-800 text-white border border-blue-400"
-                        >
-                            <option value="BCE">BCE</option>
-                            <option value="CE">CE</option>
-                        </select>
+                        <div className="flex gap-0 items-center mb-2">
+                            <button
+                                type="button"
+                                className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${dateFilter.startEra === 'BCE' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
+                                onClick={() => setDateFilter(f => ({ ...f, startEra: 'BCE' }))}
+                                aria-pressed={dateFilter.startEra === 'BCE'}
+                                style={{ marginRight: '-1px', zIndex: dateFilter.startEra === 'BCE' ? 2 : 1 }}
+                            >
+                                BCE
+                            </button>
+                            <button
+                                type="button"
+                                className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${dateFilter.startEra === 'CE' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
+                                onClick={() => setDateFilter(f => ({ ...f, startEra: 'CE' }))}
+                                aria-pressed={dateFilter.startEra === 'CE'}
+                                style={{ marginLeft: '-1px', zIndex: dateFilter.startEra === 'CE' ? 2 : 1 }}
+                            >
+                                CE
+                            </button>
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <label className="text-blue-200 font-semibold">To</label>
@@ -143,14 +155,26 @@ function FiltersPopover({
                             placeholder="Year"
                             className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
                         />
-                        <select
-                            value={dateFilter.endEra}
-                            onChange={e => setDateFilter(f => ({ ...f, endEra: e.target.value }))}
-                            className="p-2 rounded-xl bg-gray-800 text-white border border-blue-400"
-                        >
-                            <option value="BCE">BCE</option>
-                            <option value="CE">CE</option>
-                        </select>
+                        <div className="flex gap-0 items-center mb-2">
+                            <button
+                                type="button"
+                                className={`px-3 py-1 rounded-l-xl border font-semibold text-sm transition ${dateFilter.endEra === 'BCE' ? 'bg-blue-600 text-white' : 'bg-gray-700 text-blue-200'} border-blue-400/40`}
+                                onClick={() => setDateFilter(f => ({ ...f, endEra: 'BCE' }))}
+                                aria-pressed={dateFilter.endEra === 'BCE'}
+                                style={{ marginRight: '-1px', zIndex: dateFilter.endEra === 'BCE' ? 2 : 1 }}
+                            >
+                                BCE
+                            </button>
+                            <button
+                                type="button"
+                                className={`px-3 py-1 rounded-r-xl border font-semibold text-sm transition ${dateFilter.endEra === 'CE' ? 'bg-pink-600 text-white' : 'bg-gray-700 text-pink-200'} border-pink-400/40`}
+                                onClick={() => setDateFilter(f => ({ ...f, endEra: 'CE' }))}
+                                aria-pressed={dateFilter.endEra === 'CE'}
+                                style={{ marginLeft: '-1px', zIndex: dateFilter.endEra === 'CE' ? 2 : 1 }}
+                            >
+                                CE
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
