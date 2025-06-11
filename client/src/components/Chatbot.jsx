@@ -184,7 +184,7 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
         // Determine if a space is needed after the link
         const afterIdx = idx + match[0].length;
         const nextChar = workingContent[afterIdx];
-        const needsSpace = nextChar && /[a-zA-Z0-9]/.test(nextChar);
+        const needsSpace = nextChar && /[a-zA-Z0-9\s]/.test(nextChar);
         result.push(
           <React.Fragment key={key++}>
             {" "}
