@@ -104,7 +104,7 @@ async function getAllTags() {
   });
   // Only include tags that appear in 2 or more events
   return Object.keys(tagCounts)
-    .filter(tag => tagCounts[tag] >= 2)
+    .filter(tag => tagCounts[tag] > 2)
     .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 }
 

@@ -274,12 +274,24 @@ const EventModal = ({
                       }}
                     >
                       <option value="">Add existing tag...</option>
-                      {getAllTags(validEvents)
-                        .filter(tag => !localEditForm.tags.includes(tag))
-                        .filter(tag => validEvents.filter(ev => Array.isArray(ev.tags) && ev.tags.includes(tag)).length >= 2)
-                        .map(tag => (
-                          <option key={tag} value={tag}>{tag}</option>
-                        ))}
+                      {(() => {
+                        // Replicate getAllTags logic from Timeline.jsx
+                        const tagCount = {};
+                        const tagOriginal = {};
+                        (validEvents || []).forEach(ev => Array.isArray(ev.tags) && ev.tags.forEach(tag => {
+                          const lower = tag.toLowerCase();
+                          tagCount[lower] = (tagCount[lower] || 0) + 1;
+                          if (!tagOriginal[lower]) tagOriginal[lower] = tag;
+                        }));
+                        return Object.entries(tagCount)
+                          .filter(([tag, count]) => count > 2)
+                          .map(([tag]) => tagOriginal[tag])
+                          .filter(tag => !localEditForm.tags.includes(tag))
+                          .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+                          .map(tag => (
+                            <option key={tag} value={tag}>{tag}</option>
+                          ));
+                      })()}
                     </select>
                   ) : (
                     <div className="flex flex-row w-full max-w-xs">
