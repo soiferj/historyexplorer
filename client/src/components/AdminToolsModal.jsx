@@ -72,7 +72,8 @@ function AdminToolsModal({
         setBackfillRegionsLoading(true);
         setBackfillRegionsResult("");
         try {
-            const response = await fetch(`${apiUrl}/events/backfill-regions`, {
+            // Call the new endpoint to regenerate all event content
+            const response = await fetch(`${apiUrl}/events/regenerate-all-content`, {
                 method: "POST",
                 headers: {
                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
@@ -80,16 +81,16 @@ function AdminToolsModal({
             });
             const data = await response.json();
             if (response.ok) {
-                setBackfillRegionsResult(`Regions generated for ${data.updated} events.`);
+                setBackfillRegionsResult(`All event content regenerated for ${data.updated} events.`);
                 setShowBackfillRegionsModal(false);
                 setShowDeleteConfirm(false);
                 onClose();
                 if (onEventsUpdated) onEventsUpdated();
             } else {
-                setBackfillRegionsResult(data.error || "Failed to backfill regions.");
+                setBackfillRegionsResult(data.error || "Failed to regenerate all event content.");
             }
         } catch (err) {
-            setBackfillRegionsResult("Failed to backfill regions.");
+            setBackfillRegionsResult("Failed to regenerate all event content.");
         } finally {
             setBackfillRegionsLoading(false);
         }
@@ -297,14 +298,14 @@ function AdminToolsModal({
                 </div>
             )}
             <hr className="my-6 border-blue-400/40" />
-            <h3 className="text-lg font-semibold text-blue-300 mb-2">Regions Backfill</h3>
+            <h3 className="text-lg font-semibold text-blue-300 mb-2">Regenerate All Event Content</h3>
             <div className="w-full flex flex-col items-center">
                 <button
                     className="px-4 py-2 rounded bg-blue-700 text-white font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-50"
                     disabled={backfillRegionsLoading}
                     onClick={() => setShowBackfillRegionsModal(true)}
                 >
-                    {backfillRegionsLoading ? "Generating..." : "Regenerate All Regions and Countries"}
+                    {backfillRegionsLoading ? "Regenerating..." : "Regenerate All Event Content"}
                 </button>
                 {backfillRegionsResult && (
                     <div className="mt-2 text-blue-200 text-sm">{backfillRegionsResult}</div>
@@ -315,7 +316,7 @@ function AdminToolsModal({
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
                     <div className="bg-gray-900 p-6 rounded-xl shadow-xl max-w-md w-full border border-blue-400">
                         <h2 className="text-lg font-bold text-red-400 mb-2">Warning</h2>
-                        <p className="text-blue-100 mb-4">This will <span className="font-bold text-red-300">overwrite all existing regions and countries</span> for every event in the database. This action cannot be undone. Are you sure you want to continue?</p>
+                        <p className="text-blue-100 mb-4">This will <span className="font-bold text-red-300">regenerate ALL content</span> (including regions, countries, summaries, and any other derived fields) for every event in the database. This action cannot be undone. Are you sure you want to continue?</p>
                         <div className="flex gap-4 justify-end">
                             <button
                                 className="px-4 py-2 rounded bg-gray-700 text-white font-semibold border border-gray-500 hover:bg-gray-600"
@@ -328,7 +329,7 @@ function AdminToolsModal({
                                 disabled={backfillRegionsLoading}
                                 onClick={handleBackfillRegions}
                             >
-                                {backfillRegionsLoading ? "Generating..." : "Yes, Overwrite All"}
+                                {backfillRegionsLoading ? "Regenerating..." : "Yes, Regenerate All"}
                             </button>
                         </div>
                     </div>

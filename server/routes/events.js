@@ -182,8 +182,8 @@ router.post("/enrich-tags", verifyAllowedUser, async (req, res) => {
     }
 });
 
-// POST /events/backfill-regions (admin only)
-router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
+// POST /events/regenerate-all-content (admin only)
+router.post("/regenerate-all-content", verifyAllowedUser, async (req, res) => {
     try {
         const { data: events, error } = await supabase.from("events").select("*");
         if (error) return res.status(500).json({ error: error.message });
@@ -197,11 +197,14 @@ router.post("/backfill-regions", verifyAllowedUser, async (req, res) => {
         }
         let updated = 0;
         for (const event of events) {
-            // Always regenerate and overwrite regions and countries
+            // Regenerate and overwrite all content fields
             const enrichment = await enrichEventWithLLM({ title: event.title, date: event.date, existing_tags: existingTags });
-            const updateObj = {};
-            updateObj.regions = enrichment.regions || [];
-            updateObj.countries = enrichment.countries || [];
+            const updateObj = {
+                description: enrichment.description || event.description,
+                tags: enrichment.tags && enrichment.tags.length > 0 ? enrichment.tags : event.tags,
+                regions: enrichment.regions || [],
+                countries: enrichment.countries || []
+            };
             await supabase.from("events").update(updateObj).eq("id", event.id);
             updated++;
         }
