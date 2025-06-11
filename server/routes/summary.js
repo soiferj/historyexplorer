@@ -2,12 +2,12 @@ const express = require("express");
 const router = express.Router();
 const supabase = require("../db");
 const { verifyAllowedUser } = require("../middleware/auth");
-const { OpenAI } = require("openai");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const { getConfigValue } = require("./configHelper");
+const { getModelProvider } = require("./modelProvider");
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // POST /summary - Generate AI summary of a list of events
 router.post("/", async (req, res) => {
@@ -41,24 +41,20 @@ router.post("/", async (req, res) => {
         // Insert events as JSON
         let prompt = promptTemplate.replace("{{events}}", JSON.stringify(minimalEvents, null, 2));
         console.log("[LLM SUMMARY REQUEST]", prompt); // Debug log
-        const response = await openai.chat.completions.create({
-            model: "gpt-4.1-nano",
-            messages: [
-                { role: "system", content: "You are a helpful assistant for an app that displays information about historical events." },
-                { role: "user", content: prompt }
-            ],
-            temperature: 0.2,
-            max_tokens: 512
-        });
-        const content = response.choices[0].message.content;
-        console.log("[LLM SUMMARY RESPONSE]", content); // Debug log
+        // Get default model from config
+        const defaultModel = await getConfigValue("default_model");
+        const provider = getModelProvider(defaultModel);
+        const responseContent = await provider.chatCompletion([
+            { role: "system", content: "You are a helpful assistant for an app that displays information about historical events." },
+            { role: "user", content: prompt }
+        ], { temperature: 0.2, max_tokens: 512 });
         let summary = "";
         let cached = false;
         try {
-            const parsed = JSON.parse(content);
+            const parsed = JSON.parse(responseContent);
             summary = parsed.summary;
         } catch (e) {
-            summary = content;
+            summary = responseContent;
         }
         // Store in Supabase cache (upsert)
         const { error: upsertError, data: upsertData } = await supabase.from("summary_cache").upsert([{ hash, summary }]);

@@ -2,11 +2,10 @@ const express = require("express");
 const router = express.Router();
 const supabase = require("../db");
 const { verifyAllowedUser } = require("../middleware/auth");
-const { OpenAI } = require("openai");
 const fs = require("fs");
 const path = require("path");
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const { getConfigValue } = require("./configHelper");
+const { getModelProvider } = require("./modelProvider");
 
 async function enrichEventWithLLM({ title, date, existing_tags }) {
     // Only pass the year to the LLM
@@ -26,19 +25,21 @@ async function enrichEventWithLLM({ title, date, existing_tags }) {
         prompt = prompt.replace("{{existing_tags}}", JSON.stringify(existing_tags || []));
     }
     console.log("[OpenAI Prompt]", prompt); // Log the prompt for debugging
-    const response = await openai.chat.completions.create({
-        model: "gpt-4.1-nano",
-        messages: [
+    // Use config-based model provider
+    const defaultModel = await getConfigValue("default_model");
+    const provider = getModelProvider(defaultModel);
+    let responseContent;
+    try {
+        responseContent = await provider.chatCompletion([
             { role: "system", content: "You are a helpful assistant for an app that displays information about historical events." },
             { role: "user", content: prompt }
-        ],
-        temperature: 0,
-        max_tokens: 256
-    });
+        ], { temperature: 0, max_tokens: 256 });
+    } catch (e) {
+        console.log("[OpenAI Error]", e);
+        return { description: "", tags: [], regions: [], countries: [] };
+    }
     try {
-        const content = response.choices[0].message.content;
-        console.log("[OpenAI Response]", content); // Log the response for debugging
-        const parsed = JSON.parse(content);
+        const parsed = JSON.parse(responseContent);
         return {
             description: parsed.description,
             tags: parsed.tags,
