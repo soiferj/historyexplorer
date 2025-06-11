@@ -6,6 +6,8 @@ const fs = require("fs");
 const path = require("path");
 const { getConfigValue } = require("./configHelper");
 const { getModelProvider } = require("./modelProvider");
+const { OpenAI } = require("openai");
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 async function enrichEventWithLLM({ title, date, existing_tags }) {
     // Only pass the year to the LLM
