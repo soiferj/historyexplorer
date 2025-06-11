@@ -37,6 +37,9 @@ app.use("/summary", summaryRouter);
 const chatbotRouter = require("./routes/chatbot");
 app.use("/chatbot", chatbotRouter);
 
+const configRouter = require("./routes/config");
+app.use("/config", configRouter);
+
 // Middleware to verify Supabase JWT and check allow-list
 async function verifyAllowedUser(req, res, next) {
     try {

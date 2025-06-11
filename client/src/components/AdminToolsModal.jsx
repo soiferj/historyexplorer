@@ -21,6 +21,11 @@ function AdminToolsModal({
     const [deleteChatbotLoading, setDeleteChatbotLoading] = useState(false);
     const [deleteChatbotResult, setDeleteChatbotResult] = useState("");
     const [showDeleteChatbotModal, setShowDeleteChatbotModal] = useState(false);
+    const [configs, setConfigs] = useState([]);
+    const [configsLoading, setConfigsLoading] = useState(false);
+    const [configsError, setConfigsError] = useState("");
+    const [configEdits, setConfigEdits] = useState({});
+    const [configSaveStatus, setConfigSaveStatus] = useState("");
     const apiUrl = process.env.REACT_APP_API_URL;
 
     // Helper to get all unique tags from allEvents
@@ -172,6 +177,58 @@ function AdminToolsModal({
             setDeleteChatbotResult("Failed to delete conversations.");
         } finally {
             setDeleteChatbotLoading(false);
+        }
+    }
+
+    // --- Configs Section ---
+    // Fetch configs on mount
+    React.useEffect(() => {
+        async function fetchConfigs() {
+            setConfigsLoading(true);
+            setConfigsError("");
+            try {
+                const response = await fetch(`${apiUrl}/config`, {
+                    headers: {
+                        ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                    }
+                });
+                const data = await response.json();
+                if (response.ok && Array.isArray(data)) {
+                    setConfigs(data);
+                    setConfigEdits({});
+                } else {
+                    setConfigsError(data.error || "Failed to fetch configs.");
+                }
+            } catch (err) {
+                setConfigsError("Failed to fetch configs.");
+            } finally {
+                setConfigsLoading(false);
+            }
+        }
+        fetchConfigs();
+        // eslint-disable-next-line
+    }, []);
+
+    async function handleConfigEditSave(key) {
+        setConfigSaveStatus("");
+        try {
+            const response = await fetch(`${apiUrl}/config`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                },
+                body: JSON.stringify({ key, value: configEdits[key] })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setConfigs(cfgs => cfgs.map(cfg => cfg.key === key ? { ...cfg, value: configEdits[key] } : cfg));
+                setConfigSaveStatus(`Saved '${key}'!`);
+            } else {
+                setConfigSaveStatus(data.error || `Failed to save '${key}'.`);
+            }
+        } catch (err) {
+            setConfigSaveStatus(`Failed to save '${key}'.`);
         }
     }
 
@@ -393,6 +450,51 @@ function AdminToolsModal({
                     </div>
                 </div>
             )}
+            <hr className="my-6 border-green-400/40" />
+            {/* Configs Section */}
+            <h3 className="text-lg font-semibold text-green-300 mb-2">App Configs</h3>
+            <div className="w-full flex flex-col items-center mb-6">
+                {configsLoading && <div className="text-green-200">Loading configs...</div>}
+                {configsError && <div className="text-red-400 mb-2">{configsError}</div>}
+                {!configsLoading && !configsError && configs.length === 0 && (
+                    <div className="text-gray-400">No configs found.</div>
+                )}
+                {!configsLoading && configs.length > 0 && (
+                    <table className="w-full max-w-lg text-sm border border-green-400 rounded bg-gradient-to-br from-[#232526cc] via-[#a8ff7833] to-[#78ffd633] mb-2">
+                        <thead>
+                            <tr className="text-green-200">
+                                <th className="p-2 border-b border-green-400 text-left">Key</th>
+                                <th className="p-2 border-b border-green-400 text-left">Value</th>
+                                <th className="p-2 border-b border-green-400"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {configs.map(cfg => (
+                                <tr key={cfg.key}>
+                                    <td className="p-2 border-b border-green-400 font-mono text-green-300">{cfg.key}</td>
+                                    <td className="p-2 border-b border-green-400">
+                                        <input
+                                            className="w-full bg-green-900 text-green-100 rounded px-2 py-1 border border-green-400"
+                                            value={configEdits[cfg.key] !== undefined ? configEdits[cfg.key] : cfg.value}
+                                            onChange={e => setConfigEdits(edits => ({ ...edits, [cfg.key]: e.target.value }))}
+                                        />
+                                    </td>
+                                    <td className="p-2 border-b border-green-400">
+                                        <button
+                                            className="px-3 py-1 rounded bg-green-700 text-white font-bold hover:bg-green-800 border border-green-300 shadow disabled:opacity-50"
+                                            disabled={configEdits[cfg.key] === undefined || configEdits[cfg.key] === cfg.value}
+                                            onClick={() => handleConfigEditSave(cfg.key)}
+                                        >
+                                            Save
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+                {configSaveStatus && <div className="text-green-200 mt-2">{configSaveStatus}</div>}
+            </div>
         </div>
     );
 }
