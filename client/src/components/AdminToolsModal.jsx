@@ -10,9 +10,6 @@ function AdminToolsModal({
     onClose,
     onEventsUpdated
 }) {
-    const [backfillRegionsLoading, setBackfillRegionsLoading] = useState(false);
-    const [backfillRegionsResult, setBackfillRegionsResult] = useState("");
-    const [showBackfillRegionsModal, setShowBackfillRegionsModal] = useState(false);
     const [dedupeTagsLoading, setDedupeTagsLoading] = useState(false);
     const [dedupeTagsResult, setDedupeTagsResult] = useState("");
     const [showDedupeTagsModal, setShowDedupeTagsModal] = useState(false);
@@ -26,6 +23,9 @@ function AdminToolsModal({
     const [configsError, setConfigsError] = useState("");
     const [configEdits, setConfigEdits] = useState({});
     const [configSaveStatus, setConfigSaveStatus] = useState("");
+    const [regenDescriptionsLoading, setRegenDescriptionsLoading] = useState(false);
+    const [regenDescriptionsResult, setRegenDescriptionsResult] = useState("");
+    const [showRegenDescriptionsModal, setShowRegenDescriptionsModal] = useState(false);
     const apiUrl = process.env.REACT_APP_API_URL;
 
     // Helper to get all unique tags from allEvents
@@ -65,34 +65,6 @@ function AdminToolsModal({
             setRemovalError(err.message);
         } finally {
             setRemovalLoading(false);
-        }
-    }
-
-    async function handleBackfillRegions() {
-        setBackfillRegionsLoading(true);
-        setBackfillRegionsResult("");
-        try {
-            // Call the new endpoint to regenerate all event content
-            const response = await fetch(`${apiUrl}/events/regenerate-all-content`, {
-                method: "POST",
-                headers: {
-                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
-                }
-            });
-            const data = await response.json();
-            if (response.ok) {
-                setBackfillRegionsResult(`All event content regenerated for ${data.updated} events.`);
-                setShowBackfillRegionsModal(false);
-                setShowDeleteConfirm(false);
-                onClose();
-                if (onEventsUpdated) onEventsUpdated();
-            } else {
-                setBackfillRegionsResult(data.error || "Failed to regenerate all event content.");
-            }
-        } catch (err) {
-            setBackfillRegionsResult("Failed to regenerate all event content.");
-        } finally {
-            setBackfillRegionsLoading(false);
         }
     }
 
@@ -233,6 +205,34 @@ function AdminToolsModal({
         }
     }
 
+    // --- Regenerate All Descriptions ---
+    async function handleRegenDescriptions() {
+        setRegenDescriptionsLoading(true);
+        setRegenDescriptionsResult("");
+        try {
+            const response = await fetch(`${apiUrl}/events/regenerate-descriptions`, {
+                method: "POST",
+                headers: {
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                }
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setRegenDescriptionsResult(`Descriptions regenerated for ${data.updated} events.`);
+                setShowRegenDescriptionsModal(false);
+                setShowDeleteConfirm(false);
+                onClose();
+                if (onEventsUpdated) onEventsUpdated();
+            } else {
+                setRegenDescriptionsResult(data.error || "Failed to regenerate descriptions.");
+            }
+        } catch (err) {
+            setRegenDescriptionsResult("Failed to regenerate descriptions.");
+        } finally {
+            setRegenDescriptionsLoading(false);
+        }
+    }
+
     return (
         <div className="w-full max-h-[70vh] overflow-y-auto flex flex-col items-center mt-8 sm:mt-12">
             <h2 className="text-3xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Admin Tools</h2>
@@ -298,111 +298,38 @@ function AdminToolsModal({
                 </div>
             )}
             <hr className="my-6 border-blue-400/40" />
-            <h3 className="text-lg font-semibold text-blue-300 mb-2">Regenerate All Event Content</h3>
+            <h3 className="text-lg font-semibold text-blue-300 mb-2">Regenerate All Descriptions</h3>
             <div className="w-full flex flex-col items-center">
                 <button
                     className="px-4 py-2 rounded bg-blue-700 text-white font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-50"
-                    disabled={backfillRegionsLoading}
-                    onClick={() => setShowBackfillRegionsModal(true)}
+                    disabled={regenDescriptionsLoading}
+                    onClick={() => setShowRegenDescriptionsModal(true)}
                 >
-                    {backfillRegionsLoading ? "Regenerating..." : "Regenerate All Event Content"}
+                    {regenDescriptionsLoading ? "Regenerating..." : "Regenerate All Descriptions"}
                 </button>
-                {backfillRegionsResult && (
-                    <div className="mt-2 text-blue-200 text-sm">{backfillRegionsResult}</div>
+                {regenDescriptionsResult && (
+                    <div className="mt-2 text-blue-200 text-sm">{regenDescriptionsResult}</div>
                 )}
             </div>
             {/* Modal for confirmation */}
-            {showBackfillRegionsModal && (
+            {showRegenDescriptionsModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
                     <div className="bg-gray-900 p-6 rounded-xl shadow-xl max-w-md w-full border border-blue-400">
                         <h2 className="text-lg font-bold text-red-400 mb-2">Warning</h2>
-                        <p className="text-blue-100 mb-4">This will <span className="font-bold text-red-300">regenerate ALL content</span> (including regions, countries, summaries, and any other derived fields) for every event in the database. This action cannot be undone. Are you sure you want to continue?</p>
+                        <p className="text-blue-100 mb-4">This will <span className="font-bold text-red-300">regenerate ALL descriptions</span> for every event in the database. This action cannot be undone. Are you sure you want to continue?</p>
                         <div className="flex gap-4 justify-end">
                             <button
                                 className="px-4 py-2 rounded bg-gray-700 text-white font-semibold border border-gray-500 hover:bg-gray-600"
-                                onClick={() => setShowBackfillRegionsModal(false)}
+                                onClick={() => setShowRegenDescriptionsModal(false)}
                             >
                                 Cancel
                             </button>
                             <button
                                 className="px-4 py-2 rounded bg-red-700 text-white font-bold border border-red-400 hover:bg-red-800 disabled:opacity-60"
-                                disabled={backfillRegionsLoading}
-                                onClick={handleBackfillRegions}
+                                disabled={regenDescriptionsLoading}
+                                onClick={handleRegenDescriptions}
                             >
-                                {backfillRegionsLoading ? "Regenerating..." : "Yes, Regenerate All"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-            <hr className="my-6 border-blue-400/40" />
-            {/* Dedupe Tags Section */}
-            <h3 className="text-lg font-semibold text-yellow-300 mb-2">Deduplicate Tags</h3>
-            <div className="w-full flex flex-col items-center mb-6">
-                <button
-                    className="px-4 py-2 rounded bg-yellow-700 text-white font-bold hover:bg-yellow-800 border border-yellow-300 shadow disabled:opacity-50"
-                    disabled={dedupeTagsLoading}
-                    onClick={handleDedupeTags}
-                >
-                    {dedupeTagsLoading ? "Generating Mapping..." : "Deduplicate Tags with AI"}
-                </button>
-                {dedupeTagsResult && (
-                    <div className="mt-2 text-yellow-200 text-sm">{dedupeTagsResult}</div>
-                )}
-            </div>
-            {/* Dedupe Tags Confirm Modal */}
-            {showDedupeConfirmModal && dedupeTagMapping && (
-                <div className="fixed inset-0 z-60 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
-                    <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowDedupeConfirmModal(false)} />
-                    <div className="relative glass p-6 rounded-2xl shadow-2xl border border-yellow-400 w-full max-w-lg z-70 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#ffe25933] to-[#ffa75133] backdrop-blur-lg">
-                        <h3 className="text-lg font-bold mb-2 text-yellow-300">Confirm Tag Deduplication</h3>
-                        <div className="mb-4 text-center text-yellow-200 max-h-60 overflow-y-auto w-full">
-                            <p className="mb-2">The following tag changes will be made. You can reject or edit any mapping:</p>
-                            <ul className="text-yellow-100 text-left text-xs max-h-40 overflow-y-auto">
-                                {Object.entries(dedupeTagMapping).map(([oldTag, newTag]) => (
-                                    <li key={oldTag} className="flex items-center gap-2 mb-1">
-                                        <span className="font-bold">{oldTag}</span> →
-                                        <input
-                                            className="bg-yellow-900 text-yellow-100 rounded px-1 py-0.5 border border-yellow-400 w-40 text-xs"
-                                            value={newTag}
-                                            onChange={e => {
-                                                const val = e.target.value;
-                                                setDedupeTagMapping(prev => ({ ...prev, [oldTag]: val }));
-                                            }}
-                                        />
-                                        {oldTag !== newTag && (
-                                            <button
-                                                className="ml-2 px-2 py-0.5 rounded bg-red-600 text-white text-xs font-bold hover:bg-red-800"
-                                                title="Reject this mapping"
-                                                onClick={() => {
-                                                    setDedupeTagMapping(prev => {
-                                                        const copy = { ...prev };
-                                                        copy[oldTag] = oldTag;
-                                                        return copy;
-                                                    });
-                                                }}
-                                            >
-                                                ✕
-                                            </button>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div className="flex gap-4 mt-2">
-                            <button
-                                className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
-                                onClick={() => setShowDedupeConfirmModal(false)}
-                                disabled={dedupeTagsLoading}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                className="px-4 py-2 rounded bg-yellow-700 text-white font-bold hover:bg-yellow-800 border border-yellow-300 shadow disabled:opacity-50"
-                                disabled={dedupeTagsLoading}
-                                onClick={handleConfirmDedupeTags}
-                            >
-                                {dedupeTagsLoading ? "Applying..." : "Proceed with Deduplication"}
+                                {regenDescriptionsLoading ? "Regenerating..." : "Yes, Regenerate All"}
                             </button>
                         </div>
                     </div>

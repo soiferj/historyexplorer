@@ -184,8 +184,8 @@ router.post("/enrich-tags", verifyAllowedUser, async (req, res) => {
     }
 });
 
-// POST /events/regenerate-all-content (admin only)
-router.post("/regenerate-all-content", verifyAllowedUser, async (req, res) => {
+// POST /events/regenerate-descriptions (admin only)
+router.post("/regenerate-descriptions", verifyAllowedUser, async (req, res) => {
     try {
         const { data: events, error } = await supabase.from("events").select("*");
         if (error) return res.status(500).json({ error: error.message });
@@ -199,13 +199,10 @@ router.post("/regenerate-all-content", verifyAllowedUser, async (req, res) => {
         }
         let updated = 0;
         for (const event of events) {
-            // Regenerate and overwrite all content fields
+            // Regenerate and overwrite only the description field
             const enrichment = await enrichEventWithLLM({ title: event.title, date: event.date, existing_tags: existingTags });
             const updateObj = {
-                description: enrichment.description || event.description,
-                tags: enrichment.tags && enrichment.tags.length > 0 ? enrichment.tags : event.tags,
-                regions: enrichment.regions || [],
-                countries: enrichment.countries || []
+                description: enrichment.description || event.description
             };
             await supabase.from("events").update(updateObj).eq("id", event.id);
             updated++;
