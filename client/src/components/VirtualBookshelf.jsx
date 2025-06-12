@@ -169,9 +169,10 @@ function VirtualBookshelf({ events }) {
   }, []);
   const bookRows = chunkArray(books, booksPerShelf);
 
+  // 1. Make bookshelf scrollable instead of one giant page
   return (
     <div
-      className="w-full min-h-screen py-12 px-4 flex flex-col items-center"
+      className="w-full h-screen py-12 px-4 flex flex-col items-center overflow-y-auto scrollbar-timeline"
       style={{
         background: 'rgba(255,255,255,0.12)',
         backdropFilter: 'blur(12px)',
@@ -231,75 +232,68 @@ function VirtualBookshelf({ events }) {
       {/* Book details modal */}
       {selectedBook && (
         <div
-          className="fixed inset-0 z-50 flex justify-center bg-black/70 overflow-y-auto"
-          style={{
-            // Remove align-items/center so modal is not always centered on the page
-            // Let modal follow scroll position
-            minHeight: '100vh',
-          }}
+          className="fixed inset-0 z-50 flex justify-center items-center bg-black/60 scrollbar-timeline"
           onClick={() => setSelectedBook(null)}
         >
           <div
-            className="bg-gray-900 rounded-2xl shadow-2xl p-8 max-w-lg w-full relative my-16 mx-auto"
+            className="relative bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-blue-400/40 p-6 max-w-lg w-full flex flex-col items-center animate-fade-in scrollbar-timeline"
             style={{
               maxHeight: '90vh',
               overflowY: 'auto',
             }}
             onClick={e => e.stopPropagation()}
           >
-            <button className="absolute top-4 right-4 text-pink-300 hover:text-white text-2xl font-bold" onClick={() => setSelectedBook(null)}>&times;</button>
-            <div className="flex flex-col items-center">
-              <img src={getBookCover(selectedBook)} alt={selectedBook}
-                onError={e => {
-                  e.target.onerror = null;
-                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedBook)}&background=0D8ABC&color=fff&size=256`;
-                }}
-                className="w-32 h-48 rounded-lg shadow-lg mb-4 object-cover bg-white" />
-              <h2 className="text-2xl font-bold text-blue-300 mb-2 text-center">{selectedBook}</h2>
-              {(() => {
-                const details = getBookDetails(selectedBook);
-                if (!details) return <p className="text-gray-300">No details available.</p>;
-                return (
-                  <div className="w-full text-left mt-2">
-                    <p className="text-blue-200 mb-1"><span className="font-semibold">Number of events:</span> {details.count}</p>
-                    <p className="text-blue-200 mb-1"><span className="font-semibold">Years covered:</span> {formatYear(details.minYear)} to {formatYear(details.maxYear)}</p>
-                    <p className="text-blue-200 mb-1"><span className="font-semibold">Primary tags:</span> {details.primaryTags.length > 0 ? details.primaryTags.join(", ") : "None"}</p>
-                    <div className="mt-4">
-                      <h3 className="text-lg font-semibold text-pink-300 mb-1">Generate AI Summary</h3>
-                      <div className="flex flex-row gap-2 items-center mb-2">
-                        {!aiSummary && (
-                          <button
-                            className="px-3 py-1 rounded bg-pink-700 text-white text-xs font-bold hover:bg-pink-800 border border-pink-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
-                            onClick={() => fetchAiSummary(selectedBook)}
-                            disabled={aiSummaryLoading}
-                          >
-                            {aiSummaryLoading ? "Generating..." : "Generate AI Summary"}
-                          </button>
-                        )}
-                        {aiSummary && (
-                          <button
-                            className="px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
-                            onClick={() => fetchAiSummary(selectedBook, true)}
-                            disabled={aiSummaryLoading}
-                          >
-                            {aiSummaryLoading ? "Regenerating..." : "Regenerate"}
-                          </button>
-                        )}
-                        {aiSummary && (
-                          <span className={`text-xs font-semibold ${aiSummaryCached ? 'text-yellow-300' : 'text-green-300'}`}>{aiSummaryCached ? 'Result loaded from cache.' : 'Fresh result (not cached).'}</span>
-                        )}
-                      </div>
-                      {aiSummaryError && <div className="text-red-300 text-sm mb-2">{aiSummaryError}</div>}
+            <button className="absolute top-3 right-3 text-pink-400 hover:text-pink-600 text-2xl font-bold" onClick={() => setSelectedBook(null)}>&times;</button>
+            <img src={getBookCover(selectedBook)} alt={selectedBook}
+              onError={e => {
+                e.target.onerror = null;
+                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedBook)}&background=0D8ABC&color=fff&size=256`;
+              }}
+              className="w-32 h-48 rounded-lg shadow mb-4 object-cover bg-white border border-blue-200" />
+            <h2 className="text-2xl font-bold text-blue-700 dark:text-blue-300 mb-2 text-center">{selectedBook}</h2>
+            {(() => {
+              const details = getBookDetails(selectedBook);
+              if (!details) return <p className="text-gray-300">No details available.</p>;
+              return (
+                <div className="w-full text-left mt-2">
+                  <p className="text-blue-200 mb-1"><span className="font-semibold">Number of events:</span> {details.count}</p>
+                  <p className="text-blue-200 mb-1"><span className="font-semibold">Years covered:</span> {formatYear(details.minYear)} to {formatYear(details.maxYear)}</p>
+                  <p className="text-blue-200 mb-1"><span className="font-semibold">Primary tags:</span> {details.primaryTags.length > 0 ? details.primaryTags.join(", ") : "None"}</p>
+                  <div className="mt-4">
+                    <h3 className="text-lg font-semibold text-pink-300 mb-1">AI Summary</h3>
+                    <div className="flex flex-row gap-2 items-center mb-2">
+                      {!aiSummary && (
+                        <button
+                          className="px-3 py-1 rounded bg-pink-700 text-white text-xs font-bold hover:bg-pink-800 border border-pink-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
+                          onClick={() => fetchAiSummary(selectedBook)}
+                          disabled={aiSummaryLoading}
+                        >
+                          {aiSummaryLoading ? "Generating..." : "Generate AI Summary"}
+                        </button>
+                      )}
                       {aiSummary && (
-                        <div className="text-gray-200 whitespace-pre-line text-base bg-gray-800 rounded-xl p-3 border border-blue-400/40 shadow-inner min-h-[3rem] max-h-64 overflow-y-auto">
-                          {aiSummary}
-                        </div>
+                        <button
+                          className="px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
+                          onClick={() => fetchAiSummary(selectedBook, true)}
+                          disabled={aiSummaryLoading}
+                        >
+                          {aiSummaryLoading ? "Regenerating..." : "Regenerate"}
+                        </button>
+                      )}
+                      {aiSummary && (
+                        <span className={`text-xs font-semibold ${aiSummaryCached ? 'text-yellow-300' : 'text-green-300'}`}>{aiSummaryCached ? 'Result loaded from cache.' : 'Fresh result (not cached).'}</span>
                       )}
                     </div>
+                    {aiSummaryError && <div className="text-red-300 text-sm mb-2">{aiSummaryError}</div>}
+                    {aiSummary && (
+                      <div className="text-gray-200 whitespace-pre-line text-base bg-gray-800 rounded-xl p-3 border border-blue-400/40 shadow-inner min-h-[3rem] max-h-64 overflow-y-auto">
+                        {aiSummary}
+                      </div>
+                    )}
                   </div>
-                );
-              })()}
-            </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
