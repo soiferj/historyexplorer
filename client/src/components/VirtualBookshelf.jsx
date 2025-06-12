@@ -2,6 +2,8 @@ import React, { useState, useMemo } from "react";
 import PropTypes from "prop-types";
 import "../App.css";
 
+const apiUrl = process.env.REACT_APP_API_URL;
+
 // Helper to get cover image (stub: replace with real logic if available)
 function getBookCover(book) {
   // If you have a real cover image URL, use it here
@@ -19,6 +21,17 @@ function VirtualBookshelf({ events }) {
 
   // Book details modal state
   const [selectedBook, setSelectedBook] = useState(null);
+  const [aiSummary, setAiSummary] = useState("");
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
+  const [aiSummaryError, setAiSummaryError] = useState("");
+  const [aiSummaryCached, setAiSummaryCached] = useState(false);
+
+  // Helper to format year with BCE/CE
+  function formatYear(year) {
+    if (typeof year !== 'number' || isNaN(year)) return '';
+    if (year < 0) return `${-year} BCE`;
+    return `${year} CE`;
+  }
 
   // Compute book details
   function getBookDetails(book) {
@@ -41,23 +54,53 @@ function VirtualBookshelf({ events }) {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
       .map(([tag]) => tag);
-    // AI summary (if available)
-    const aiSummary = bookEvents[0]?.book_summary || null;
     return {
       count: bookEvents.length,
       minYear,
       maxYear,
       primaryTags,
-      aiSummary,
       events: bookEvents
     };
   }
 
-  // Helper to format year with BCE/CE
-  function formatYear(year) {
-    if (typeof year !== 'number' || isNaN(year)) return '';
-    if (year < 0) return `${-year} BCE`;
-    return `${year} CE`;
+  // Fetch AI summary for a book's events
+  async function fetchAiSummary(book, forceRegenerate = false) {
+    setAiSummaryLoading(true);
+    setAiSummaryError("");
+    setAiSummary("");
+    setAiSummaryCached(false);
+    try {
+      const details = getBookDetails(book);
+      if (!details || !details.events || details.events.length === 0) {
+        setAiSummaryError("No events to summarize.");
+        setAiSummaryLoading(false);
+        return;
+      }
+      // Only send minimal fields to the server
+      const payload = details.events.map(ev => ({
+        title: ev.title,
+        date: ev.date,
+        description: ev.description,
+        tags: ev.tags,
+        regions: ev.regions,
+        countries: ev.countries
+      }));
+      const response = await fetch(`${apiUrl}/summary`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ events: payload, forceRegenerate })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to generate summary");
+      setAiSummary(data.summary);
+      setAiSummaryCached(!!data.cached);
+    } catch (err) {
+      setAiSummaryError(err.message);
+    } finally {
+      setAiSummaryLoading(false);
+    }
   }
 
   return (
@@ -94,9 +137,35 @@ function VirtualBookshelf({ events }) {
                     <p className="text-blue-200 mb-1"><span className="font-semibold">Primary tags:</span> {details.primaryTags.length > 0 ? details.primaryTags.join(", ") : "None"}</p>
                     <div className="mt-4">
                       <h3 className="text-lg font-semibold text-pink-300 mb-1">AI Summary</h3>
-                      <p className="text-gray-200 whitespace-pre-line text-base bg-gray-800 rounded-xl p-3 border border-blue-400/40 shadow-inner min-h-[3rem]">
-                        {details.aiSummary || "No summary available."}
-                      </p>
+                      <div className="flex flex-row gap-2 items-center mb-2">
+                        {!aiSummary && (
+                          <button
+                            className="px-3 py-1 rounded bg-pink-700 text-white text-xs font-bold hover:bg-pink-800 border border-pink-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
+                            onClick={() => fetchAiSummary(selectedBook)}
+                            disabled={aiSummaryLoading}
+                          >
+                            {aiSummaryLoading ? "Generating..." : "AI Summary"}
+                          </button>
+                        )}
+                        {aiSummary && (
+                          <button
+                            className="px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
+                            onClick={() => fetchAiSummary(selectedBook, true)}
+                            disabled={aiSummaryLoading}
+                          >
+                            {aiSummaryLoading ? "Regenerating..." : "Regenerate"}
+                          </button>
+                        )}
+                        {aiSummary && (
+                          <span className={`text-xs font-semibold ${aiSummaryCached ? 'text-yellow-300' : 'text-green-300'}`}>{aiSummaryCached ? 'Result loaded from cache.' : 'Fresh result (not cached).'}</span>
+                        )}
+                      </div>
+                      {aiSummaryError && <div className="text-red-300 text-sm mb-2">{aiSummaryError}</div>}
+                      {aiSummary && (
+                        <div className="text-gray-200 whitespace-pre-line text-base bg-gray-800 rounded-xl p-3 border border-blue-400/40 shadow-inner min-h-[3rem] max-h-64 overflow-y-auto">
+                          {aiSummary}
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
