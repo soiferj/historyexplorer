@@ -230,8 +230,23 @@ function VirtualBookshelf({ events }) {
       </div>
       {/* Book details modal */}
       {selectedBook && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center" onClick={() => setSelectedBook(null)}>
-          <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 max-w-lg w-full relative" onClick={e => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex justify-center bg-black/70 overflow-y-auto"
+          style={{
+            // Remove align-items/center so modal is not always centered on the page
+            // Let modal follow scroll position
+            minHeight: '100vh',
+          }}
+          onClick={() => setSelectedBook(null)}
+        >
+          <div
+            className="bg-gray-900 rounded-2xl shadow-2xl p-8 max-w-lg w-full relative my-16 mx-auto"
+            style={{
+              maxHeight: '90vh',
+              overflowY: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
             <button className="absolute top-4 right-4 text-pink-300 hover:text-white text-2xl font-bold" onClick={() => setSelectedBook(null)}>&times;</button>
             <div className="flex flex-col items-center">
               <img src={getBookCover(selectedBook)} alt={selectedBook}
