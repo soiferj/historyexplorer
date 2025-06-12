@@ -6,8 +6,9 @@ const apiUrl = process.env.REACT_APP_API_URL;
 
 // Helper to get cover image (prefer real cover, fallback to placeholder)
 function getBookCover(book) {
-  // Use URL-encoded book name for file name
-  return `/covers/${encodeURIComponent(book)}.jpg`;
+  // Use apiUrl if set, otherwise relative path
+  const base = apiUrl ? apiUrl.replace(/\/$/, "") : "";
+  return `${base}/api/book-cover?book=${encodeURIComponent(book)}`;
 }
 
 function VirtualBookshelf({ events }) {
