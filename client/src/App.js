@@ -412,7 +412,7 @@ function App() {
                             className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${showBookshelf ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
                             onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowMenu(false); }}
                         >
-                            Virtual Bookshelf
+                            Bookshelf
                         </button>
                         {isAllowed && (
                             <button
