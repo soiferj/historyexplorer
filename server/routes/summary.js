@@ -12,7 +12,7 @@ const { getModelProvider } = require("./modelProvider");
 // POST /summary - Generate AI summary of a list of events
 router.post("/", async (req, res) => {
     try {
-        const { events, forceRegenerate = false } = req.body;
+        const { events, forceRegenerate = false, cacheOnly = false } = req.body;
         if (!Array.isArray(events) || events.length === 0) {
             return res.status(400).json({ error: "Events array is required" });
         }
@@ -33,6 +33,10 @@ router.post("/", async (req, res) => {
                 .single();
             if (!cacheError && cacheData && cacheData.summary) {
                 return res.json({ summary: cacheData.summary, cached: true });
+            }
+            if (cacheOnly) {
+                // If cacheOnly is true, return not found if not in cache
+                return res.status(404).json({ error: "No cached summary found" });
             }
         }
         // Load summary prompt template

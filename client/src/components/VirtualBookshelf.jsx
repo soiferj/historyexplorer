@@ -26,6 +26,46 @@ function VirtualBookshelf({ events }) {
   const [aiSummaryError, setAiSummaryError] = useState("");
   const [aiSummaryCached, setAiSummaryCached] = useState(false);
 
+  // Reset AI summary state when opening a new book
+  React.useEffect(() => {
+    setAiSummary("");
+    setAiSummaryError("");
+    setAiSummaryCached(false);
+    setAiSummaryLoading(false);
+  }, [selectedBook]);
+
+  // Try to fetch cached summary on book open
+  React.useEffect(() => {
+    if (!selectedBook) return;
+    setAiSummary("");
+    setAiSummaryError("");
+    setAiSummaryCached(false);
+    setAiSummaryLoading(false);
+    // Try to fetch cached summary
+    const details = getBookDetails(selectedBook);
+    if (!details || !details.events || details.events.length === 0) return;
+    const payload = details.events.map(ev => ({
+      title: ev.title,
+      date: ev.date,
+      description: ev.description,
+      tags: ev.tags,
+      regions: ev.regions,
+      countries: ev.countries
+    }));
+    fetch(`${apiUrl}/summary`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ events: payload, cacheOnly: true })
+    })
+      .then(async res => {
+        if (!res.ok) return;
+        const data = await res.json();
+        setAiSummary(data.summary);
+        setAiSummaryCached(!!data.cached);
+      })
+      .catch(() => {});
+  }, [selectedBook]);
+
   // Helper to format year with BCE/CE
   function formatYear(year) {
     if (typeof year !== 'number' || isNaN(year)) return '';
@@ -136,7 +176,7 @@ function VirtualBookshelf({ events }) {
                     <p className="text-blue-200 mb-1"><span className="font-semibold">Years covered:</span> {formatYear(details.minYear)} to {formatYear(details.maxYear)}</p>
                     <p className="text-blue-200 mb-1"><span className="font-semibold">Primary tags:</span> {details.primaryTags.length > 0 ? details.primaryTags.join(", ") : "None"}</p>
                     <div className="mt-4">
-                      <h3 className="text-lg font-semibold text-pink-300 mb-1">AI Summary</h3>
+                      <h3 className="text-lg font-semibold text-pink-300 mb-1">Generate AI Summary</h3>
                       <div className="flex flex-row gap-2 items-center mb-2">
                         {!aiSummary && (
                           <button
@@ -144,7 +184,7 @@ function VirtualBookshelf({ events }) {
                             onClick={() => fetchAiSummary(selectedBook)}
                             disabled={aiSummaryLoading}
                           >
-                            {aiSummaryLoading ? "Generating..." : "AI Summary"}
+                            {aiSummaryLoading ? "Generating..." : "Generate AI Summary"}
                           </button>
                         )}
                         {aiSummary && (
