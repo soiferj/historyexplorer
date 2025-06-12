@@ -8,6 +8,7 @@ import AdminToolsModal from "./components/AdminToolsModal";
 import TagEvolutionChart from "./components/TagEvolutionChart";
 import Chatbot from "./components/Chatbot";
 import EventModal from "./components/EventModal";
+import VirtualBookshelf from "./components/VirtualBookshelf";
 import "./index.css";
 
 function App() {
@@ -55,6 +56,8 @@ function App() {
     // Add state for editBookMode and newBook
     const [editBookMode, setEditBookMode] = useState('existing');
     const [newBook, setNewBook] = useState('');
+    // Add state for bookshelf view
+    const [showBookshelf, setShowBookshelf] = useState(false);
 
     // Fetch events function for use in Timeline
     const fetchEvents = async () => {
@@ -388,22 +391,28 @@ function App() {
                             &times;
                         </button>
                         <button
-                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${!showMap && !showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                            onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowMenu(false); }}
+                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${!showMap && !showTagEvolution && !showBookshelf ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                            onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowMenu(false); }}
                         >
                             Timeline
                         </button>
                         <button
                             className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                            onClick={() => { setShowMap(true); setShowTagEvolution(false); setShowMenu(false); }}
+                            onClick={() => { setShowMap(true); setShowTagEvolution(false); setShowBookshelf(false); setShowMenu(false); }}
                         >
                             World Map
                         </button>
                         <button
                             className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                            onClick={() => { setShowMap(false); setShowTagEvolution(true); setShowMenu(false); }}
+                            onClick={() => { setShowMap(false); setShowTagEvolution(true); setShowBookshelf(false); setShowMenu(false); }}
                         >
                             Tag Evolution
+                        </button>
+                        <button
+                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${showBookshelf ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
+                            onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowMenu(false); }}
+                        >
+                            Virtual Bookshelf
                         </button>
                         {isAllowed && (
                             <button
@@ -590,7 +599,9 @@ function App() {
                 </div>
             )}
             <div className="flex flex-col items-center w-full max-w-5xl px-8 mx-auto mt-2 mb-4 z-10 min-h-0">
-                {showMap ? (
+                {showBookshelf ? (
+                    <VirtualBookshelf events={events} />
+                ) : showMap ? (
                     <MapView
                         events={filteredEvents}
                         onRegionSelect={handleRegionSelect}
