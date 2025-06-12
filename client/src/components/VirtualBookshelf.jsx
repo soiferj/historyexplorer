@@ -143,19 +143,53 @@ function VirtualBookshelf({ events }) {
     }
   }
 
+  // Helper to split books into rows for shelf effect
+  function chunkArray(arr, size) {
+    const result = [];
+    for (let i = 0; i < arr.length; i += size) {
+      result.push(arr.slice(i, i + size));
+    }
+    return result;
+  }
+  const booksPerShelf = 6; // Adjust for shelf length
+  const bookRows = chunkArray(books, booksPerShelf);
+
   return (
-    <div className="w-full min-h-screen bg-gradient-to-br from-blue-900 to-pink-900 py-12 px-4 flex flex-col items-center">
-      <h1 className="text-4xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Virtual Bookshelf</h1>
-      <div className="flex flex-wrap gap-8 justify-center max-w-6xl">
-        {books.map(book => (
-          <div key={book} className="flex flex-col items-center cursor-pointer group" onClick={() => setSelectedBook(book)}>
-            <img
-              src={getBookCover(book)}
-              alt={book}
-              className="w-32 h-48 rounded-lg shadow-lg border-4 border-blue-400 group-hover:scale-105 transition-transform object-cover bg-white"
-              style={{ background: '#fff' }}
+    <div
+      className="w-full min-h-screen py-12 px-4 flex flex-col items-center"
+      style={{
+        background: `repeating-linear-gradient(135deg, #8b6a3a 0px, #b08d57 40px, #8b6a3a 80px), linear-gradient(to bottom, #a67c52 0%, #5c4321 100%)`,
+        backgroundBlendMode: 'multiply',
+        opacity: 0.93,
+      }}
+    >
+      <h1 className="text-4xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-700 to-yellow-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Virtual Bookshelf</h1>
+      <div className="flex flex-col gap-12 w-full max-w-6xl">
+        {bookRows.map((row, idx) => (
+          <div key={idx} className="relative flex justify-center items-end min-h-[12rem]">
+            {/* Shelf background */}
+            <div
+              className="absolute left-0 right-0 bottom-0 h-8 rounded-b-2xl shadow-lg z-0"
+              style={{
+                background: 'linear-gradient(90deg, #b88b4a 0%, #e6cfa7 50%, #b88b4a 100%)',
+                boxShadow: '0 8px 16px 0 #7a5a2f99, 0 2px 0 0 #a97c50',
+                borderBottom: '6px solid #7a5a2f',
+                opacity: 0.96,
+              }}
             />
-            <span className="mt-2 text-sm font-semibold text-blue-200 text-center max-w-[8rem] truncate whitespace-normal leading-tight break-words">{book}</span>
+            {/* Books on shelf */}
+            <div className="flex flex-row gap-8 justify-center w-full z-10">
+              {row.map(book => (
+                <div key={book} className="flex flex-col items-end cursor-pointer group" onClick={() => setSelectedBook(book)}>
+                  <img
+                    src={getBookCover(book)}
+                    alt={book}
+                    className="w-32 h-48 rounded-lg shadow-lg border-4 border-yellow-700 group-hover:scale-105 transition-transform object-cover bg-white align-bottom"
+                    style={{ background: '#fff', zIndex: 20 }}
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         ))}
       </div>
