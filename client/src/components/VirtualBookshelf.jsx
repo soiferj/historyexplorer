@@ -151,12 +151,13 @@ function VirtualBookshelf({ events }) {
     }
     return result;
   }
+  // Responsive books per shelf
   const [booksPerShelf, setBooksPerShelf] = useState(6);
   useEffect(() => {
     function handleResize() {
-      if (window.innerWidth < 640) {
+      if (window.matchMedia('(max-width: 639px)').matches) {
         setBooksPerShelf(1); // full width on mobile
-      } else if (window.innerWidth < 1024) {
+      } else if (window.matchMedia('(max-width: 1023px)').matches) {
         setBooksPerShelf(3); // medium screens
       } else {
         setBooksPerShelf(6); // large screens
