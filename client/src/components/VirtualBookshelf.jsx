@@ -4,11 +4,10 @@ import "../App.css";
 
 const apiUrl = process.env.REACT_APP_API_URL;
 
-// Helper to get cover image (stub: replace with real logic if available)
+// Helper to get cover image (prefer real cover, fallback to placeholder)
 function getBookCover(book) {
-  // If you have a real cover image URL, use it here
-  // For now, use a placeholder with the book name
-  return `https://ui-avatars.com/api/?name=${encodeURIComponent(book)}&background=0D8ABC&color=fff&size=256`;
+  // Use URL-encoded book name for file name
+  return `/covers/${encodeURIComponent(book)}.jpg`;
 }
 
 function VirtualBookshelf({ events }) {
@@ -158,9 +157,12 @@ function VirtualBookshelf({ events }) {
     <div
       className="w-full min-h-screen py-12 px-4 flex flex-col items-center"
       style={{
-        background: `repeating-linear-gradient(135deg, #8b6a3a 0px, #b08d57 40px, #8b6a3a 80px), linear-gradient(to bottom, #a67c52 0%, #5c4321 100%)`,
-        backgroundBlendMode: 'multiply',
-        opacity: 0.93,
+        background: 'rgba(255,255,255,0.12)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1.5px solid rgba(255,255,255,0.22)',
+        boxShadow: '0 8px 32px 0 rgba(31,38,135,0.18)',
+        borderRadius: '2rem',
       }}
     >
       <h1 className="text-4xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-700 to-yellow-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Virtual Bookshelf</h1>
@@ -184,6 +186,10 @@ function VirtualBookshelf({ events }) {
                   <img
                     src={getBookCover(book)}
                     alt={book}
+                    onError={e => {
+                      e.target.onerror = null;
+                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book)}&background=0D8ABC&color=fff&size=256`;
+                    }}
                     className="w-32 h-48 rounded-lg shadow-lg border-4 border-yellow-700 group-hover:scale-105 transition-transform object-cover bg-white align-bottom"
                     style={{ background: '#fff', zIndex: 20 }}
                   />
@@ -199,7 +205,12 @@ function VirtualBookshelf({ events }) {
           <div className="bg-gray-900 rounded-2xl shadow-2xl p-8 max-w-lg w-full relative" onClick={e => e.stopPropagation()}>
             <button className="absolute top-4 right-4 text-pink-300 hover:text-white text-2xl font-bold" onClick={() => setSelectedBook(null)}>&times;</button>
             <div className="flex flex-col items-center">
-              <img src={getBookCover(selectedBook)} alt={selectedBook} className="w-32 h-48 rounded-lg shadow-lg border-4 border-blue-400 mb-4 object-cover bg-white" />
+              <img src={getBookCover(selectedBook)} alt={selectedBook}
+                onError={e => {
+                  e.target.onerror = null;
+                  e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedBook)}&background=0D8ABC&color=fff&size=256`;
+                }}
+                className="w-32 h-48 rounded-lg shadow-lg border-4 border-blue-400 mb-4 object-cover bg-white" />
               <h2 className="text-2xl font-bold text-blue-300 mb-2 text-center">{selectedBook}</h2>
               {(() => {
                 const details = getBookDetails(selectedBook);
