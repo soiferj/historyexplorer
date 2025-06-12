@@ -199,16 +199,29 @@ function VirtualBookshelf({ events }) {
             <div className="flex flex-row gap-8 justify-center w-full z-10">
               {row.map(book => (
                 <div key={book} className="flex flex-col items-end cursor-pointer group" onClick={() => setSelectedBook(book)}>
-                  <img
-                    src={getBookCover(book)}
-                    alt={book}
-                    onError={e => {
-                      e.target.onerror = null;
-                      e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book)}&background=0D8ABC&color=fff&size=256`;
-                    }}
-                    className="w-32 h-48 rounded-lg shadow-lg border-4 border-yellow-700 group-hover:scale-105 transition-transform object-cover bg-white align-bottom"
-                    style={{ background: '#fff', zIndex: 20 }}
-                  />
+                  <div className="relative">
+                    <img
+                      src={getBookCover(book)}
+                      alt={book}
+                      onError={e => {
+                        e.target.onerror = null;
+                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book)}&background=0D8ABC&color=fff&size=256`;
+                      }}
+                      className="w-32 h-48 rounded-lg object-cover bg-white align-bottom shadow-lg group-hover:scale-110 group-hover:-rotate-6 group-hover:shadow-xl transition-transform duration-300 ease-out"
+                      style={{
+                        background: '#fff',
+                        zIndex: 20,
+                        boxShadow: '0 4px 16px 0 rgba(0,0,0,0.32)',
+                      }}
+                    />
+                    {/* Book spine highlight for 3D effect (less pronounced) */}
+                    <div className="absolute left-0 top-0 h-full w-1 rounded-l pointer-events-none"
+                      style={{
+                        background: 'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.01) 100%)',
+                        boxShadow: '1px 0 4px 0 rgba(255,255,255,0.08)',
+                      }}
+                    />
+                  </div>
                 </div>
               ))}
             </div>
@@ -226,7 +239,7 @@ function VirtualBookshelf({ events }) {
                   e.target.onerror = null;
                   e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedBook)}&background=0D8ABC&color=fff&size=256`;
                 }}
-                className="w-32 h-48 rounded-lg shadow-lg border-4 border-blue-400 mb-4 object-cover bg-white" />
+                className="w-32 h-48 rounded-lg shadow-lg mb-4 object-cover bg-white" />
               <h2 className="text-2xl font-bold text-blue-300 mb-2 text-center">{selectedBook}</h2>
               {(() => {
                 const details = getBookDetails(selectedBook);
