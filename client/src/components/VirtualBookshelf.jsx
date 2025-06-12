@@ -171,65 +171,67 @@ function VirtualBookshelf({ events }) {
 
   // 1. Make bookshelf scrollable instead of one giant page
   return (
-    <div
-      className="w-full h-screen py-12 px-4 flex flex-col items-center overflow-y-auto scrollbar-timeline"
-      style={{
-        background: 'rgba(255,255,255,0.12)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        border: '1.5px solid rgba(255,255,255,0.22)',
-        boxShadow: '0 8px 32px 0 rgba(31,38,135,0.18)',
-        borderRadius: '2rem',
-      }}
-    >
-      <h1 className="text-4xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-700 to-yellow-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Bookshelf</h1>
-      <div className="flex flex-col gap-12 w-full max-w-6xl">
-        {bookRows.map((row, idx) => (
-          <div key={idx} className="relative flex justify-center items-end min-h-[12rem]">
-            {/* Shelf background */}
-            <div
-              className="absolute left-0 right-0 bottom-0 h-8 rounded-b-2xl shadow-lg z-0"
-              style={{
-                background: 'linear-gradient(90deg, #b88b4a 0%, #e6cfa7 50%, #b88b4a 100%)',
-                boxShadow: '0 8px 16px 0 #7a5a2f99, 0 2px 0 0 #a97c50',
-                borderBottom: '6px solid #7a5a2f',
-                opacity: 0.96,
-              }}
-            />
-            {/* Books on shelf */}
-            <div className="flex flex-row gap-8 justify-center w-full z-10">
-              {row.map(book => (
-                <div key={book} className="flex flex-col items-end cursor-pointer group" onClick={() => setSelectedBook(book)}>
-                  <div className="relative">
-                    <img
-                      src={getBookCover(book)}
-                      alt={book}
-                      onError={e => {
-                        e.target.onerror = null;
-                        e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book)}&background=0D8ABC&color=fff&size=256`;
-                      }}
-                      className="w-32 h-48 rounded-lg object-cover bg-white align-bottom shadow-lg group-hover:scale-110 group-hover:-rotate-6 group-hover:shadow-xl transition-transform duration-300 ease-out"
-                      style={{
-                        background: '#fff',
-                        zIndex: 20,
-                        boxShadow: '0 4px 16px 0 rgba(0,0,0,0.32)',
-                      }}
-                    />
-                    {/* Book spine highlight for 3D effect (less pronounced) */}
-                    <div className="absolute left-0 top-0 h-full w-1 rounded-l pointer-events-none"
-                      style={{
-                        background: 'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.01) 100%)',
-                        boxShadow: '1px 0 4px 0 rgba(255,255,255,0.08)',
-                      }}
-                    />
+    <>
+      <div
+        className="w-full h-screen py-12 px-4 flex flex-col items-center overflow-y-auto scrollbar-timeline"
+        style={{
+          background: 'rgba(255,255,255,0.12)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1.5px solid rgba(255,255,255,0.22)',
+          boxShadow: '0 8px 32px 0 rgba(31,38,135,0.18)',
+          borderRadius: '2rem',
+        }}
+      >
+        <h1 className="text-4xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-700 to-yellow-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Bookshelf</h1>
+        <div className="flex flex-col gap-12 w-full max-w-6xl">
+          {bookRows.map((row, idx) => (
+            <div key={idx} className="relative flex justify-center items-end min-h-[12rem]">
+              {/* Shelf background */}
+              <div
+                className="absolute left-0 right-0 bottom-0 h-8 rounded-b-2xl shadow-lg z-0"
+                style={{
+                  background: 'linear-gradient(90deg, #b88b4a 0%, #e6cfa7 50%, #b88b4a 100%)',
+                  boxShadow: '0 8px 16px 0 #7a5a2f99, 0 2px 0 0 #a97c50',
+                  borderBottom: '6px solid #7a5a2f',
+                  opacity: 0.96,
+                }}
+              />
+              {/* Books on shelf */}
+              <div className="flex flex-row gap-8 justify-center w-full z-10">
+                {row.map(book => (
+                  <div key={book} className="flex flex-col items-end cursor-pointer group" onClick={() => setSelectedBook(book)}>
+                    <div className="relative">
+                      <img
+                        src={getBookCover(book)}
+                        alt={book}
+                        onError={e => {
+                          e.target.onerror = null;
+                          e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(book)}&background=0D8ABC&color=fff&size=256`;
+                        }}
+                        className="w-32 h-48 rounded-lg object-cover bg-white align-bottom shadow-lg group-hover:scale-110 group-hover:-rotate-6 group-hover:shadow-xl transition-transform duration-300 ease-out"
+                        style={{
+                          background: '#fff',
+                          zIndex: 20,
+                          boxShadow: '0 4px 16px 0 rgba(0,0,0,0.32)',
+                        }}
+                      />
+                      {/* Book spine highlight for 3D effect (less pronounced) */}
+                      <div className="absolute left-0 top-0 h-full w-1 rounded-l pointer-events-none"
+                        style={{
+                          background: 'linear-gradient(90deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.01) 100%)',
+                          boxShadow: '1px 0 4px 0 rgba(255,255,255,0.08)',
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-      {/* Book details modal */}
+      {/* Book details modal - moved outside bookshelf container to ensure full-page centering */}
       {selectedBook && (
         <div
           className="fixed inset-0 z-50 flex justify-center items-center bg-black/60 scrollbar-timeline"
@@ -297,7 +299,7 @@ function VirtualBookshelf({ events }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
