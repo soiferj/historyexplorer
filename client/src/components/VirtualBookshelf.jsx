@@ -183,7 +183,7 @@ function VirtualBookshelf({ events }) {
           borderRadius: '2rem',
         }}
       >
-        //<h1 className="text-4xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-700 to-yellow-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Bookshelf</h1>
+        {/*<h1 className="text-4xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-700 to-yellow-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Bookshelf</h1>*/}
         <div className="flex flex-col gap-12 w-full max-w-6xl">
           {bookRows.map((row, idx) => (
             <div key={idx} className="relative flex justify-center items-end min-h-[12rem]">
