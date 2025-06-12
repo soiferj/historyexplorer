@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import PropTypes from "prop-types";
 import "../App.css";
 
@@ -151,7 +151,21 @@ function VirtualBookshelf({ events }) {
     }
     return result;
   }
-  const booksPerShelf = 6; // Adjust for shelf length
+  const [booksPerShelf, setBooksPerShelf] = useState(6);
+  useEffect(() => {
+    function handleResize() {
+      if (window.innerWidth < 640) {
+        setBooksPerShelf(1); // full width on mobile
+      } else if (window.innerWidth < 1024) {
+        setBooksPerShelf(3); // medium screens
+      } else {
+        setBooksPerShelf(6); // large screens
+      }
+    }
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const bookRows = chunkArray(books, booksPerShelf);
 
   return (

@@ -23,8 +23,8 @@ router.get('/', async (req, res) => {
   console.log(`Fetching cover for book: ${book}, fileName: ${fileName}`);
 
   // Build the Supabase public URL for the cover using env var
-  const SUPABASE_PUBLIC_URL = process.env.SUPABASE_COVERS_PUBLIC_URL;
-  const publicUrl = `${SUPABASE_PUBLIC_URL}/${fileName}`;
+  const SUPABASE_COVERS_PUBLIC_URL = process.env.SUPABASE_COVERS_PUBLIC_URL;
+  const publicUrl = `${SUPABASE_COVERS_PUBLIC_URL}/${fileName}`;
   return res.redirect(publicUrl);
 });
 
