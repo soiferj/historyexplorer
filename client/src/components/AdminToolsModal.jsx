@@ -26,6 +26,9 @@ function AdminToolsModal({
     const [regenDescriptionsLoading, setRegenDescriptionsLoading] = useState(false);
     const [regenDescriptionsResult, setRegenDescriptionsResult] = useState("");
     const [showRegenDescriptionsModal, setShowRegenDescriptionsModal] = useState(false);
+    const [addBookUrl, setAddBookUrl] = useState("");
+    const [addBookLoading, setAddBookLoading] = useState(false);
+    const [addBookResult, setAddBookResult] = useState("");
     const apiUrl = process.env.REACT_APP_API_URL;
 
     // Helper to get all unique tags from allEvents
@@ -241,6 +244,41 @@ function AdminToolsModal({
             setDedupeTagEdits({});
         }
     }, [showDedupeConfirmModal, dedupeTagMapping]);
+
+    // --- Add Book by OpenLibrary URL ---
+    async function handleAddBookByUrl() {
+        setAddBookLoading(true);
+        setAddBookResult("");
+        try {
+            // Validate OpenLibrary URL
+            const match = addBookUrl.match(/openlibrary.org\/(works|books)\/(OL[\dA-Z]+[MW])\/?/i);
+            if (!match) {
+                setAddBookResult("Invalid OpenLibrary URL.");
+                setAddBookLoading(false);
+                return;
+            }
+            // Call backend endpoint to add book
+            const response = await fetch(`${apiUrl}/books/add`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                },
+                body: JSON.stringify({ openlibrary_url: addBookUrl })
+            });
+            const data = await response.json();
+            if (response.ok) {
+                setAddBookResult("Book added successfully!");
+                setAddBookUrl("");
+            } else {
+                setAddBookResult(data.error || "Failed to add book.");
+            }
+        } catch (err) {
+            setAddBookResult("Failed to add book: " + err.message);
+        } finally {
+            setAddBookLoading(false);
+        }
+    }
 
     return (
         <div className="w-full max-h-[70vh] overflow-y-auto flex flex-col items-center mt-8 sm:mt-12">
@@ -547,6 +585,29 @@ function AdminToolsModal({
                     </div>
                 </div>
             )}
+            <hr className="my-6 border-orange-400/40" />
+            <h3 className="text-lg font-semibold text-orange-300 mb-2">Add Book by OpenLibrary URL</h3>
+            <div className="w-full flex flex-col items-center mb-6">
+                <form className="flex flex-col sm:flex-row gap-2 w-full max-w-lg" onSubmit={e => { e.preventDefault(); handleAddBookByUrl(); }}>
+                    <input
+                        className="flex-1 px-3 py-2 rounded border border-orange-400 bg-orange-900 text-orange-100"
+                        type="text"
+                        placeholder="Paste OpenLibrary URL (e.g. https://openlibrary.org/works/OL12345W)"
+                        value={addBookUrl}
+                        onChange={e => setAddBookUrl(e.target.value)}
+                        disabled={addBookLoading}
+                        required
+                    />
+                    <button
+                        className="px-4 py-2 rounded bg-orange-700 text-white font-bold hover:bg-orange-800 border border-orange-300 shadow disabled:opacity-50"
+                        type="submit"
+                        disabled={addBookLoading || !addBookUrl}
+                    >
+                        {addBookLoading ? "Adding..." : "Add Book"}
+                    </button>
+                </form>
+                {addBookResult && <div className="mt-2 text-orange-200 text-sm">{addBookResult}</div>}
+            </div>
         </div>
     );
 }

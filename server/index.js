@@ -43,6 +43,9 @@ app.use("/config", configRouter);
 const bookCoverRouter = require("./routes/bookCover");
 app.use("/api/book-cover", bookCoverRouter);
 
+const booksRouter = require("./routes/books");
+app.use("/books", booksRouter);
+
 // Middleware to verify Supabase JWT and check allow-list
 async function verifyAllowedUser(req, res, next) {
     try {
