@@ -233,6 +233,15 @@ function AdminToolsModal({
         }
     }
 
+    // --- Dedupe Tag Mapping Edits ---
+    const [dedupeTagEdits, setDedupeTagEdits] = useState({});
+    // Reset edits when mapping changes
+    React.useEffect(() => {
+        if (showDedupeConfirmModal && dedupeTagMapping) {
+            setDedupeTagEdits({});
+        }
+    }, [showDedupeConfirmModal, dedupeTagMapping]);
+
     return (
         <div className="w-full max-h-[70vh] overflow-y-auto flex flex-col items-center mt-8 sm:mt-12">
             <h2 className="text-3xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Admin Tools</h2>
@@ -423,6 +432,121 @@ function AdminToolsModal({
                 )}
                 {configSaveStatus && <div className="text-green-200 mt-2">{configSaveStatus}</div>}
             </div>
+            <hr className="my-6 border-purple-400/40" />
+            {/* Dedupe Tags Section */}
+            <h3 className="text-lg font-semibold text-purple-300 mb-2">Dedupe Tags</h3>
+            <div className="w-full flex flex-col items-center mb-6">
+                <button
+                    className="px-4 py-2 rounded bg-purple-700 text-white font-bold hover:bg-purple-800 border border-purple-300 shadow disabled:opacity-50"
+                    disabled={dedupeTagsLoading}
+                    onClick={() => setShowDedupeTagsModal(true)}
+                >
+                    {dedupeTagsLoading ? "Generating Mapping..." : "Dedupe Tags"}
+                </button>
+                {dedupeTagsResult && (
+                    <div className="mt-2 text-purple-200 text-sm">{dedupeTagsResult}</div>
+                )}
+            </div>
+            {/* Dedupe Tags Modal */}
+            {showDedupeTagsModal && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+                    <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowDedupeTagsModal(false)} />
+                    <div className="relative glass p-6 rounded-2xl shadow-2xl border border-purple-400 w-full max-w-sm z-70 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#a18cd133] to-[#fbc2eb33] backdrop-blur-lg">
+                        <h3 className="text-lg font-bold mb-2 text-purple-300">Dedupe Tags</h3>
+                        <div className="mb-4 text-center text-purple-200">
+                            This will generate a mapping to deduplicate similar tags using AI. Proceed?
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                            <button
+                                className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
+                                onClick={() => setShowDedupeTagsModal(false)}
+                                disabled={dedupeTagsLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-4 py-2 rounded bg-purple-700 text-white font-bold hover:bg-purple-800 border border-purple-300 shadow disabled:opacity-50"
+                                disabled={dedupeTagsLoading}
+                                onClick={handleDedupeTags}
+                            >
+                                {dedupeTagsLoading ? "Generating..." : "Generate Mapping"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Dedupe Tags Confirm Modal */}
+            {showDedupeConfirmModal && dedupeTagMapping && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
+                    <div className="fixed inset-0 bg-black bg-opacity-60" onClick={() => setShowDedupeConfirmModal(false)} />
+                    <div className="relative glass p-6 rounded-2xl shadow-2xl border border-purple-400 w-full max-w-md z-70 flex flex-col items-center animate-fade-in-modal bg-gradient-to-br from-[#232526cc] via-[#a18cd133] to-[#fbc2eb33] backdrop-blur-lg">
+                        <h3 className="text-lg font-bold mb-2 text-purple-300">Confirm Dedupe Mapping</h3>
+                        <div className="mb-4 text-center text-purple-200 max-h-48 overflow-y-auto w-full">
+                            <div className="mb-2">You can edit the new tag values before applying:</div>
+                            <ul className="text-purple-100 text-xs w-full">
+                                {Object.entries(dedupeTagMapping).map(([oldTag, newTag]) => {
+                                    const isEdited = dedupeTagEdits[oldTag] !== undefined;
+                                    const value = isEdited ? dedupeTagEdits[oldTag] : newTag;
+                                    // Show X if edited and value is not equal to oldTag, or if the auto-mapping is different from the oldTag (i.e., auto-mapped)
+                                    const showUndo = isEdited ? value !== oldTag : oldTag !== newTag;
+                                    return (
+                                        <li key={oldTag} className="flex items-center gap-2 mb-1">
+                                            <span className="font-bold min-w-[80px]">{oldTag}</span>
+                                            <span className="mx-1">→</span>
+                                            <input
+                                                className="bg-purple-900 text-purple-100 rounded px-2 py-1 border border-purple-400 flex-1 min-w-0"
+                                                value={value}
+                                                onChange={e => setDedupeTagEdits(edits => ({ ...edits, [oldTag]: e.target.value }))}
+                                            />
+                                            {showUndo && (
+                                                <button
+                                                    className="ml-1 text-red-400 hover:text-red-600 font-bold text-lg px-1"
+                                                    title="Undo edit"
+                                                    onClick={() => setDedupeTagEdits(edits => {
+                                                        // If reverting to oldTag, treat as no edit (remove from edits)
+                                                        if ((edits[oldTag] ?? newTag) === oldTag) {
+                                                            const c = { ...edits };
+                                                            delete c[oldTag];
+                                                            return c;
+                                                        }
+                                                        // Otherwise, set to oldTag
+                                                        return { ...edits, [oldTag]: oldTag };
+                                                    })}
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                            <button
+                                className="px-4 py-2 rounded bg-gray-600 text-white font-bold border border-gray-300 shadow"
+                                onClick={() => setShowDedupeConfirmModal(false)}
+                                disabled={dedupeTagsLoading}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-4 py-2 rounded bg-purple-700 text-white font-bold hover:bg-purple-800 border border-purple-300 shadow disabled:opacity-50"
+                                disabled={dedupeTagsLoading}
+                                onClick={() => {
+                                    // Compose mapping with edits
+                                    const mapping = Object.fromEntries(
+                                        Object.entries(dedupeTagMapping).map(([oldTag, newTag]) => [oldTag, dedupeTagEdits[oldTag] !== undefined ? dedupeTagEdits[oldTag] : newTag])
+                                    );
+                                    setDedupeTagMapping(mapping);
+                                    handleConfirmDedupeTags();
+                                }}
+                            >
+                                {dedupeTagsLoading ? "Applying..." : "Apply Mapping"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
