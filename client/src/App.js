@@ -21,7 +21,7 @@ function App() {
     // Filters/groupings
     const [dateFilter, setDateFilter] = useState({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' });
     const [regionFilter, setRegionFilter] = useState(null);
-    const [zoomLevel, setZoomLevel] = useState(1); // 0: event, 1: century, 2: millennium
+    const [zoomLevel, setZoomLevel] = useState(0); // 0: event, 1: century, 2: millennium
     const [groupMode, setGroupMode] = useState('none');
     const [selectedTags, setSelectedTags] = useState([]);
     const [selectedBooks, setSelectedBooks] = useState([]);
