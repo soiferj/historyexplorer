@@ -29,6 +29,9 @@ function AdminToolsModal({
     const [addBookUrl, setAddBookUrl] = useState("");
     const [addBookLoading, setAddBookLoading] = useState(false);
     const [addBookResult, setAddBookResult] = useState("");
+    const [bookCoverOptions, setBookCoverOptions] = useState([]); // [{url, id}]
+    const [selectedBookCover, setSelectedBookCover] = useState(null);
+    const [showBookCoverModal, setShowBookCoverModal] = useState(false);
     const apiUrl = process.env.REACT_APP_API_URL;
 
     // Helper to get all unique tags from allEvents
@@ -249,6 +252,8 @@ function AdminToolsModal({
     async function handleAddBookByUrl() {
         setAddBookLoading(true);
         setAddBookResult("");
+        setBookCoverOptions([]);
+        setSelectedBookCover(null);
         try {
             // Validate OpenLibrary URL
             const match = addBookUrl.match(/openlibrary.org\/(works|books)\/(OL[\dA-Z]+[MW])\/?/i);
@@ -257,14 +262,57 @@ function AdminToolsModal({
                 setAddBookLoading(false);
                 return;
             }
-            // Call backend endpoint to add book
+            // Fetch book data from OpenLibrary to get cover options
+            const olType = match[1];
+            const olId = match[2];
+            const olApiUrl = olType === "works"
+                ? `https://openlibrary.org/works/${olId}.json`
+                : `https://openlibrary.org/books/${olId}.json`;
+            const olResp = await fetch(olApiUrl);
+            if (!olResp.ok) throw new Error("Failed to fetch from OpenLibrary API");
+            const olData = await olResp.json();
+            let coverIds = [];
+            if (olData.covers && Array.isArray(olData.covers)) {
+                coverIds = olData.covers;
+            }
+            // Compose cover URLs (large, medium, small)
+            const coverOptions = coverIds.map(id => ({
+                id,
+                url: `https://covers.openlibrary.org/b/id/${id}-L.jpg`
+            }));
+            if (coverOptions.length > 1) {
+                setBookCoverOptions(coverOptions);
+                setShowBookCoverModal(true);
+                setAddBookLoading(false);
+                return; // Wait for admin to select
+            } else if (coverOptions.length === 1) {
+                setSelectedBookCover(coverOptions[0]);
+                // Immediately submit with the only available cover
+                await submitBookToBackend(addBookUrl, coverOptions[0].id);
+                return;
+            } else {
+                setSelectedBookCover(null);
+                // No covers, submit with no coverId
+                await submitBookToBackend(addBookUrl, undefined);
+                return;
+            }
+        } catch (err) {
+            setAddBookResult("Failed to add book: " + err.message);
+            setAddBookLoading(false);
+        }
+    }
+
+    async function submitBookToBackend(url, coverId) {
+        setAddBookLoading(true);
+        setAddBookResult("");
+        try {
             const response = await fetch(`${apiUrl}/books/add`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                 },
-                body: JSON.stringify({ openlibrary_url: addBookUrl })
+                body: JSON.stringify({ openlibrary_url: url, cover_id: coverId })
             });
             const data = await response.json();
             if (response.ok) {
@@ -277,6 +325,7 @@ function AdminToolsModal({
             setAddBookResult("Failed to add book: " + err.message);
         } finally {
             setAddBookLoading(false);
+            setShowBookCoverModal(false);
         }
     }
 
@@ -608,6 +657,43 @@ function AdminToolsModal({
                 </form>
                 {addBookResult && <div className="mt-2 text-orange-200 text-sm">{addBookResult}</div>}
             </div>
+            {/* Book Cover Selection Modal */}
+            {showBookCoverModal && bookCoverOptions.length > 1 && (
+                <div className="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-60">
+                    <div className="bg-gray-900 p-6 rounded-xl shadow-xl max-w-lg w-full border border-orange-400 flex flex-col items-center">
+                        <h2 className="text-lg font-bold text-orange-300 mb-2">Select Book Cover</h2>
+                        <div className="flex flex-wrap gap-4 justify-center mb-4">
+                            {bookCoverOptions.map(opt => (
+                                <button
+                                    key={opt.id}
+                                    className={`border-4 rounded-lg ${selectedBookCover?.id === opt.id ? 'border-orange-400' : 'border-transparent'} focus:outline-none`}
+                                    onClick={() => setSelectedBookCover(opt)}
+                                >
+                                    <img src={opt.url} alt="Book cover option" className="w-32 h-48 object-cover rounded" />
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex gap-4 mt-2">
+                            <button
+                                className="px-4 py-2 rounded bg-gray-700 text-white font-semibold border border-gray-500 hover:bg-gray-600"
+                                onClick={() => { setShowBookCoverModal(false); setBookCoverOptions([]); }}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                className="px-4 py-2 rounded bg-orange-700 text-white font-bold border border-orange-400 hover:bg-orange-800 disabled:opacity-60"
+                                disabled={!selectedBookCover}
+                                onClick={() => {
+                                    setShowBookCoverModal(false);
+                                    submitBookToBackend(addBookUrl, selectedBookCover.id);
+                                }}
+                            >
+                                Use Selected Cover
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
