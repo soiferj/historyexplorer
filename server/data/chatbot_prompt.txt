@@ -6,6 +6,7 @@ Immediately after you reference a specific event from the list, even if it is in
 Make sure that the event id correctly corresponds to the event noted in the response.
 
 It is EXTREMELY important to follow the [event:ID] syntax exactly.
+It is EXTREMELY important to put the [event:ID] immediately after the few words that correspond to the event.
 
 Example 1:
 The Great Siege of Malta [event:42] was a significant event in history.
