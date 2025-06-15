@@ -349,6 +349,25 @@ function App() {
         return Array.from(countrySet).sort((a, b) => a.localeCompare(b));
     };
 
+    // On mount, check for ?event= in URL and open modal if found
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const eventId = params.get('event');
+        if (eventId && events && events.length > 0) {
+            // Try to find event by id or _id
+            const found = events.find(ev => ev.id === eventId || ev._id === eventId);
+            if (found) {
+                setSelectedEvent(found);
+            }
+        }
+        // Optionally, close modal if no event param
+        if (!eventId && selectedEvent) {
+            setSelectedEvent(null);
+        }
+        // Only run when events are loaded
+        // eslint-disable-next-line
+    }, [events]);
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0f2027] via-[#2c5364] to-[#232526] flex flex-col relative overflow-x-hidden">
             <style>{`

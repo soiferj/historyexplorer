@@ -487,6 +487,10 @@ const EventModal = ({
                 <p className="mt-2 text-pink-300">Book: {selectedEvent.book_reference}</p>
               )}
               <p className="text-gray-200 mb-4 whitespace-pre-line">{selectedEvent.description}</p>
+              {/* Share link below description */}
+              <div className="flex justify-center mb-4">
+                <ShareEventLink event={selectedEvent} />
+              </div>
               {selectedEvent.tags && selectedEvent.tags.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2 justify-center">
                   <span className="bg-gradient-to-r from-blue-200 to-pink-200 px-3 py-1 rounded-full text-xs font-semibold text-blue-800 italic shadow">
@@ -519,6 +523,35 @@ const EventModal = ({
         </div>
       </div>
     </div>
+  );
+};
+
+// ShareEventLink component for copying event link
+const ShareEventLink = ({ event }) => {
+  const [copied, setCopied] = React.useState(false);
+  // Construct a shareable URL (current location with event id as hash or query)
+  const url = `${window.location.origin}${window.location.pathname}?event=${encodeURIComponent(event.id || event._id || '')}`;
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (e) {
+      setCopied(false);
+      alert('Failed to copy link');
+    }
+  };
+
+  return (
+    <button
+      className="flex items-center gap-1 px-3 py-1 rounded bg-blue-700 text-white text-xs font-semibold hover:bg-pink-500 transition border border-blue-400/40 shadow"
+      onClick={handleCopy}
+      type="button"
+      aria-label="Share event link"
+    >
+      {copied ? 'Link copied!' : 'Share'}
+    </button>
   );
 };
 
