@@ -58,6 +58,8 @@ function App() {
     const [newBook, setNewBook] = useState('');
     // Add state for bookshelf view
     const [showBookshelf, setShowBookshelf] = useState(false);
+    // Add state for share link copied feedback
+    const [shareCopied, setShareCopied] = useState(false);
 
     // Fetch events function for use in Timeline
     const fetchEvents = async () => {
@@ -351,8 +353,32 @@ function App() {
 
     // On mount, check for ?event= in URL and open modal if found
     useEffect(() => {
+        // On mount, check for ?event= in URL and open modal if found
         const params = new URLSearchParams(window.location.search);
         const eventId = params.get('event');
+        // Restore filters from URL if present
+        const urlSearch = params.get('search');
+        if (urlSearch) setSearchTerms(urlSearch.split(','));
+        const urlLogic = params.get('logic');
+        if (urlLogic) setSearchLogic(urlLogic);
+        const urlStartYear = params.get('startYear');
+        if (urlStartYear) setDateFilter(f => ({ ...f, startYear: urlStartYear }));
+        const urlStartEra = params.get('startEra');
+        if (urlStartEra) setDateFilter(f => ({ ...f, startEra: urlStartEra }));
+        const urlEndYear = params.get('endYear');
+        if (urlEndYear) setDateFilter(f => ({ ...f, endYear: urlEndYear }));
+        const urlEndEra = params.get('endEra');
+        if (urlEndEra) setDateFilter(f => ({ ...f, endEra: urlEndEra }));
+        const urlTags = params.get('tags');
+        if (urlTags) setSelectedTags(urlTags.split(','));
+        const urlBooks = params.get('books');
+        if (urlBooks) setSelectedBooks(urlBooks.split(','));
+        const urlRegions = params.get('regions');
+        if (urlRegions) setSelectedRegions(urlRegions.split(','));
+        const urlCountries = params.get('countries');
+        if (urlCountries) setSelectedCountries(urlCountries.split(','));
+        const urlOverlap = params.get('overlap');
+        if (urlOverlap === '1') setTagOverlapOnly(true);
         if (eventId && events && events.length > 0) {
             // Try to find event by id or _id
             const found = events.find(ev => ev.id === eventId || ev._id === eventId);
@@ -364,6 +390,25 @@ function App() {
         // Only open if param is present
         // eslint-disable-next-line
     }, [events]);
+
+    // Utility: encode filters as query params for sharing
+    function getShareableUrl() {
+        const params = new URLSearchParams();
+        if (searchTerms.some(t => t.trim() !== '')) params.set('search', searchTerms.filter(t => t.trim() !== '').join(','));
+        if (searchLogic && searchLogic !== 'AND') params.set('logic', searchLogic);
+        if (dateFilter.startYear) params.set('startYear', dateFilter.startYear);
+        if (dateFilter.startEra && dateFilter.startEra !== 'BCE') params.set('startEra', dateFilter.startEra);
+        if (dateFilter.endYear) params.set('endYear', dateFilter.endYear);
+        if (dateFilter.endEra && dateFilter.endEra !== 'CE') params.set('endEra', dateFilter.endEra);
+        if (selectedTags.length > 0) params.set('tags', selectedTags.join(','));
+        if (selectedBooks.length > 0) params.set('books', selectedBooks.join(','));
+        if (selectedRegions.length > 0) params.set('regions', selectedRegions.join(','));
+        if (selectedCountries.length > 0) params.set('countries', selectedCountries.join(','));
+        if (tagOverlapOnly) params.set('overlap', '1');
+        // Timeline view only
+        params.delete('event');
+        return window.location.origin + window.location.pathname + '?' + params.toString();
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-[#0f2027] via-[#2c5364] to-[#232526] flex flex-col relative overflow-x-hidden">
@@ -472,6 +517,29 @@ function App() {
                     {filteredEvents.length} events
                 </span>
             </div>
+            {/* Discrete Share Button - bottom left corner */}
+            <button
+                className="fixed bottom-4 left-4 z-50 px-3 py-1 rounded bg-blue-900/80 text-blue-100 text-xs border border-blue-400 shadow hover:bg-blue-800 transition-all focus:outline-none"
+                style={{fontWeight: 600, opacity: 0.85}}
+                onClick={async () => {
+                    try {
+                        await navigator.clipboard.writeText(getShareableUrl());
+                        setShareCopied(true);
+                        setTimeout(() => setShareCopied(false), 1500);
+                    } catch (e) {
+                        alert('Failed to copy link');
+                    }
+                }}
+                aria-label="Share timeline link"
+                title="Copy link to this timeline view"
+            >
+                Share
+            </button>
+            {shareCopied && (
+                <span className="fixed bottom-16 left-4 z-50 px-3 py-1 rounded bg-green-700 text-white text-xs font-semibold border border-green-300 shadow">Link copied!</span>
+            )}
+            {/* Floating Chatbot */}
+            {isAllowed && <Chatbot userId={session?.user?.id || null} events={events} setSelectedEvent={setSelectedEvent} setEditMode={setEditMode} />}
             {/* Timeline/Map/Tag Evolution toggle and region filter below controls */}
             <div className="w-full flex justify-center mb-4 gap-4">
                 {/* Removed World Map, Timeline, Tag Evolution buttons from here, now in hamburger menu */}
@@ -670,59 +738,46 @@ function App() {
                         setSelectedRegions={setSelectedRegions}
                         selectedCountries={selectedCountries}
                         setSelectedCountries={setSelectedCountries}
+                        tagOverlapOnly={tagOverlapOnly}
+                        setTagOverlapOnly={setTagOverlapOnly}
+                        searchTerms={searchTerms}
+                        setSearchTerms={setSearchTerms}
+                        searchLogic={searchLogic}
+                        setSearchLogic={setSearchLogic}
+                        onEventSelect={setSelectedEvent}
+                        onMapToggle={setShowMap}
+                        onGroupByChange={setGroupMode}
+                        onZoomChange={setZoomLevel}
+                        isAllowed={isAllowed}
+                        accessToken={session?.access_token}
+                        fetchEvents={fetchEvents}
+                        clearRegionFilter={clearRegionFilter}
+                        dateTypeOptions={[
+                            { value: 'CE', label: 'CE' },
+                            { value: 'BCE', label: 'BCE' },
+                        ]}
+                        defaultDateType="CE"
+                        showEventModal={showEventModal}
+                        setShowEventModal={setSelectedEvent}
+                        startEditEvent={startEditEvent}
+                        onSearchTags={setSelectedTags}
+                        onSearchBooks={setSelectedBooks}
+                        onSearchRegions={setSelectedRegions}
+                        onSearchCountries={setSelectedCountries}
                         tagSearchTerm={tagSearchTerm}
                         setTagSearchTerm={setTagSearchTerm}
                         bookSearchTerm={bookSearchTerm}
                         setBookSearchTerm={setBookSearchTerm}
                         regionSearchTerm={regionSearchTerm}
                         setRegionSearchTerm={setRegionSearchTerm}
-                        tagOverlapOnly={tagOverlapOnly}
-                        setTagOverlapOnly={setTagOverlapOnly}
-                        onEventsUpdated={fetchEvents}
-                        selectedEvent={selectedEvent}
-                        setSelectedEvent={setSelectedEvent}
-                        editMode={editMode}
-                        setEditMode={setEditMode}
-                        editError={editError}
-                        setEditError={setEditError}
-                        hideControls={true}
-                        searchTerms={searchTerms}
-                        isAllowed={isAllowed}
-                        startEditEvent={startEditEvent}
-                        handleDeleteEvent={handleDeleteEvent}
+                        onShareableUrlCopy={() => {
+                            navigator.clipboard.writeText(getShareableUrl());
+                            setShareCopied(true);
+                            setTimeout(() => setShareCopied(false), 1500);
+                        }}
                     />
                 )}
             </div>
-            {/* Floating Chatbot */}
-            {isAllowed && <Chatbot userId={session?.user?.id || null} events={events} setSelectedEvent={setSelectedEvent} setEditMode={setEditMode} />}
-
-            {/* Event Modal (always rendered at root, above all other modals) */}
-            <EventModal
-                selectedEvent={selectedEvent}
-                setShowModal={() => setSelectedEvent(null)}
-                showModal={showEventModal}
-                editMode={editMode}
-                setEditMode={setEditMode}
-                editError={editError}
-                setEditError={setEditError}
-                isAllowed={isAllowed}
-                startEditEvent={startEditEvent}
-                handleDeleteEvent={handleDeleteEvent}
-                localEditForm={localEditForm}
-                setLocalEditForm={setLocalEditForm}
-                handleEditChange={handleEditChange}
-                editBookMode={editBookMode}
-                setEditBookMode={setEditBookMode}
-                newBook={newBook}
-                setNewBook={setNewBook}
-                getAllBooks={getAllBooks}
-                getAllTags={getAllTags}
-                getAllRegions={getAllRegions}
-                getAllCountries={getAllCountries}
-                validEvents={events}
-                handleEditSubmit={handleEditSubmit}
-                // ...other props as needed
-            />
         </div>
     );
 }
