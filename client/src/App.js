@@ -711,7 +711,7 @@ function App() {
                     </div>
                 </div>
             )}
-            <div className="flex flex-col items-center w-full max-w-5xl px-8 mx-auto mt-2 mb-4 z-10 min-h-0">
+            <div className="flex flex-col items-center w-full max-w-7xl px-8 mx-auto mt-2 mb-4 z-10 min-h-0">
                 {showBookshelf ? (
                     <VirtualBookshelf events={events} />
                 ) : showMap ? (
