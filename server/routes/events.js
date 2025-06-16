@@ -57,6 +57,19 @@ async function enrichEventWithLLM({ title, date, existing_tags }) {
 // Add an event
 router.post("/", verifyAllowedUser, async (req, res) => {
     const { title, description, book_reference, date, tags, date_type, regions, countries } = req.body;
+    // Special case: if title is exactly "test", skip LLM and return a string
+    if (title === "test") {
+        return res.json({
+            title: "test",
+            description: "test",
+            book_reference,
+            date,
+            tags: ["test"],
+            date_type,
+            regions: [],
+            countries: []
+        });
+    }
     let enrichedDescription = description;
     let enrichedTags = tags;
     let enrichedRegions = regions;
