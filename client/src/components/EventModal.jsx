@@ -30,6 +30,7 @@ const EventModal = ({
   isAllowed,
   setShowModal,
   showModal,
+  allEvents, // <-- Add allEvents prop
   ...rest
 }) => {
   // Add local mode state for tag/region/country add controls
@@ -367,15 +368,15 @@ const EventModal = ({
                       >
                         <option value="">Add existing region...</option>
                         {(() => {
-                          // Get all unique regions from validEvents
+                          // Get all unique regions from allEvents
                           let regions = [];
-                          if (typeof getAllRegions === 'function') {
-                            regions = getAllRegions(validEvents);
+                          if (typeof getAllRegions === 'function' && allEvents) {
+                            regions = getAllRegions(allEvents);
                           }
                           if (!regions || regions.length === 0) {
-                            // Fallback: extract from validEvents
+                            // Fallback: extract from allEvents
                             const set = new Set();
-                            (validEvents || []).forEach(ev => Array.isArray(ev.regions) && ev.regions.forEach(r => set.add(r)));
+                            (allEvents || []).forEach(ev => Array.isArray(ev.regions) && ev.regions.forEach(r => set.add(r)));
                             regions = Array.from(set);
                           }
                           return regions
@@ -457,15 +458,15 @@ const EventModal = ({
                       >
                         <option value="">Add existing country...</option>
                         {(() => {
-                          // Get all unique countries from validEvents
+                          // Get all unique countries from allEvents
                           let countries = [];
-                          if (typeof getAllCountries === 'function') {
-                            countries = getAllCountries(validEvents);
+                          if (typeof getAllCountries === 'function' && allEvents) {
+                            countries = getAllCountries(allEvents);
                           }
                           if (!countries || countries.length === 0) {
-                            // Fallback: extract from validEvents
+                            // Fallback: extract from allEvents
                             const set = new Set();
-                            (validEvents || []).forEach(ev => Array.isArray(ev.countries) && ev.countries.forEach(c => set.add(c)));
+                            (allEvents || []).forEach(ev => Array.isArray(ev.countries) && ev.countries.forEach(c => set.add(c)));
                             countries = Array.from(set);
                           }
                           return countries

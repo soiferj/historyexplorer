@@ -1471,7 +1471,10 @@ const Timeline = (props) => {
                         newBook={newBook}
                         setNewBook={setNewBook}
                         getAllBooks={getAllBooks}
+                        getAllRegions={getAllRegions}
+                        getAllCountries={getAllCountries}
                         validEvents={validEvents}
+                        allEvents={allEvents}
                         regenDescriptionLoading={regenDescriptionLoading}
                         regenTagsLoading={regenTagsLoading}
                         regenRegionsLoading={regenRegionsLoading}
