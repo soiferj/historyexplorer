@@ -1490,6 +1490,9 @@ const Timeline = (props) => {
                             if (typeof setEditMode === 'function') setEditMode(false);
                         }}
                         showModal={showEventModal}
+                        // Enforce high z-index for modal and overlay
+                        modalZIndex={10000}
+                        overlayZIndex={9999}
                     />
                 )}
             </div>

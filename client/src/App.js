@@ -540,6 +540,35 @@ function App() {
             )}
             {/* Floating Chatbot */}
             {isAllowed && <Chatbot userId={session?.user?.id || null} events={events} setSelectedEvent={setSelectedEvent} setEditMode={setEditMode} />}
+            {/* Event Modal (always above Chatbot) */}
+            {showEventModal && (
+                <EventModal
+                    selectedEvent={selectedEvent}
+                    editMode={editMode}
+                    handleEditSubmit={handleEditSubmit}
+                    handleEditChange={handleEditChange}
+                    localEditForm={localEditForm}
+                    setLocalEditForm={setLocalEditForm}
+                    editError={editError}
+                    editBookMode={editBookMode}
+                    setEditBookMode={setEditBookMode}
+                    newBook={newBook}
+                    setNewBook={setNewBook}
+                    getAllBooks={getAllBooks}
+                    getAllTags={getAllTags}
+                    getAllRegions={getAllRegions}
+                    getAllCountries={getAllCountries}
+                    validEvents={events}
+                    handleDeleteEvent={handleDeleteEvent}
+                    startEditEvent={startEditEvent}
+                    submitting={false}
+                    Spinner={null}
+                    isAllowed={isAllowed}
+                    setShowModal={() => setSelectedEvent(null)}
+                    showModal={showEventModal}
+                    allEvents={events}
+                />
+            )}
             {/* Timeline/Map/Tag Evolution toggle and region filter below controls */}
             <div className="w-full flex justify-center mb-4 gap-4">
                 {/* Removed World Map, Timeline, Tag Evolution buttons from here, now in hamburger menu */}
