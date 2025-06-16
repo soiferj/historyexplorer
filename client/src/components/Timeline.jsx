@@ -1031,6 +1031,37 @@ const Timeline = (props) => {
       }
     }, [selectedEvent]);
 
+    // Scroll to selected event when modal opens
+    useEffect(() => {
+      if (!selectedEvent || !timelineContainerRef.current) return;
+      // Find the index of the selected event in the current renderData (flat list)
+      let idx = -1;
+      if (zoomLevel === 0 && Array.isArray(renderData)) {
+        idx = renderData.findIndex(ev => ev.id === selectedEvent.id);
+      } else if (zoomLevel === 1 || zoomLevel === 2) {
+        // For grouped views, find the group and the event index within the group
+        let flatIdx = 0;
+        for (const group of renderData) {
+          if (Array.isArray(group.events)) {
+            const eventIdx = group.events.findIndex(ev => ev.id === selectedEvent.id);
+            if (eventIdx !== -1) {
+              idx = flatIdx + eventIdx;
+              break;
+            }
+            flatIdx += group.events.length;
+          }
+        }
+      }
+      if (idx >= 0) {
+        const isMobile = window.innerWidth < 640;
+        const itemHeight = isMobile ? 80 : 100;
+        timelineContainerRef.current.scrollTo({
+          top: Math.max(0, (itemHeight * idx) - 40),
+          behavior: 'smooth'
+        });
+      }
+    }, [selectedEvent, showEventModal, renderData, zoomLevel]);
+
     return (
         <>
             <div className="flex flex-col items-center justify-center text-white text-center relative overflow-x-hidden bg-transparent px-2">
