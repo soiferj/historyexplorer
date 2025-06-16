@@ -744,37 +744,24 @@ function App() {
                         setSearchTerms={setSearchTerms}
                         searchLogic={searchLogic}
                         setSearchLogic={setSearchLogic}
-                        onEventSelect={setSelectedEvent}
-                        onMapToggle={setShowMap}
-                        onGroupByChange={setGroupMode}
-                        onZoomChange={setZoomLevel}
+                        // Restore correct event modal open handler
+                        selectedEvent={selectedEvent}
+                        setSelectedEvent={setSelectedEvent}
+                        editMode={editMode}
+                        setEditMode={setEditMode}
+                        editError={editError}
+                        setEditError={setEditError}
+                        hideControls={true}
                         isAllowed={isAllowed}
-                        accessToken={session?.access_token}
-                        fetchEvents={fetchEvents}
-                        clearRegionFilter={clearRegionFilter}
-                        dateTypeOptions={[
-                            { value: 'CE', label: 'CE' },
-                            { value: 'BCE', label: 'BCE' },
-                        ]}
-                        defaultDateType="CE"
-                        showEventModal={showEventModal}
-                        setShowEventModal={setSelectedEvent}
                         startEditEvent={startEditEvent}
-                        onSearchTags={setSelectedTags}
-                        onSearchBooks={setSelectedBooks}
-                        onSearchRegions={setSelectedRegions}
-                        onSearchCountries={setSelectedCountries}
+                        handleDeleteEvent={handleDeleteEvent}
                         tagSearchTerm={tagSearchTerm}
                         setTagSearchTerm={setTagSearchTerm}
                         bookSearchTerm={bookSearchTerm}
                         setBookSearchTerm={setBookSearchTerm}
                         regionSearchTerm={regionSearchTerm}
                         setRegionSearchTerm={setRegionSearchTerm}
-                        onShareableUrlCopy={() => {
-                            navigator.clipboard.writeText(getShareableUrl());
-                            setShareCopied(true);
-                            setTimeout(() => setShareCopied(false), 1500);
-                        }}
+                        onEventsUpdated={fetchEvents}
                     />
                 )}
             </div>
