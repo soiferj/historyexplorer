@@ -443,41 +443,54 @@ function App() {
             {showMenu && (
                 <div className="fixed inset-0 z-50 flex items-start justify-end">
                     <div className="fixed inset-0 bg-black/30" onClick={() => setShowMenu(false)} />
-                    <div className="relative bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl shadow-2xl border-2 border-blue-400/60 rounded-l-3xl mt-4 mr-2 p-6 w-64 flex flex-col gap-4 animate-fade-in-modal z-60">
+                    <div
+                        className="relative bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl shadow-2xl border-2 border-blue-400/60 rounded-l-3xl mt-4 mr-2 p-6 pt-14 w-72 flex flex-col gap-5 animate-fade-in-modal z-60 glass-menu"
+                        style={{
+                            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
+                            border: '1.5px solid rgba(255,255,255,0.18)',
+                            background: 'rgba(34, 49, 63, 0.85)',
+                            minHeight: '60vh',
+                            maxHeight: '80vh',
+                            overflowY: 'auto',
+                        }}
+                    >
                         <button
-                            className="absolute top-3 right-3 text-2xl text-blue-200 hover:text-pink-400 focus:outline-none"
+                            className="absolute top-3 right-3 text-2xl text-blue-200 hover:text-pink-400 focus:outline-none bg-gray-900/70 rounded-full w-9 h-9 flex items-center justify-center shadow-lg border border-blue-400/40 transition-all duration-150 hover:scale-110 z-70"
                             onClick={() => setShowMenu(false)}
                             aria-label="Close menu"
                         >
                             &times;
                         </button>
-                        <button
-                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${!showMap && !showTagEvolution && !showBookshelf ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                            onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowMenu(false); }}
-                        >
-                            Timeline
-                        </button>
-                        <button
-                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${showMap ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                            onClick={() => { setShowMap(true); setShowTagEvolution(false); setShowBookshelf(false); setShowMenu(false); }}
-                        >
-                            World Map
-                        </button>
-                        <button
-                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${showTagEvolution ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                            onClick={() => { setShowMap(false); setShowTagEvolution(true); setShowBookshelf(false); setShowMenu(false); }}
-                        >
-                            Tag Evolution
-                        </button>
-                        <button
-                            className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left ${showBookshelf ? 'bg-blue-700' : 'bg-gray-700 hover:bg-blue-700'}`}
-                            onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowMenu(false); }}
-                        >
-                            Bookshelf
-                        </button>
+                        <div className="flex flex-col gap-3 mt-2">
+                            <button
+                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${!showMap && !showTagEvolution && !showBookshelf ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowMenu(false); }}
+                            >
+                                Timeline
+                            </button>
+                            <button
+                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showMap ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
+                                onClick={() => { setShowMap(true); setShowTagEvolution(false); setShowBookshelf(false); setShowMenu(false); }}
+                            >
+                                World Map
+                            </button>
+                            <button
+                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showTagEvolution ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(true); setShowBookshelf(false); setShowMenu(false); }}
+                            >
+                                Tag Evolution
+                            </button>
+                            <button
+                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showBookshelf ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowMenu(false); }}
+                            >
+                                Bookshelf
+                            </button>
+                        </div>
+                        <div className="my-3 border-t border-blue-400/30" />
                         {isAllowed && (
                             <button
-                                className={`w-full px-4 py-2 rounded font-bold shadow border border-blue-400 text-white text-left bg-gray-700 hover:bg-blue-700`}
+                                className="w-full px-4 py-2 rounded-xl font-bold shadow border border-pink-400 text-white text-left bg-gray-700/80 hover:bg-pink-700/80 hover:scale-105 transition-all duration-150 text-base tracking-wide"
                                 onClick={() => { setShowAdminToolsModal(true); setRemovalSelectedTags([]); setRemovalError(""); setShowMenu(false); }}
                             >
                                 Admin Tools
