@@ -738,21 +738,24 @@ function App() {
                         onBackToTimeline={() => setShowMap(false)}
                     />
                 ) : showTagEvolution ? (
-                    <TagEvolutionChart
-                        events={filteredEvents}
-                        selectedTags={selectedTags}
-                        tagColors={(() => {
-                          // Build tag color map as in Timeline
-                          const colorPalette = [
-                            '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
-                          ];
-                          const tagMap = {};
-                          (selectedTags || []).forEach((tag, idx) => {
-                            tagMap[tag] = colorPalette[idx % colorPalette.length];
-                          });
-                          return tagMap;
-                        })()}
-                    />
+                    <div className="w-full flex justify-center items-center">
+                        <TagEvolutionChart
+                            className="mx-auto w-full"
+                            events={filteredEvents}
+                            selectedTags={selectedTags}
+                            tagColors={(() => {
+                              // Build tag color map as in Timeline
+                              const colorPalette = [
+                                '#f87171', '#fbbf24', '#34d399', '#60a5fa', '#a78bfa', '#f472b6', '#fb7185', '#38bdf8', '#facc15', '#4ade80', '#818cf8', '#f472b6', '#f59e42', '#10b981', '#6366f1', '#e879f9', '#f43f5e', '#0ea5e9', '#fde047', '#22d3ee'
+                              ];
+                              const tagMap = {};
+                              (selectedTags || []).forEach((tag, idx) => {
+                                tagMap[tag] = colorPalette[idx % colorPalette.length];
+                              });
+                              return tagMap;
+                            })()}
+                        />
+                    </div>
                 ) : (
                     <Timeline
                         user={session?.user}
