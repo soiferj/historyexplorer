@@ -1464,6 +1464,7 @@ const Timeline = (props) => {
                         handleEditSubmit={handleEditSubmit}
                         handleEditChange={handleEditChange}
                         localEditForm={localEditForm}
+                        setLocalEditForm={setLocalEditForm}
                         editError={editError}
                         editBookMode={editBookMode}
                         setEditBookMode={setEditBookMode}

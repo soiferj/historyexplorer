@@ -240,7 +240,9 @@ const EventModal = ({
                     {Array.isArray(localEditForm.tags) && localEditForm.tags.map((tag, idx) => (
                       <span key={tag} className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
                         {tag}
-                        <button type="button" className="ml-1 text-pink-200 hover:text-white" onClick={() => setLocalEditForm(f => ({ ...f, tags: f.tags.filter((t, i) => i !== idx) }))}>&times;</button>
+                        {editMode && (
+                          <button type="button" className="ml-1 text-pink-200 hover:text-white" onClick={() => setLocalEditForm(f => ({ ...f, tags: f.tags.filter((t, i) => i !== idx) }))}>&times;</button>
+                        )}
                       </span>
                     ))}
                   </div>
@@ -328,7 +330,9 @@ const EventModal = ({
                       {Array.isArray(localEditForm.regions) && localEditForm.regions.map((region, idx) => (
                         <span key={region} className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
                           {region}
-                          <button type="button" className="ml-1 text-pink-200 hover:text-white" onClick={() => setLocalEditForm(f => ({ ...f, regions: f.regions.filter((r, i) => i !== idx) }))}>&times;</button>
+                          {editMode && (
+                            <button type="button" className="ml-1 text-pink-200 hover:text-white" onClick={() => setLocalEditForm(f => ({ ...f, regions: f.regions.filter((r, i) => i !== idx) }))}>&times;</button>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -362,9 +366,25 @@ const EventModal = ({
                         }}
                       >
                         <option value="">Add existing region...</option>
-                        {getAllRegions(validEvents).filter(region => !localEditForm.regions.includes(region)).map(region => (
-                          <option key={region} value={region}>{region}</option>
-                        ))}
+                        {(() => {
+                          // Get all unique regions from validEvents
+                          let regions = [];
+                          if (typeof getAllRegions === 'function') {
+                            regions = getAllRegions(validEvents);
+                          }
+                          if (!regions || regions.length === 0) {
+                            // Fallback: extract from validEvents
+                            const set = new Set();
+                            (validEvents || []).forEach(ev => Array.isArray(ev.regions) && ev.regions.forEach(r => set.add(r)));
+                            regions = Array.from(set);
+                          }
+                          return regions
+                            .filter(region => !localEditForm.regions.includes(region))
+                            .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+                            .map(region => (
+                              <option key={region} value={region}>{region}</option>
+                            ));
+                        })()}
                       </select>
                     ) : (
                       <div className="flex flex-row w-full max-w-xs">
@@ -400,7 +420,9 @@ const EventModal = ({
                       {Array.isArray(localEditForm.countries) && localEditForm.countries.map((country, idx) => (
                         <span key={country} className="bg-yellow-600 text-white px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1">
                           {country}
-                          <button type="button" className="ml-1 text-pink-200 hover:text-white" onClick={() => setLocalEditForm(f => ({ ...f, countries: f.countries.filter((c, i) => i !== idx) }))}>&times;</button>
+                          {editMode && (
+                            <button type="button" className="ml-1 text-pink-200 hover:text-white" onClick={() => setLocalEditForm(f => ({ ...f, countries: f.countries.filter((c, i) => i !== idx) }))}>&times;</button>
+                          )}
                         </span>
                       ))}
                     </div>
@@ -434,9 +456,25 @@ const EventModal = ({
                         }}
                       >
                         <option value="">Add existing country...</option>
-                        {getAllCountries(validEvents).filter(country => !localEditForm.countries.includes(country)).map(country => (
-                          <option key={country} value={country}>{country}</option>
-                        ))}
+                        {(() => {
+                          // Get all unique countries from validEvents
+                          let countries = [];
+                          if (typeof getAllCountries === 'function') {
+                            countries = getAllCountries(validEvents);
+                          }
+                          if (!countries || countries.length === 0) {
+                            // Fallback: extract from validEvents
+                            const set = new Set();
+                            (validEvents || []).forEach(ev => Array.isArray(ev.countries) && ev.countries.forEach(c => set.add(c)));
+                            countries = Array.from(set);
+                          }
+                          return countries
+                            .filter(country => !localEditForm.countries.includes(country))
+                            .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
+                            .map(country => (
+                              <option key={country} value={country}>{country}</option>
+                            ));
+                        })()}
                       </select>
                     ) : (
                       <div className="flex flex-row w-full max-w-xs">

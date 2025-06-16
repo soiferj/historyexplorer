@@ -744,7 +744,6 @@ function App() {
                         setSearchTerms={setSearchTerms}
                         searchLogic={searchLogic}
                         setSearchLogic={setSearchLogic}
-                        // Restore correct event modal open handler
                         selectedEvent={selectedEvent}
                         setSelectedEvent={setSelectedEvent}
                         editMode={editMode}
@@ -762,6 +761,8 @@ function App() {
                         regionSearchTerm={regionSearchTerm}
                         setRegionSearchTerm={setRegionSearchTerm}
                         onEventsUpdated={fetchEvents}
+                        localEditForm={localEditForm}
+                        setLocalEditForm={setLocalEditForm}
                     />
                 )}
             </div>
