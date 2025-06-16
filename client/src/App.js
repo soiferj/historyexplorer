@@ -360,11 +360,8 @@ function App() {
                 setSelectedEvent(found);
             }
         }
-        // Optionally, close modal if no event param
-        if (!eventId && selectedEvent) {
-            setSelectedEvent(null);
-        }
-        // Only run when events are loaded
+        // Do NOT close the modal if no event param, to avoid interfering with normal modal usage
+        // Only open if param is present
         // eslint-disable-next-line
     }, [events]);
 
