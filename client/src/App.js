@@ -478,7 +478,7 @@ function App() {
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showTagEvolution ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
                                 onClick={() => { setShowMap(false); setShowTagEvolution(true); setShowBookshelf(false); setShowMenu(false); }}
                             >
-                                Tag Evolution
+                                Event Distribution
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showBookshelf ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}

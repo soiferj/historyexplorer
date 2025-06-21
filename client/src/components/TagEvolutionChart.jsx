@@ -83,38 +83,57 @@ export default function TagEvolutionChart({ events, selectedTags, tagColors }) {
   const [period, setPeriod] = useState("century");
   // Only use tags present in filtered events and selected in filters
   const allTags = useMemo(() => selectedTags, [selectedTags]);
+  const showAllEvents = allTags.length === 0;
 
-  // Compute tag frequencies per period
+  // Compute tag frequencies per period or all events if no tags selected
   const { labels, datasets } = useMemo(() => {
     const periodMap = groupEventsByPeriod(events, period);
     const sortedPeriods = Object.keys(periodMap)
       .map(Number)
       .sort((a, b) => a - b)
       .map(String);
-    const tagCounts = {};
-    allTags.forEach((tag) => {
-      tagCounts[tag] = sortedPeriods.map((p) =>
-        periodMap[p]
-          ? periodMap[p].filter((e) => Array.isArray(e.tags) && e.tags.includes(tag)).length
-          : 0
-      );
-    });
-    return {
-      labels: sortedPeriods,
-      datasets: allTags.map((tag, i) => ({
-        label: tag,
-        data: tagCounts[tag],
-        borderColor: tagColors && tagColors[tag] ? tagColors[tag] : COLORS[i % COLORS.length],
-        backgroundColor: (tagColors && tagColors[tag] ? tagColors[tag] : COLORS[i % COLORS.length]) + "33",
-        tension: 0.3,
-        fill: false,
-      })),
-    };
-  }, [events, allTags, period, tagColors]);
+    if (showAllEvents) {
+      // Single line: count of all events per period
+      const allCounts = sortedPeriods.map((p) => periodMap[p]?.length || 0);
+      return {
+        labels: sortedPeriods,
+        datasets: [
+          {
+            label: "All Events",
+            data: allCounts,
+            borderColor: COLORS[0],
+            backgroundColor: COLORS[0] + "33",
+            tension: 0.3,
+            fill: false,
+          },
+        ],
+      };
+    } else {
+      const tagCounts = {};
+      allTags.forEach((tag) => {
+        tagCounts[tag] = sortedPeriods.map((p) =>
+          periodMap[p]
+            ? periodMap[p].filter((e) => Array.isArray(e.tags) && e.tags.includes(tag)).length
+            : 0
+        );
+      });
+      return {
+        labels: sortedPeriods,
+        datasets: allTags.map((tag, i) => ({
+          label: tag,
+          data: tagCounts[tag],
+          borderColor: tagColors && tagColors[tag] ? tagColors[tag] : COLORS[i % COLORS.length],
+          backgroundColor: (tagColors && tagColors[tag] ? tagColors[tag] : COLORS[i % COLORS.length]) + "33",
+          tension: 0.3,
+          fill: false,
+        })),
+      };
+    }
+  }, [events, allTags, period, tagColors, showAllEvents]);
 
   return (
     <div className="w-full flex flex-col items-center">
-      <h2 className="text-xl font-bold mb-2 text-blue-200">Tag Evolution Over Time</h2>
+      <h2 className="text-xl font-bold mb-2 text-blue-200">Event Distribution Over Time</h2>
       <div className="flex flex-row gap-2 mb-4 flex-wrap items-center">
         <label className="text-sm text-gray-200">Period:</label>
         <select
@@ -127,23 +146,26 @@ export default function TagEvolutionChart({ events, selectedTags, tagColors }) {
         </select>
         {/* Legend for tag colors */}
         <div className="flex flex-row gap-3 ml-6 items-center">
-          {allTags.map((tag, i) => (
-            <span key={tag} className="flex items-center gap-1 text-xs font-semibold" style={{ color: tagColors && tagColors[tag] ? tagColors[tag] : COLORS[i % COLORS.length] }}>
-              <span style={{ background: tagColors && tagColors[tag] ? tagColors[tag] : COLORS[i % COLORS.length], width: 14, height: 14, borderRadius: 3, display: 'inline-block' }} />
-              {tag}
+          {showAllEvents ? (
+            <span className="flex items-center gap-1 text-xs font-semibold" style={{ color: COLORS[0] }}>
+              <span style={{ background: COLORS[0], width: 14, height: 14, borderRadius: 3, display: 'inline-block' }} />
+              All Events
             </span>
-          ))}
+          ) : (
+            allTags.map((tag, i) => (
+              <span key={tag} className="flex items-center gap-1 text-xs font-semibold" style={{ color: tagColors && tagColors[tag] ? tagColors[tag] : COLORS[i % COLORS.length] }}>
+                <span style={{ background: tagColors && tagColors[tag] ? tagColors[tag] : COLORS[i % COLORS.length], width: 14, height: 14, borderRadius: 3, display: 'inline-block' }} />
+                {tag}
+              </span>
+            ))
+          )}
         </div>
       </div>
       {/* Chart container with horizontal scroll on mobile and custom, auto-hiding thin scrollbar */}
       <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-blue-700 scrollbar-track-blue-300/10 scrollbar-hide">
         <div className="min-w-[700px] w-full max-w-full bg-gray-900 rounded-xl p-4 shadow-lg relative">
           {allTags.length === 0 && (
-            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
-              <div className="bg-gray-900 bg-opacity-80 px-4 py-2 rounded text-center text-sm text-gray-300 font-medium shadow-lg">
-                Select tags from the <i>Filters</i> to see their evolution over time
-              </div>
-            </div>
+            <></>
           )}
           <Line
             data={{ labels, datasets }}
