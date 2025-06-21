@@ -11,7 +11,7 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
   const [conversationId, setConversationId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [model, setModel] = useState("gpt-4.1"); // Add model selection state
+  const [model, setModel] = useState("llama-3-8b-instruct"); // Add model selection state
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
