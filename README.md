@@ -1,3 +1,5 @@
+Note! This code is written almost entirely by Github Copilot.
+
 # HistoryMap
 
 HistoryMap is a full-stack web application for exploring historical events on an interactive timeline. Users can view, filter, and (if authorized) add, edit, or delete events, with support for grouping by tags or book references. The backend uses Supabase for authentication and data storage. The frontend is built with React and D3.js for rich, interactive visualizations.

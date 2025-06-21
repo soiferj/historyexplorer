@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import * as d3 from "d3";
 import EventModal from './EventModal';
+import useDebounce from '../hooks/useDebounce';
 
 // Color palette for tags/books (define once for use in both UI and D3)
 const colorPalette = [
@@ -39,6 +40,9 @@ const Timeline = (props) => {
     const [localEditMode, setLocalEditMode] = useState(false);
     const [localEditForm, setLocalEditForm] = useState({ title: '', description: '', book_reference: '', year: '', tags: '', date_type: 'CE', regions: '', countries: '' });
     const [localEditError, setLocalEditError] = useState("");
+
+    // Debounced edit description for event editing
+    const debouncedEditForm = useDebounce(localEditForm);
 
     const apiUrl = process.env.REACT_APP_API_URL;
 
@@ -1061,6 +1065,12 @@ const Timeline = (props) => {
         });
       }
     }, [selectedEvent, showEventModal, renderData, zoomLevel]);
+
+    React.useEffect(() => {
+        if (props.onDebouncedEditFormChange) {
+            props.onDebouncedEditFormChange(debouncedEditForm);
+        }
+    }, [debouncedEditForm, props.onDebouncedEditFormChange]);
 
     return (
         <>

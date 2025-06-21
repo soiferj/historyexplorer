@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import useDebounce from '../hooks/useDebounce';
 
 function FiltersPopover({
     searchTerms, setSearchTerms,
@@ -13,7 +14,8 @@ function FiltersPopover({
     regionSearchTerm, setRegionSearchTerm,
     tagOverlapOnly, setTagOverlapOnly,
     allEvents,
-    onClose
+    onClose,
+    onDebouncedSearchTermsChange // <-- new prop for backend filter update
 }) {
     // Helper to get all unique tags from allEvents
     function getAllTags(events) {
@@ -50,6 +52,18 @@ function FiltersPopover({
     const [bookOpen, setBookOpen] = useState(false);
     const [regionOpen, setRegionOpen] = useState(false);
     const [countryOpen, setCountryOpen] = useState(false);
+
+    // Debounced search terms for performance
+    const debouncedSearchTerms = useDebounce(searchTerms);
+    const debouncedTagSearchTerm = useDebounce(tagSearchTerm);
+    const debouncedBookSearchTerm = useDebounce(bookSearchTerm);
+    const debouncedRegionSearchTerm = useDebounce(regionSearchTerm);
+
+    React.useEffect(() => {
+        if (onDebouncedSearchTermsChange) {
+            onDebouncedSearchTermsChange(debouncedSearchTerms);
+        }
+    }, [debouncedSearchTerms, onDebouncedSearchTermsChange]);
 
     return (
         <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
@@ -200,7 +214,7 @@ function FiltersPopover({
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                             {getAllTags(allEvents)
-                                .filter(tag => tag.toLowerCase().includes(tagSearchTerm.toLowerCase()))
+                                .filter(tag => tag.toLowerCase().includes(debouncedTagSearchTerm.toLowerCase()))
                                 .map((tag) => {
                                     const isSelected = selectedTags.includes(tag);
                                     return (
@@ -240,7 +254,7 @@ function FiltersPopover({
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                             {getAllCountries(allEvents)
-                                .filter(country => country.toLowerCase().includes(regionSearchTerm.toLowerCase()))
+                                .filter(country => country.toLowerCase().includes(debouncedRegionSearchTerm.toLowerCase()))
                                 .map((country) => {
                                     const isSelected = selectedCountries.includes(country);
                                     return (
@@ -280,7 +294,7 @@ function FiltersPopover({
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                             {getAllRegions(allEvents)
-                                .filter(region => region.toLowerCase().includes(regionSearchTerm.toLowerCase()))
+                                .filter(region => region.toLowerCase().includes(debouncedRegionSearchTerm.toLowerCase()))
                                 .map((region) => {
                                     const isSelected = selectedRegions.includes(region);
                                     return (
@@ -320,7 +334,7 @@ function FiltersPopover({
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                             {getAllBooks(allEvents)
-                                .filter(book => book.toLowerCase().includes(bookSearchTerm.toLowerCase()))
+                                .filter(book => book.toLowerCase().includes(debouncedBookSearchTerm.toLowerCase()))
                                 .map((book) => {
                                     const isSelected = selectedBooks.includes(book);
                                     return (
