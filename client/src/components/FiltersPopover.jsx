@@ -73,6 +73,28 @@ function FiltersPopover({
     React.useEffect(() => { setRegionSearch(regionSearchTerm || ""); }, [regionSearchTerm]);
     React.useEffect(() => { if (debouncedRegionSearch !== regionSearchTerm) setRegionSearchTerm(debouncedRegionSearch); }, [debouncedRegionSearch]);
 
+    // --- Local state and debounce for year filters ---
+    const [localStartYear, setLocalStartYear] = useState(dateFilter.startYear || "");
+    const [localEndYear, setLocalEndYear] = useState(dateFilter.endYear || "");
+    const debouncedStartYear = useDebounce(localStartYear, 300);
+    const debouncedEndYear = useDebounce(localEndYear, 300);
+
+    // Keep local year state in sync with parent/global (if needed)
+    React.useEffect(() => { setLocalStartYear(dateFilter.startYear || ""); }, [dateFilter.startYear]);
+    React.useEffect(() => { setLocalEndYear(dateFilter.endYear || ""); }, [dateFilter.endYear]);
+
+    // Only update parent/global after debounce
+    React.useEffect(() => {
+        if (debouncedStartYear !== dateFilter.startYear) {
+            setDateFilter(f => ({ ...f, startYear: debouncedStartYear }));
+        }
+    }, [debouncedStartYear]);
+    React.useEffect(() => {
+        if (debouncedEndYear !== dateFilter.endYear) {
+            setDateFilter(f => ({ ...f, endYear: debouncedEndYear }));
+        }
+    }, [debouncedEndYear]);
+
     // Debounced search terms for performance
     const debouncedSearchTerms = useDebounce(searchTerms);
     React.useEffect(() => {
@@ -161,8 +183,8 @@ function FiltersPopover({
                             type="number"
                             min="1"
                             max="9999"
-                            value={dateFilter.startYear}
-                            onChange={e => setDateFilter(f => ({ ...f, startYear: e.target.value }))}
+                            value={localStartYear}
+                            onChange={e => setLocalStartYear(e.target.value)}
                             placeholder="Year"
                             className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
                         />
@@ -193,8 +215,8 @@ function FiltersPopover({
                             type="number"
                             min="1"
                             max="9999"
-                            value={dateFilter.endYear}
-                            onChange={e => setDateFilter(f => ({ ...f, endYear: e.target.value }))}
+                            value={localEndYear}
+                            onChange={e => setLocalEndYear(e.target.value)}
                             placeholder="Year"
                             className="w-20 p-2 rounded bg-gray-800 text-white border border-blue-400"
                         />
@@ -397,6 +419,8 @@ function FiltersPopover({
                 className="mt-8 px-6 py-2 rounded bg-gray-700 text-white border border-blue-400 hover:bg-blue-600 transition w-full"
                 onClick={() => {
                     setDateFilter({ startYear: '', startEra: 'BCE', endYear: '', endEra: 'CE' });
+                    setLocalStartYear('');
+                    setLocalEndYear('');
                     setSearchTerms([""]);
                     setSelectedTags([]);
                     setSelectedBooks([]);
