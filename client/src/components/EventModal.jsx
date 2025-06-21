@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import useDebounce from '../hooks/useDebounce';
 
 const apiUrl = process.env.REACT_APP_API_URL;
 
-const EventModal = ({
+function EventModalComponent({
   selectedEvent,
   editMode,
   handleEditSubmit,
@@ -31,8 +32,9 @@ const EventModal = ({
   setShowModal,
   showModal,
   allEvents, // <-- Add allEvents prop
+  onDebouncedEditFormChange, // <-- new prop
   ...rest
-}) => {
+}) {
   // Add local mode state for tag/region/country add controls
   const [editTagMode, setEditTagMode] = useState('existing');
   const [editRegionMode, setEditRegionMode] = useState('existing');
@@ -74,6 +76,13 @@ const EventModal = ({
     setNewCountryInput("");
     setEditCountryMode('existing');
   };
+
+  const debouncedLocalEditForm = useDebounce(localEditForm);
+  useEffect(() => {
+    if (onDebouncedEditFormChange) {
+      onDebouncedEditFormChange(debouncedLocalEditForm);
+    }
+  }, [debouncedLocalEditForm, onDebouncedEditFormChange]);
 
   if (!selectedEvent || !showModal) return null;
 
@@ -563,7 +572,11 @@ const EventModal = ({
       </div>
     </div>
   );
-};
+}
+
+const EventModal = React.memo(EventModalComponent);
+export default EventModal;
+
 
 // ShareEventLink component for copying event link
 const ShareEventLink = ({ event }) => {
@@ -593,5 +606,3 @@ const ShareEventLink = ({ event }) => {
     </button>
   );
 };
-
-export default EventModal;
