@@ -85,21 +85,25 @@ function EventModalComponent({
   }, [debouncedLocalEditForm, onDebouncedEditFormChange]);
 
   // --- Local state for description to avoid parent re-renders on every keystroke ---
-  const [localDescription, setLocalDescription] = useState(localEditForm.description || "");
+  const [localDescription, setLocalDescription] = useState((localEditForm && localEditForm.description) || "");
   const debouncedDescription = useDebounce(localDescription, 300);
 
-  // Keep localDescription in sync when switching events or editMode
+  // Only update localDescription when modal is first opened or selectedEvent changes
   useEffect(() => {
-    setLocalDescription(localEditForm.description || "");
-  }, [localEditForm.description, showModal, selectedEvent]);
+    if (showModal && selectedEvent) {
+      setLocalDescription((localEditForm && localEditForm.description) || "");
+    }
+    // Do NOT update on every localEditForm.description change to avoid oscillation
+    // eslint-disable-next-line
+  }, [showModal, selectedEvent]);
 
   // Only update parent form when debounced value changes
   useEffect(() => {
-    if (debouncedDescription !== localEditForm.description) {
+    if (localEditForm && debouncedDescription !== localEditForm.description) {
       handleEditChange({ target: { name: 'description', value: debouncedDescription } });
     }
     // eslint-disable-next-line
-  }, [debouncedDescription]);
+  }, [debouncedDescription, localEditForm]);
 
   if (!selectedEvent || !showModal) return null;
 
