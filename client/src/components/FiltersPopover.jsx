@@ -53,17 +53,46 @@ function FiltersPopover({
     const [regionOpen, setRegionOpen] = useState(false);
     const [countryOpen, setCountryOpen] = useState(false);
 
+    // --- Local state for country search term to avoid parent/global updates on every keystroke ---
+    const [countrySearchTerm, setCountrySearchTerm] = useState("");
+    const debouncedCountrySearchTerm = useDebounce(countrySearchTerm, 300);
+
+    // --- Local state and debounce for tag, book, and region search terms ---
+    const [tagSearch, setTagSearch] = useState(tagSearchTerm || "");
+    const debouncedTagSearch = useDebounce(tagSearch, 300);
+    React.useEffect(() => { setTagSearch(tagSearchTerm || ""); }, [tagSearchTerm]);
+    React.useEffect(() => { if (debouncedTagSearch !== tagSearchTerm) setTagSearchTerm(debouncedTagSearch); }, [debouncedTagSearch]);
+
+    const [bookSearch, setBookSearch] = useState(bookSearchTerm || "");
+    const debouncedBookSearch = useDebounce(bookSearch, 300);
+    React.useEffect(() => { setBookSearch(bookSearchTerm || ""); }, [bookSearchTerm]);
+    React.useEffect(() => { if (debouncedBookSearch !== bookSearchTerm) setBookSearchTerm(debouncedBookSearch); }, [debouncedBookSearch]);
+
+    const [regionSearch, setRegionSearch] = useState(regionSearchTerm || "");
+    const debouncedRegionSearch = useDebounce(regionSearch, 300);
+    React.useEffect(() => { setRegionSearch(regionSearchTerm || ""); }, [regionSearchTerm]);
+    React.useEffect(() => { if (debouncedRegionSearch !== regionSearchTerm) setRegionSearchTerm(debouncedRegionSearch); }, [debouncedRegionSearch]);
+
     // Debounced search terms for performance
     const debouncedSearchTerms = useDebounce(searchTerms);
-    const debouncedTagSearchTerm = useDebounce(tagSearchTerm);
-    const debouncedBookSearchTerm = useDebounce(bookSearchTerm);
-    const debouncedRegionSearchTerm = useDebounce(regionSearchTerm);
-
     React.useEffect(() => {
         if (onDebouncedSearchTermsChange) {
             onDebouncedSearchTermsChange(debouncedSearchTerms);
         }
     }, [debouncedSearchTerms, onDebouncedSearchTermsChange]);
+
+    // Keep local state in sync with parent/global (if needed)
+    React.useEffect(() => {
+        setCountrySearchTerm(regionSearchTerm || "");
+    }, [regionSearchTerm]);
+
+    // Only update parent/global after debounce
+    React.useEffect(() => {
+        if (debouncedCountrySearchTerm !== regionSearchTerm) {
+            setRegionSearchTerm(debouncedCountrySearchTerm);
+        }
+        // eslint-disable-next-line
+    }, [debouncedCountrySearchTerm]);
 
     return (
         <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
@@ -209,12 +238,12 @@ function FiltersPopover({
                             type="text"
                             placeholder="Search tags..."
                             className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                            value={tagSearchTerm}
-                            onChange={e => setTagSearchTerm(e.target.value)}
+                            value={tagSearch}
+                            onChange={e => setTagSearch(e.target.value)}
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                             {getAllTags(allEvents)
-                                .filter(tag => tag.toLowerCase().includes(debouncedTagSearchTerm.toLowerCase()))
+                                .filter(tag => tag.toLowerCase().includes(debouncedTagSearch.toLowerCase()))
                                 .map((tag) => {
                                     const isSelected = selectedTags.includes(tag);
                                     return (
@@ -249,12 +278,12 @@ function FiltersPopover({
                             type="text"
                             placeholder="Search countries..."
                             className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                            value={regionSearchTerm}
-                            onChange={e => setRegionSearchTerm(e.target.value)}
+                            value={countrySearchTerm}
+                            onChange={e => setCountrySearchTerm(e.target.value)}
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                             {getAllCountries(allEvents)
-                                .filter(country => country.toLowerCase().includes(debouncedRegionSearchTerm.toLowerCase()))
+                                .filter(country => country.toLowerCase().includes(debouncedCountrySearchTerm.toLowerCase()))
                                 .map((country) => {
                                     const isSelected = selectedCountries.includes(country);
                                     return (
@@ -289,12 +318,12 @@ function FiltersPopover({
                             type="text"
                             placeholder="Search regions..."
                             className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                            value={regionSearchTerm}
-                            onChange={e => setRegionSearchTerm(e.target.value)}
+                            value={regionSearch}
+                            onChange={e => setRegionSearch(e.target.value)}
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                             {getAllRegions(allEvents)
-                                .filter(region => region.toLowerCase().includes(debouncedRegionSearchTerm.toLowerCase()))
+                                .filter(region => region.toLowerCase().includes(debouncedRegionSearch.toLowerCase()))
                                 .map((region) => {
                                     const isSelected = selectedRegions.includes(region);
                                     return (
@@ -329,12 +358,12 @@ function FiltersPopover({
                             type="text"
                             placeholder="Search books..."
                             className="p-2 rounded bg-gray-800 text-white border border-blue-400 text-xs sm:text-sm w-64 text-center mb-2"
-                            value={bookSearchTerm}
-                            onChange={e => setBookSearchTerm(e.target.value)}
+                            value={bookSearch}
+                            onChange={e => setBookSearch(e.target.value)}
                         />
                         <div className="w-full flex flex-wrap justify-center gap-2 mb-2">
                             {getAllBooks(allEvents)
-                                .filter(book => book.toLowerCase().includes(debouncedBookSearchTerm.toLowerCase()))
+                                .filter(book => book.toLowerCase().includes(debouncedBookSearch.toLowerCase()))
                                 .map((book) => {
                                     const isSelected = selectedBooks.includes(book);
                                     return (
