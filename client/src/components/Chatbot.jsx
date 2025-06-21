@@ -97,10 +97,10 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
     }
   };
 
-  // Helper: extract event links in the format text [event:id]
+  // Helper: extract event links in the format text [event:id] (case-insensitive, allow space)
   function extractEventLinks(content) {
-    // Find all [event:id] patterns and their preceding text
-    const regex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:([\w-]+)\]/g;
+    // Find all [event:id] patterns (case-insensitive, allow optional space)
+    const regex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:\s*([\w-]+)\]/gi;
     let match;
     const links = [];
     let used = new Set();
@@ -144,10 +144,10 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
     return links;
   }
 
-  // Helper: remove the event links from the message content (replace [event:id] with nothing)
+  // Helper: remove the event links from the message content (replace [event:id] with nothing, case-insensitive, allow space)
   function stripEventLinks(content) {
     // Remove the citation marker and any leading whitespace
-    return content.replace(/\s*\[event:[\w-]+\]/g, '');
+    return content.replace(/\s*\[event:\s*[\w-]+\]/gi, '');
   }
 
   // Helper: render message content with clickable event links
