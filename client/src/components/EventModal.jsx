@@ -84,6 +84,23 @@ function EventModalComponent({
     }
   }, [debouncedLocalEditForm, onDebouncedEditFormChange]);
 
+  // --- Local state for description to avoid parent re-renders on every keystroke ---
+  const [localDescription, setLocalDescription] = useState(localEditForm.description || "");
+  const debouncedDescription = useDebounce(localDescription, 300);
+
+  // Keep localDescription in sync when switching events or editMode
+  useEffect(() => {
+    setLocalDescription(localEditForm.description || "");
+  }, [localEditForm.description, showModal, selectedEvent]);
+
+  // Only update parent form when debounced value changes
+  useEffect(() => {
+    if (debouncedDescription !== localEditForm.description) {
+      handleEditChange({ target: { name: 'description', value: debouncedDescription } });
+    }
+    // eslint-disable-next-line
+  }, [debouncedDescription]);
+
   if (!selectedEvent || !showModal) return null;
 
   // --- Confirm Delete Modal (matches Timeline.jsx style) ---
@@ -242,7 +259,7 @@ function EventModalComponent({
                 </div>
                 <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                   <label className="font-semibold text-blue-200" htmlFor="description">Description</label>
-                  <textarea id="description" name="description" value={localEditForm.description} onChange={handleEditChange} required placeholder="Description" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400 min-h-[80px]" />
+                  <textarea id="description" name="description" value={localDescription} onChange={e => setLocalDescription(e.target.value)} required placeholder="Description" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-blue-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400 min-h-[80px]" />
                 </div>
                 <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                   <label className="font-semibold text-blue-200" htmlFor="tags">Tags</label>
