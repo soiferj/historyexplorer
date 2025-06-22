@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import useDebounce from '../hooks/useDebounce';
 
 const apiUrl = process.env.REACT_APP_API_URL;
 
@@ -77,22 +76,17 @@ function EventModalComponent({
     setEditCountryMode('existing');
   };
 
-  const debouncedLocalEditForm = useDebounce(localEditForm);
-  useEffect(() => {
-    if (onDebouncedEditFormChange) {
-      onDebouncedEditFormChange(debouncedLocalEditForm);
-    }
-  }, [debouncedLocalEditForm, onDebouncedEditFormChange]);
-
-  // --- Local state for title and description (only update parent on save) ---
+  // --- Local state for title, description, and year (only update parent on save) ---
   const [localTitle, setLocalTitle] = useState((localEditForm && localEditForm.title) || "");
   const [localDescription, setLocalDescription] = useState((localEditForm && localEditForm.description) || "");
+  const [localYear, setLocalYear] = useState((localEditForm && localEditForm.year) || "");
 
-  // Set local state for title and description when modal opens or selectedEvent changes
+  // Set local state for title, description, and year when modal opens or selectedEvent changes
   useEffect(() => {
     if (showModal && selectedEvent && localEditForm) {
       setLocalTitle(localEditForm.title || "");
       setLocalDescription(localEditForm.description || "");
+      setLocalYear(localEditForm.year || "");
     }
     // eslint-disable-next-line
   }, [showModal, selectedEvent, localEditForm]);
@@ -105,6 +99,7 @@ function EventModalComponent({
       ...localEditForm,
       title: localTitle,
       description: localDescription,
+      year: localYear,
     };
     handleEditSubmit(e, updatedForm); // Parent should accept (event, updatedForm)
   };
@@ -193,7 +188,7 @@ function EventModalComponent({
                 <div className="flex flex-row gap-4 w-full max-w-md mx-auto">
                   <div className="flex flex-col gap-2 text-left w-1/2">
                     <label className="font-semibold text-blue-200" htmlFor="year">Year</label>
-                    <input id="year" name="year" value={localEditForm.year} onChange={handleEditChange} required placeholder="Year (e.g. 1776)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" maxLength={4} />
+                    <input id="year" name="year" value={localYear} onChange={e => setLocalYear(e.target.value)} required placeholder="Year (e.g. 1776)" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" maxLength={4} />
                   </div>
                   <div className="flex flex-col gap-2 text-left w-1/2">
                     <label className="font-semibold text-blue-200" htmlFor="date_type">Date Type</label>
