@@ -84,26 +84,30 @@ function EventModalComponent({
     }
   }, [debouncedLocalEditForm, onDebouncedEditFormChange]);
 
-  // --- Local state for description to avoid parent re-renders on every keystroke ---
+  // --- Local state for title and description (only update parent on save) ---
+  const [localTitle, setLocalTitle] = useState((localEditForm && localEditForm.title) || "");
   const [localDescription, setLocalDescription] = useState((localEditForm && localEditForm.description) || "");
-  const debouncedDescription = useDebounce(localDescription, 300);
 
-  // Only update localDescription when modal is first opened or selectedEvent changes
+  // Set local state for title and description when modal opens or selectedEvent changes
   useEffect(() => {
-    if (showModal && selectedEvent) {
-      setLocalDescription((localEditForm && localEditForm.description) || "");
-    }
-    // Do NOT update on every localEditForm.description change to avoid oscillation
-    // eslint-disable-next-line
-  }, [showModal, selectedEvent]);
-
-  // Only update parent form when debounced value changes
-  useEffect(() => {
-    if (localEditForm && debouncedDescription !== localEditForm.description) {
-      handleEditChange({ target: { name: 'description', value: debouncedDescription } });
+    if (showModal && selectedEvent && localEditForm) {
+      setLocalTitle(localEditForm.title || "");
+      setLocalDescription(localEditForm.description || "");
     }
     // eslint-disable-next-line
-  }, [debouncedDescription, localEditForm]);
+  }, [showModal, selectedEvent, localEditForm]);
+
+  // On submit, update parent form with all local values and call handleEditSubmit
+  const handleLocalEditSubmit = (e) => {
+    e.preventDefault();
+    // Compose a new form object with the latest local values
+    const updatedForm = {
+      ...localEditForm,
+      title: localTitle,
+      description: localDescription,
+    };
+    handleEditSubmit(e, updatedForm); // Parent should accept (event, updatedForm)
+  };
 
   if (!selectedEvent || !showModal) return null;
 
@@ -179,12 +183,12 @@ function EventModalComponent({
         <div style={{ width: '100%', overflowY: 'auto', maxHeight: 'calc(70vh - 3rem)' }}>
           {editMode ? (
             localEditForm && typeof localEditForm === 'object' && Object.keys(localEditForm).length > 0 ? (
-              <form onSubmit={handleEditSubmit} className="w-full flex flex-col gap-6 items-center">
+              <form onSubmit={handleLocalEditSubmit} className="w-full flex flex-col gap-6 items-center">
                 <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Edit Event</h2>
                 {editError && <div className="text-red-400 mb-4 text-center w-full max-w-md mx-auto font-semibold">{editError}</div>}
                 <div className="flex flex-col gap-2 text-left w-full max-w-md mx-auto">
                   <label className="font-semibold text-blue-200" htmlFor="title">Title</label>
-                  <input id="title" name="title" value={localEditForm.title} onChange={handleEditChange} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
+                  <input id="title" name="title" value={localTitle} onChange={e => setLocalTitle(e.target.value)} required placeholder="Title" className="p-3 rounded-xl bg-gray-800/80 text-white focus:outline-none focus:ring-2 focus:ring-pink-400 transition text-base border border-blue-400/40 shadow-inner placeholder:text-gray-400" />
                 </div>
                 <div className="flex flex-row gap-4 w-full max-w-md mx-auto">
                   <div className="flex flex-col gap-2 text-left w-1/2">

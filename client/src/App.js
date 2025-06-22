@@ -269,15 +269,16 @@ function App() {
     };
 
     // Add: handleEditSubmit for EventModal
-    const handleEditSubmit = async (e) => {
+    const handleEditSubmit = async (e, updatedForm) => {
         if (e) e.preventDefault();
         setEditError("");
         try {
+            const formToSave = updatedForm || localEditForm;
             const apiUrl = process.env.REACT_APP_API_URL;
-            const paddedYear = localEditForm.year ? localEditForm.year.toString().padStart(4, "0") : "";
-            const tagsArr = Array.isArray(localEditForm.tags) ? localEditForm.tags : (localEditForm.tags ? localEditForm.tags.split(/,\s*/) : []);
-            const regionsArr = Array.isArray(localEditForm.regions) ? localEditForm.regions : (localEditForm.regions ? localEditForm.regions.split(/,\s*/) : []);
-            const countriesArr = Array.isArray(localEditForm.countries) ? localEditForm.countries : (localEditForm.countries ? localEditForm.countries.split(/,\s*/) : []);
+            const paddedYear = formToSave.year ? formToSave.year.toString().padStart(4, "0") : "";
+            const tagsArr = Array.isArray(formToSave.tags) ? formToSave.tags : (formToSave.tags ? formToSave.tags.split(/,\s*/) : []);
+            const regionsArr = Array.isArray(formToSave.regions) ? formToSave.regions : (formToSave.regions ? formToSave.regions.split(/,\s*/) : []);
+            const countriesArr = Array.isArray(formToSave.countries) ? formToSave.countries : (formToSave.countries ? formToSave.countries.split(/,\s*/) : []);
             const response = await fetch(`${apiUrl}/events/${selectedEvent._id || selectedEvent.id}`,
                 {
                     method: "PUT",
@@ -286,7 +287,7 @@ function App() {
                         ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` })
                     },
                     body: JSON.stringify({
-                        ...localEditForm,
+                        ...formToSave,
                         date: paddedYear ? `${paddedYear}-01-01` : undefined,
                         tags: tagsArr,
                         regions: regionsArr,
