@@ -727,7 +727,7 @@ function App() {
             )}
             <div className="flex flex-col items-center w-full max-w-7xl px-8 mx-auto mt-2 mb-4 z-10 min-h-0 min-h-[60vh] lg:min-h-[70vh] xl:min-h-[80vh] 2xl:min-h-[90vh]">
                 {showBookshelf ? (
-                    <VirtualBookshelf events={events} />
+                    <VirtualBookshelf events={events} isAllowed={isAllowed} />
                 ) : showMap ? (
                     <MapView
                         events={filteredEvents}

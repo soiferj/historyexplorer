@@ -11,7 +11,7 @@ function getBookCover(book) {
   return `${base}/api/book-cover?book=${encodeURIComponent(book)}`;
 }
 
-function VirtualBookshelf({ events }) {
+function VirtualBookshelf({ events, isAllowed }) {
   // Get all unique books
   const books = useMemo(() => {
     const set = new Set();
@@ -265,15 +265,17 @@ function VirtualBookshelf({ events }) {
                     <h3 className="text-lg font-semibold text-pink-300 mb-1">AI Summary</h3>
                     <div className="flex flex-row gap-2 items-center mb-2">
                       {!aiSummary && (
-                        <button
-                          className="px-3 py-1 rounded bg-pink-700 text-white text-xs font-bold hover:bg-pink-800 border border-pink-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
-                          onClick={() => fetchAiSummary(selectedBook)}
-                          disabled={aiSummaryLoading}
-                        >
-                          {aiSummaryLoading ? "Generating..." : "Generate AI Summary"}
-                        </button>
+                        isAllowed ? (
+                          <button
+                            className="px-3 py-1 rounded bg-pink-700 text-white text-xs font-bold hover:bg-pink-800 border border-pink-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
+                            onClick={() => fetchAiSummary(selectedBook)}
+                            disabled={aiSummaryLoading}
+                          >
+                            {aiSummaryLoading ? "Generating..." : "Generate AI Summary"}
+                          </button>
+                        ) : null
                       )}
-                      {aiSummary && (
+                      {aiSummary && isAllowed && (
                         <button
                           className="px-3 py-1 rounded bg-blue-700 text-white text-xs font-bold hover:bg-blue-800 border border-blue-300 shadow disabled:opacity-60 disabled:cursor-not-allowed"
                           onClick={() => fetchAiSummary(selectedBook, true)}
@@ -304,7 +306,8 @@ function VirtualBookshelf({ events }) {
 }
 
 VirtualBookshelf.propTypes = {
-  events: PropTypes.array.isRequired
+  events: PropTypes.array.isRequired,
+  isAllowed: PropTypes.bool
 };
 
 export default VirtualBookshelf;
