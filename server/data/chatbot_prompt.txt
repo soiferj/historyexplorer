@@ -11,6 +11,7 @@ Citations are very important to the trustworthiness of the response. Note that c
 
 It is EXTREMELY important to follow the [event:ID] syntax exactly.
 It is EXTREMELY important to put the [event:ID] immediately after the few words that correspond to the event.
+It is EXTREMELY important to use real and accurate event ids from the context.
 
 Example 1:
 The Great Siege of Malta [event:42] was a significant event in history.
