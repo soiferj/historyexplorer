@@ -1026,45 +1026,32 @@ const Timeline = (props) => {
     // Add state for controlling the EventModal visibility
     const [showEventModal, setShowEventModal] = useState(false);
 
-    // When an event is selected, open the modal
+    // Add a ref to track the last selected event ID for scroll restoration
+    const lastSelectedEventIdRef = useRef(null);
+
+    // When an event is selected, open the modal and store its ID for scroll restoration
     useEffect(() => {
-      if (selectedEvent) {
-        setShowEventModal(true);
-      } else {
-        setShowEventModal(false);
-      }
+        if (selectedEvent) {
+            setShowEventModal(true);
+            lastSelectedEventIdRef.current = selectedEvent.id || selectedEvent._id;
+        }
     }, [selectedEvent]);
 
-    // Scroll to selected event when modal opens
+    // Scroll to selected event when modal opens or when renderData changes (e.g., filters removed)
     useEffect(() => {
-      if (!selectedEvent || !timelineContainerRef.current) return;
-      // Find the index of the selected event in the current renderData (flat list)
-      let idx = -1;
-      if (zoomLevel === 0 && Array.isArray(renderData)) {
-        idx = renderData.findIndex(ev => ev.id === selectedEvent.id);
-      } else if (zoomLevel === 1 || zoomLevel === 2) {
-        // For grouped views, find the group and the event index within the group
-        let flatIdx = 0;
-        for (const group of renderData) {
-          if (Array.isArray(group.events)) {
-            const eventIdx = group.events.findIndex(ev => ev.id === selectedEvent.id);
-            if (eventIdx !== -1) {
-              idx = flatIdx + eventIdx;
-              break;
+        if (!selectedEvent && lastSelectedEventIdRef.current && renderData && renderData.length > 0) {
+            // Try to find the event by ID in the new renderData
+            const idx = renderData.findIndex(ev => (ev.id || ev._id) === lastSelectedEventIdRef.current);
+            if (idx >= 0 && timelineContainerRef.current) {
+                const isMobile = window.innerWidth < 640;
+                const itemHeight = isMobile ? 80 : 100;
+                timelineContainerRef.current.scrollTo({
+                    top: Math.max(0, (itemHeight * idx) - 40),
+                    behavior: 'smooth'
+                });
             }
-            flatIdx += group.events.length;
-          }
         }
-      }
-      if (idx >= 0) {
-        const isMobile = window.innerWidth < 640;
-        const itemHeight = isMobile ? 80 : 100;
-        timelineContainerRef.current.scrollTo({
-          top: Math.max(0, (itemHeight * idx) - 40),
-          behavior: 'smooth'
-        });
-      }
-    }, [selectedEvent, showEventModal, renderData, zoomLevel]);
+    }, [renderData, selectedEvent, zoomLevel]);
 
     React.useEffect(() => {
         if (props.onDebouncedEditFormChange) {
