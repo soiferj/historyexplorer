@@ -102,11 +102,9 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
     // Find all [event:id] patterns and their preceding text
     const regex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:([\w-]+)\]/gi;
     let match;
-    const links = [];
-    let used = new Set();
     let newContent = content;
-    let offset = 0; // Track offset due to content changes
-    // First, collect all matches and their positions
+    let offset = 0;
+    // Collect all matches and their positions
     const matches = [];
     while ((match = regex.exec(content)) !== null) {
       matches.push({
@@ -115,16 +113,15 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
         length: match[0].length,
       });
     }
-    // Process matches in reverse order to avoid messing up indices
+    // For each citation, check if it follows the event title in the sentence; if not, move it after the event title
     for (let i = matches.length - 1; i >= 0; i--) {
       const { match, index, length } = matches[i];
       let text = (match[1] || '').trim();
-      // Remove whitespace from citation id (match[3])
       const cleanId = (match[3] || '').replace(/\s+/g, '');
       // Find the sentence containing the citation
       const before = content.slice(0, index);
       const after = content.slice(index + length);
-      // Find sentence start (last .!?\n before index)
+      // Find sentence start and end
       const sentenceStart = Math.max(
         before.lastIndexOf('.'),
         before.lastIndexOf('!'),
@@ -133,7 +130,16 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
         before.lastIndexOf('\r'),
         0
       );
-      const sentence = content.slice(sentenceStart, index + length);
+      let sentenceEnd = content.indexOf('.', index + length);
+      const excl = content.indexOf('!', index + length);
+      const quest = content.indexOf('?', index + length);
+      const nl = content.indexOf('\n', index + length);
+      const cr = content.indexOf('\r', index + length);
+      [excl, quest, nl, cr].forEach(pos => {
+        if (pos !== -1 && (sentenceEnd === -1 || pos < sentenceEnd)) sentenceEnd = pos;
+      });
+      if (sentenceEnd === -1) sentenceEnd = content.length;
+      const sentence = content.slice(sentenceStart, sentenceEnd);
       // Try to find the event title in the sentence (case-insensitive, whole word)
       let eventTitle = text;
       if (!eventTitle && index > 0) {
@@ -157,23 +163,29 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       if (words.length > 4) {
         eventTitle = words.slice(-4).join(' ');
       }
-      // Try to find eventTitle in the sentence (case-insensitive, whole word)
+      // Find event title in the sentence
       if (eventTitle && eventTitle.length > 0) {
-        const titleRegex = new RegExp(`\\b${eventTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        const titleRegex = new RegExp(`\\b${eventTitle.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'i');
         const found = titleRegex.exec(sentence);
-        if (found && found.index + sentenceStart < index) {
-          // Move the citation to immediately after the event title in the sentence
-          // Remove citation from current position
-          newContent =
-            newContent.slice(0, index + offset) +
-            newContent.slice(index + length + offset);
-          // Insert citation after event title
-          const insertPos = sentenceStart + found.index + found[0].length + offset;
-          newContent =
-            newContent.slice(0, insertPos) +
-            ` [event:${cleanId}]` +
-            newContent.slice(insertPos);
-          offset += -length + (` [event:${cleanId}]`).length;
+        if (found) {
+          // Check if citation is already immediately after event title
+          const eventTitleEndInSentence = sentenceStart + found.index + found[0].length;
+          const citationPosInContent = index;
+          // If citation is not immediately after event title, move it
+          if (!(citationPosInContent === eventTitleEndInSentence ||
+                (content.slice(eventTitleEndInSentence, citationPosInContent).match(/^\s*$/)))) {
+            // Remove citation from current position
+            newContent =
+              newContent.slice(0, index + offset) +
+              newContent.slice(index + length + offset);
+            // Insert citation after event title
+            const insertPos = sentenceStart + found.index + found[0].length + offset;
+            newContent =
+              newContent.slice(0, insertPos) +
+              ` [event:${cleanId}]` +
+              newContent.slice(insertPos);
+            offset += -length + (` [event:${cleanId}]`).length;
+          }
         }
       }
     }
