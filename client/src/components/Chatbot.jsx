@@ -99,11 +99,10 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
 
   // Helper: extract event links in the format text [event:id] and move citations after event title if found in the same sentence
   function extractEventLinks(content) {
-    // Find all [event:id] patterns and their preceding text
-    const regex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:([\w-]+)\]/gi;
+    // Find all [event:id] patterns (just the citation, not the preceding text)
+    const regex = /\[event:([\w-]+)\]/gi;
     let match;
     let newContent = content;
-    let offset = 0;
     // Collect all matches and their positions
     const matches = [];
     while ((match = regex.exec(content)) !== null) {
@@ -111,17 +110,19 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
         match,
         index: match.index,
         length: match[0].length,
+        cleanId: (match[1] || '').replace(/\s+/g, '')
       });
     }
-    // For each citation, check if it follows the event title in the sentence; if not, move it after the event title
-    for (let i = matches.length - 1; i >= 0; i--) {
-      const { match, index, length } = matches[i];
-      let text = (match[1] || '').trim();
-      const cleanId = (match[3] || '').replace(/\s+/g, '');
-      // Find the sentence containing the citation
+    // First, collect all moves to make (do not mutate content while iterating)
+    const moves = [];
+    for (let i = 0; i < matches.length; i++) {
+      const { index, length, cleanId } = matches[i];
+      // Find event in events array
+      const event = events.find(ev => String(ev.id) === String(cleanId));
+      let eventTitle = event && event.title ? event.title : '';
+      if (!eventTitle) continue;
+      // Find the sentence containing the citation (absolute indexes)
       const before = content.slice(0, index);
-      const after = content.slice(index + length);
-      // Find sentence start and end
       const sentenceStart = Math.max(
         before.lastIndexOf('.'),
         before.lastIndexOf('!'),
@@ -139,87 +140,88 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
         if (pos !== -1 && (sentenceEnd === -1 || pos < sentenceEnd)) sentenceEnd = pos;
       });
       if (sentenceEnd === -1) sentenceEnd = content.length;
+      // Find all event title occurrences in the full content within this sentence
       const sentence = content.slice(sentenceStart, sentenceEnd);
-      // Try to find the event title in the sentence (case-insensitive, whole word)
-      let eventTitle = text;
-      if (!eventTitle && index > 0) {
-        // Fallback: get up to 8 words before the citation
-        const beforeWords = before.split(/\s+/);
-        eventTitle = beforeWords.slice(-8).join(' ');
-      }
-      // Clean up eventTitle as before
-      eventTitle = eventTitle.replace(/^(the|a|an|in)\s+/i, '').trim();
-      eventTitle = eventTitle.replace(/[.,;:!?]+$/, '');
-      eventTitle = eventTitle.replace(/^[^a-zA-Z0-9(\)]+|[^a-zA-Z0-9(\)]+$/g, '');
-      const capIdx = eventTitle.search(/[A-Z]/);
-      if (capIdx > 0) {
-        if (eventTitle[capIdx - 1] !== ' ') {
-          eventTitle = eventTitle.slice(0, capIdx) + ' ' + eventTitle.slice(capIdx);
-        }
-        eventTitle = eventTitle.slice(capIdx);
-      }
-      // Only use last 4 words
-      const words = eventTitle.split(/\s+/);
-      if (words.length > 4) {
-        eventTitle = words.slice(-4).join(' ');
-      }
-      // Find event title in the sentence
-      if (eventTitle && eventTitle.length > 0) {
-        const titleRegex = new RegExp(`\\b${eventTitle.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'i');
-        const found = titleRegex.exec(sentence);
-        if (found) {
-          // Check if citation is already immediately after event title
-          const eventTitleEndInSentence = sentenceStart + found.index + found[0].length;
-          const citationPosInContent = index;
-          // If citation is not immediately after event title, move it
-          if (!(citationPosInContent === eventTitleEndInSentence ||
-                (content.slice(eventTitleEndInSentence, citationPosInContent).match(/^\s*$/)))) {
-            // Remove citation from current position
-            newContent =
-              newContent.slice(0, index + offset) +
-              newContent.slice(index + length + offset);
-            // Insert citation after event title
-            const insertPos = sentenceStart + found.index + found[0].length + offset;
-            newContent =
-              newContent.slice(0, insertPos) +
-              ` [event:${cleanId}]` +
-              newContent.slice(insertPos);
-            offset += -length + (` [event:${cleanId}]`).length;
-          }
+      const titleRegex = new RegExp(`\\b${eventTitle.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'gi');
+      let matchTitle, lastFound = null;
+      while ((matchTitle = titleRegex.exec(sentence)) !== null) {
+        // Compute absolute end index of this event title occurrence in the full content
+        const absStart = sentenceStart + matchTitle.index;
+        const absEnd = absStart + matchTitle[0].length;
+        if (absEnd < index) {
+          lastFound = { absStart, absEnd };
         }
       }
+      if (lastFound) {
+        const eventTitleEndInContent = lastFound.absEnd;
+        const citationPosInContent = index;
+        if (citationPosInContent > eventTitleEndInContent &&
+            !(citationPosInContent === eventTitleEndInContent ||
+              (content.slice(eventTitleEndInContent, citationPosInContent).match(/^\s*$/)))) {
+          moves.push({ from: index, to: eventTitleEndInContent, length, cleanId });
+        }
+      }
+    }
+    // Apply moves in reverse order (so earlier edits don't affect later indexes)
+    newContent = content;
+    for (let i = moves.length - 1; i >= 0; i--) {
+      const { from, to, length, cleanId } = moves[i];
+      // Remove citation from current position
+      newContent = newContent.slice(0, from) + newContent.slice(from + length);
+      // Insert citation after event title
+      newContent = newContent.slice(0, to) + ` [event:${cleanId}]` + newContent.slice(to);
     }
     // Now, extract links from the updated content
     let finalMatch;
     const finalLinks = [];
     let finalUsed = new Set();
-    const finalRegex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:([\w-]+)\]/gi;
+    const finalRegex = /\[event:([\w-]+)\]/gi;
     while ((finalMatch = finalRegex.exec(newContent)) !== null) {
-      let text = (finalMatch[1] || '').trim();
-      if (!text && finalMatch.index > 0) {
-        const before = newContent.slice(0, finalMatch.index).split(/\s+/);
-        text = before.slice(-8).join(' ');
-      }
-      text = text.replace(/^(the|a|an|in)\s+/i, '').trim();
-      text = text.replace(/[.,;:!?]+$/, '');
-      text = text.replace(/^[^a-zA-Z0-9(\)]+|[^a-zA-Z0-9(\)]+$/g, '');
-      const capIdx = text.search(/[A-Z]/);
-      if (capIdx > 0) {
-        if (text[capIdx - 1] !== ' ') {
-          text = text.slice(0, capIdx) + ' ' + text.slice(capIdx);
+      const cleanId = (finalMatch[1] || '').replace(/\s+/g, '');
+      // Find event in events array
+      const event = events.find(ev => String(ev.id) === String(cleanId));
+      // Check if this citation was moved (i.e., is in the moves array)
+      let moved = false;
+      if (moves && moves.length > 0) {
+        for (let m = 0; m < moves.length; m++) {
+          if (moves[m].cleanId === cleanId) {
+            moved = true;
+            break;
+          }
         }
-        text = text.slice(capIdx);
       }
-      const words = text.split(/\s+/);
-      if (words.length > 4) {
-        text = words.slice(-4).join(' ');
+      let text = '';
+      if (moved && event && event.title) {
+        text = event.title;
+      } else {
+        // Use the four words prior to the citation in the original content, EXCLUDING any [event:id] citations
+        const citationIdx = finalMatch.index;
+        let beforeCitation = content.slice(0, citationIdx);
+        // Remove all [event:id] patterns from beforeCitation
+        beforeCitation = beforeCitation.replace(/\[event:[^\]]+\]/gi, '').trim();
+        // Get up to 4 words before the citation, but stop at punctuation
+        let words = beforeCitation.split(/\s+/).filter(Boolean);
+        let selectedWords = [];
+        for (let i = words.length - 1; i >= 0 && selectedWords.length < 4; i--) {
+          // Only treat .,!? as punctuation for stopping
+          if (/[.,!?]$/.test(words[i]) && selectedWords.length > 0) {
+            break;
+          }
+          selectedWords.unshift(words[i]);
+          if (/[.,!?]$/.test(words[i])) {
+            break;
+          }
+        }
+        text = selectedWords.join(' ');
+        // Remove any trailing partial event citation (e.g., "[ev" or "[event:")
+        text = text.replace(/\s*\[ev.*$/i, '').trim();
       }
-      const cleanId = (finalMatch[3] || '').replace(/\s+/g, '');
       if (text && !finalUsed.has(cleanId)) {
         finalLinks.push({ text, id: `event:${cleanId}` });
         finalUsed.add(cleanId);
       }
     }
+    console.log("Extracted event links:", finalLinks);
     return finalLinks;
   }
 
