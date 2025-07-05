@@ -97,53 +97,118 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
     }
   };
 
-  // Helper: extract event links in the format text [event:id]
+  // Helper: extract event links in the format text [event:id] and move citations after event title if found in the same sentence
   function extractEventLinks(content) {
     // Find all [event:id] patterns and their preceding text
     const regex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:([\w-]+)\]/gi;
     let match;
     const links = [];
     let used = new Set();
+    let newContent = content;
+    let offset = 0; // Track offset due to content changes
+    // First, collect all matches and their positions
+    const matches = [];
     while ((match = regex.exec(content)) !== null) {
+      matches.push({
+        match,
+        index: match.index,
+        length: match[0].length,
+      });
+    }
+    // Process matches in reverse order to avoid messing up indices
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const { match, index, length } = matches[i];
       let text = (match[1] || '').trim();
-      if (!text && match.index > 0) {
+      // Remove whitespace from citation id (match[3])
+      const cleanId = (match[3] || '').replace(/\s+/g, '');
+      // Find the sentence containing the citation
+      const before = content.slice(0, index);
+      const after = content.slice(index + length);
+      // Find sentence start (last .!?\n before index)
+      const sentenceStart = Math.max(
+        before.lastIndexOf('.'),
+        before.lastIndexOf('!'),
+        before.lastIndexOf('?'),
+        before.lastIndexOf('\n'),
+        before.lastIndexOf('\r'),
+        0
+      );
+      const sentence = content.slice(sentenceStart, index + length);
+      // Try to find the event title in the sentence (case-insensitive, whole word)
+      let eventTitle = text;
+      if (!eventTitle && index > 0) {
         // Fallback: get up to 8 words before the citation
-        const before = content.slice(0, match.index).split(/\s+/);
+        const beforeWords = before.split(/\s+/);
+        eventTitle = beforeWords.slice(-8).join(' ');
+      }
+      // Clean up eventTitle as before
+      eventTitle = eventTitle.replace(/^(the|a|an|in)\s+/i, '').trim();
+      eventTitle = eventTitle.replace(/[.,;:!?]+$/, '');
+      eventTitle = eventTitle.replace(/^[^a-zA-Z0-9(\)]+|[^a-zA-Z0-9(\)]+$/g, '');
+      const capIdx = eventTitle.search(/[A-Z]/);
+      if (capIdx > 0) {
+        if (eventTitle[capIdx - 1] !== ' ') {
+          eventTitle = eventTitle.slice(0, capIdx) + ' ' + eventTitle.slice(capIdx);
+        }
+        eventTitle = eventTitle.slice(capIdx);
+      }
+      // Only use last 4 words
+      const words = eventTitle.split(/\s+/);
+      if (words.length > 4) {
+        eventTitle = words.slice(-4).join(' ');
+      }
+      // Try to find eventTitle in the sentence (case-insensitive, whole word)
+      if (eventTitle && eventTitle.length > 0) {
+        const titleRegex = new RegExp(`\\b${eventTitle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+        const found = titleRegex.exec(sentence);
+        if (found && found.index + sentenceStart < index) {
+          // Move the citation to immediately after the event title in the sentence
+          // Remove citation from current position
+          newContent =
+            newContent.slice(0, index + offset) +
+            newContent.slice(index + length + offset);
+          // Insert citation after event title
+          const insertPos = sentenceStart + found.index + found[0].length + offset;
+          newContent =
+            newContent.slice(0, insertPos) +
+            ` [event:${cleanId}]` +
+            newContent.slice(insertPos);
+          offset += -length + (` [event:${cleanId}]`).length;
+        }
+      }
+    }
+    // Now, extract links from the updated content
+    let finalMatch;
+    const finalLinks = [];
+    let finalUsed = new Set();
+    const finalRegex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:([\w-]+)\]/gi;
+    while ((finalMatch = finalRegex.exec(newContent)) !== null) {
+      let text = (finalMatch[1] || '').trim();
+      if (!text && finalMatch.index > 0) {
+        const before = newContent.slice(0, finalMatch.index).split(/\s+/);
         text = before.slice(-8).join(' ');
       }
-      // Remove leading articles
       text = text.replace(/^(the|a|an|in)\s+/i, '').trim();
-      // Remove trailing punctuation
       text = text.replace(/[.,;:!?]+$/, '');
-      // Remove leading/trailing non-alphanumeric or parenthesis characters (e.g., markdown - or *)
       text = text.replace(/^[^a-zA-Z0-9(\)]+|[^a-zA-Z0-9(\)]+$/g, '');
-      // --- New logic: Start at first capital letter and take last at most 6 words ---
-      // Find the first capital letter and slice from there, but ensure a space before if needed
       const capIdx = text.search(/[A-Z]/);
       if (capIdx > 0) {
-        // Insert a space if not already present
         if (text[capIdx - 1] !== ' ') {
           text = text.slice(0, capIdx) + ' ' + text.slice(capIdx);
         }
         text = text.slice(capIdx);
-      } else if (capIdx === 0) {
-        // Already starts with a capital letter
-        // do nothing
       }
-      // Take only the last at most 6 words
       const words = text.split(/\s+/);
       if (words.length > 4) {
         text = words.slice(-4).join(' ');
       }
-      // Remove whitespace from citation id (match[3])
-      const cleanId = (match[3] || '').replace(/\s+/g, '');
-      // Only add if text is not empty and not already used (avoid duplicate links)
-      if (text && !used.has(cleanId)) {
-        links.push({ text, id: `event:${cleanId}` });
-        used.add(cleanId);
+      const cleanId = (finalMatch[3] || '').replace(/\s+/g, '');
+      if (text && !finalUsed.has(cleanId)) {
+        finalLinks.push({ text, id: `event:${cleanId}` });
+        finalUsed.add(cleanId);
       }
     }
-    return links;
+    return finalLinks;
   }
 
   // Helper: remove the event links from the message content (replace [event:id] with nothing)
