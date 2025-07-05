@@ -100,7 +100,7 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
   // Helper: extract event links in the format text [event:id]
   function extractEventLinks(content) {
     // Find all [event:id] patterns and their preceding text
-    const regex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:([\w-]+)\]/g;
+    const regex = /([^.!?\n\r]*?\b([A-Z][a-zA-Z0-9'\-]+)[^.!?\n\r]*?)?\s*\[event:([\w-]+)\]/gi;
     let match;
     const links = [];
     let used = new Set();
@@ -135,10 +135,12 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       if (words.length > 4) {
         text = words.slice(-4).join(' ');
       }
+      // Remove whitespace from citation id (match[3])
+      const cleanId = (match[3] || '').replace(/\s+/g, '');
       // Only add if text is not empty and not already used (avoid duplicate links)
-      if (text && !used.has(match[3])) {
-        links.push({ text, id: `event:${match[3]}` });
-        used.add(match[3]);
+      if (text && !used.has(cleanId)) {
+        links.push({ text, id: `event:${cleanId}` });
+        used.add(cleanId);
       }
     }
     return links;
@@ -146,8 +148,8 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
 
   // Helper: remove the event links from the message content (replace [event:id] with nothing)
   function stripEventLinks(content) {
-    // Remove the citation marker and any leading whitespace
-    return content.replace(/\s*\[event:[\w-]+\]/g, '');
+    // Remove the citation marker (with or without spaces in the id) and any leading whitespace, case-insensitive for 'event'
+    return content.replace(/\s*\[event:[^\]]+\]/gi, '');
   }
 
   // Helper: render message content with clickable event links
