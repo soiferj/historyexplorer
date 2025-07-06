@@ -620,12 +620,39 @@ function AdminToolsModal({
                                 className="px-4 py-2 rounded bg-purple-700 text-white font-bold hover:bg-purple-800 border border-purple-300 shadow disabled:opacity-50"
                                 disabled={dedupeTagsLoading}
                                 onClick={() => {
-                                    // Compose mapping with edits
+                                    // Compose mapping with edits and send directly to backend (do not update local state first)
                                     const mapping = Object.fromEntries(
                                         Object.entries(dedupeTagMapping).map(([oldTag, newTag]) => [oldTag, dedupeTagEdits[oldTag] !== undefined ? dedupeTagEdits[oldTag] : newTag])
                                     );
-                                    setDedupeTagMapping(mapping);
-                                    handleConfirmDedupeTags();
+                                    // Call backend with the mapping, not the possibly stale dedupeTagMapping state
+                                    (async () => {
+                                        setDedupeTagsLoading(true);
+                                        setDedupeTagsResult("");
+                                        try {
+                                            const response = await fetch(`${apiUrl}/events/apply-dedupe-tags`, {
+                                                method: "POST",
+                                                headers: {
+                                                    "Content-Type": "application/json",
+                                                    ...(accessToken && { Authorization: `Bearer ${accessToken}` })
+                                                },
+                                                body: JSON.stringify({ mapping })
+                                            });
+                                            const data = await response.json();
+                                            if (response.ok) {
+                                                setDedupeTagsResult(`Tags deduplicated for ${data.updated} events.`);
+                                                setShowDedupeTagsModal(false);
+                                                setShowDedupeConfirmModal(false);
+                                                onClose();
+                                                if (onEventsUpdated) onEventsUpdated();
+                                            } else {
+                                                setDedupeTagsResult(data.error || "Failed to apply dedupe mapping.");
+                                            }
+                                        } catch (err) {
+                                            setDedupeTagsResult("Failed to apply dedupe mapping.");
+                                        } finally {
+                                            setDedupeTagsLoading(false);
+                                        }
+                                    })();
                                 }}
                             >
                                 {dedupeTagsLoading ? "Applying..." : "Apply Mapping"}
