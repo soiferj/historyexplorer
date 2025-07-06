@@ -218,19 +218,45 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
         <ReactMarkdown>{content}</ReactMarkdown>
       </span>
     );
-    const safeEventLinks = Array.isArray(eventLinks) ? eventLinks.filter(l => l && typeof l.text === 'string' && l.text) : [];
+    // We'll replace event titles in the content with clickable buttons for each event link
     let workingContent = content;
     let result = [];
     let key = 0;
     let lastIndex = 0;
-    for (const link of safeEventLinks) {
-      const regex = new RegExp(link.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-      const match = regex.exec(workingContent.slice(lastIndex));
-      if (!match) continue;
-      const idx = lastIndex + match.index;
+    // To avoid double-highlighting, keep track of which event ids have been highlighted
+    const highlightedIds = new Set();
+    for (const link of eventLinks) {
+      const eventId = link.id.startsWith('event:') ? link.id.slice(6) : link.id;
+      const event = events.find(ev => String(ev.id) === String(eventId));
+      let matchIdx = -1;
+      let matchLen = 0;
+      let matchText = '';
+      if (event && event.title && !highlightedIds.has(eventId)) {
+        // Find the event title in the visible content (case-insensitive, whole word)
+        const titleRegex = new RegExp(`\\b${event.title.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'i');
+        const match = titleRegex.exec(workingContent.slice(lastIndex));
+        if (match) {
+          matchIdx = lastIndex + match.index;
+          matchLen = match[0].length;
+          matchText = match[0];
+          highlightedIds.add(eventId);
+        }
+      }
+      if (matchIdx === -1) {
+        // Fallback: use the link.text as before
+        const regex = new RegExp(link.text.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&'), 'i');
+        const match = regex.exec(workingContent.slice(lastIndex));
+        if (match) {
+          matchIdx = lastIndex + match.index;
+          matchLen = match[0].length;
+          matchText = match[0];
+        } else {
+          continue; // No match found, skip
+        }
+      }
       // Render markdown for text before the link
-      if (idx > lastIndex) {
-        const textSegment = workingContent.slice(lastIndex, idx);
+      if (matchIdx > lastIndex) {
+        const textSegment = workingContent.slice(lastIndex, matchIdx);
         if (textSegment) {
           result.push(
             <span key={key++} className="prose prose-invert max-w-none text-left" style={{ display: 'inline' }}>
@@ -239,11 +265,9 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
           );
         }
       }
-      const eventId = link.id.startsWith('event:') ? link.id.slice(6) : link.id;
-      const event = events.find(ev => String(ev.id) === String(eventId));
       if (event) {
         // Determine if a space is needed after the link
-        const afterIdx = idx + match[0].length;
+        const afterIdx = matchIdx + matchLen;
         const nextChar = workingContent[afterIdx];
         const needsSpace = nextChar && /[a-zA-Z0-9\s]/.test(nextChar);
         result.push(
@@ -258,25 +282,25 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
               }}
               type="button"
             >
-              {match[0]}
+              {matchText}
             </button>{needsSpace ? ' ' : ''}
           </React.Fragment>
         );
       } else {
         // Determine if a space is needed after the link
-        const afterIdx = idx + match[0].length;
+        const afterIdx = matchIdx + matchLen;
         const nextChar = workingContent[afterIdx];
         const needsSpace = nextChar && /[a-zA-Z0-9]/.test(nextChar);
         result.push(
           <React.Fragment key={key++}>
             {" "}
             <span className="prose prose-invert max-w-none text-left" style={{ display: 'inline' }}>
-              <ReactMarkdown components={{p: 'span'}}>{match[0]}</ReactMarkdown>
+              <ReactMarkdown components={{p: 'span'}}>{matchText}</ReactMarkdown>
             </span>{needsSpace ? ' ' : ''}
           </React.Fragment>
         );
       }
-      lastIndex = idx + match[0].length;
+      lastIndex = matchIdx + matchLen;
     }
     // Render markdown for any remaining text
     if (lastIndex < workingContent.length) {
