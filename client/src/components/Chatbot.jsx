@@ -121,32 +121,12 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       const event = events.find(ev => String(ev.id) === String(cleanId));
       let eventTitle = event && event.title ? event.title : '';
       if (!eventTitle) continue;
-      // Find the sentence containing the citation (absolute indexes)
-      const before = content.slice(0, index);
-      const sentenceStart = Math.max(
-        before.lastIndexOf('.'),
-        before.lastIndexOf('!'),
-        before.lastIndexOf('?'),
-        before.lastIndexOf('\n'),
-        before.lastIndexOf('\r'),
-        0
-      );
-      let sentenceEnd = content.indexOf('.', index + length);
-      const excl = content.indexOf('!', index + length);
-      const quest = content.indexOf('?', index + length);
-      const nl = content.indexOf('\n', index + length);
-      const cr = content.indexOf('\r', index + length);
-      [excl, quest, nl, cr].forEach(pos => {
-        if (pos !== -1 && (sentenceEnd === -1 || pos < sentenceEnd)) sentenceEnd = pos;
-      });
-      if (sentenceEnd === -1) sentenceEnd = content.length;
-      // Find all event title occurrences in the full content within this sentence
-      const sentence = content.slice(sentenceStart, sentenceEnd);
+      // Instead of looking at the sentence, look at the whole response for event title occurrences
       const titleRegex = new RegExp(`\\b${eventTitle.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'gi');
       let matchTitle, lastFound = null;
-      while ((matchTitle = titleRegex.exec(sentence)) !== null) {
+      while ((matchTitle = titleRegex.exec(content)) !== null) {
         // Compute absolute end index of this event title occurrence in the full content
-        const absStart = sentenceStart + matchTitle.index;
+        const absStart = matchTitle.index;
         const absEnd = absStart + matchTitle[0].length;
         if (absEnd < index) {
           lastFound = { absStart, absEnd };
