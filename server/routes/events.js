@@ -324,14 +324,22 @@ router.post("/apply-dedupe-tags", verifyAllowedUser, async (req, res) => {
         return res.status(400).json({ error: "Mapping object is required" });
     }
     try {
+        // Build a case-insensitive mapping: lower-case all keys
+        const ciMapping = {};
+        for (const [k, v] of Object.entries(mapping)) {
+            ciMapping[k.trim().toLowerCase()] = v;
+        }
         // Fetch all events
         const { data: events, error } = await supabase.from("events").select("id, tags");
         if (error) return res.status(500).json({ error: error.message });
         let updated = 0;
         for (const ev of events) {
             if (!Array.isArray(ev.tags) || ev.tags.length === 0) continue;
-            // Map each tag to its deduped version (if present)
-            const newTags = Array.from(new Set(ev.tags.map(t => mapping[t] || t)));
+            // Map each tag to its deduped version (case-insensitive, trim whitespace)
+            const newTags = Array.from(new Set(ev.tags.map(t => {
+                const key = t.trim().toLowerCase();
+                return ciMapping[key] !== undefined ? ciMapping[key] : t;
+            })));
             // Only update if tags actually change
             if (JSON.stringify(newTags) !== JSON.stringify(ev.tags)) {
                 await supabase.from("events").update({ tags: newTags }).eq("id", ev.id);
