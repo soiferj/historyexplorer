@@ -211,6 +211,11 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
     return content.replace(/\s*\[event:[^\]]+\]/gi, '');
   }
 
+  // Helper: escape regex special characters in a string
+  function escapeRegExp(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
   // Helper: render message content with clickable event links
   function renderMessageWithLinks(content, eventLinks) {
     if (!eventLinks || eventLinks.length === 0) return (
@@ -233,7 +238,7 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       let matchText = '';
       if (event && event.title && !highlightedIds.has(eventId)) {
         // Find the event title in the visible content (case-insensitive, whole word)
-        const titleRegex = new RegExp(`\\b${event.title.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&')}\\b`, 'i');
+        const titleRegex = new RegExp(`\\b${escapeRegExp(event.title)}\\b`, 'i');
         const match = titleRegex.exec(workingContent.slice(lastIndex));
         if (match) {
           matchIdx = lastIndex + match.index;
@@ -244,7 +249,7 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
       }
       if (matchIdx === -1) {
         // Fallback: use the link.text as before
-        const regex = new RegExp(link.text.replace(/[.*+?^${}()|[\\]\\]/g, '\\$&'), 'i');
+        const regex = new RegExp(escapeRegExp(link.text), 'i');
         const match = regex.exec(workingContent.slice(lastIndex));
         if (match) {
           matchIdx = lastIndex + match.index;
