@@ -39,6 +39,9 @@ client/.cache
 server/database.sqlite
 server/database.sqlite-journal
 
+# Generated from scripts
+*/country_images/
+
 # Misc
 .DS_Store
 Thumbs.db

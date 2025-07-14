@@ -9,15 +9,16 @@ router.get('/', async (req, res) => {
   const { country } = req.query;
   if (!country) return res.status(400).send('Missing country parameter');
 
-  // Normalize country name for filename
-  const fileName = country
+  // Normalize and lowercase country name for filename
+  const normalized = country
     .normalize("NFKD")
     .replace(/[^a-zA-Z0-9 ]/g, "")
-    .replace(/\s+/g, "_") + '.png';
+    .replace(/\s+/g, "_")
+    .toLowerCase();
+  const fileName = normalized + '.png';
 
   console.log(`Fetching continent image for country: ${country}, fileName: ${fileName}`);
 
-  // Build the Supabase public URL for the image
   const publicUrl = `${SUPABASE_COUNTRY_IMAGES_PUBLIC_URL}/${fileName}`;
   return res.redirect(publicUrl);
 });
