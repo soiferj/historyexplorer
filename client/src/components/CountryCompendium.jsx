@@ -97,7 +97,13 @@ function CountryCompendium({ events, isAllowed }) {
   }
 
   function getCountryDetails(country) {
-    const countryEvents = (events || []).filter(ev => Array.isArray(ev.countries) && ev.countries.includes(country));
+    // Find all event countries, normalize for display and matching
+    const normalized = (str) => str && str.charAt(0).toUpperCase() + str.slice(1);
+    // Try to match both display name and original event country
+    const countryEvents = (events || []).filter(ev =>
+      Array.isArray(ev.countries) &&
+      ev.countries.some(c => normalized(c) === country || c === country)
+    );
     if (countryEvents.length === 0) return null;
     const years = countryEvents.map(ev => {
       if (!ev.date) return null;
