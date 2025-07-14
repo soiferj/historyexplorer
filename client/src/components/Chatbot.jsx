@@ -19,9 +19,10 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
     setInternalOpen(!!open);
   }, [open]);
 
+  // Scroll so the top of the latest message is visible when messages change
   useEffect(() => {
     if (internalOpen && messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
   }, [messages, internalOpen]);
 
@@ -435,11 +436,13 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
                 <div className="text-gray-400 text-sm text-center mt-8">Ask me anything about history!</div>
               )}
               {messages.map((msg, idx) => {
+                const isLast = idx === messages.length - 1;
                 if (msg.sender === "user") {
                   return (
                     <div
                       key={idx}
                       className={`my-2 flex justify-end`}
+                      ref={isLast ? messagesEndRef : null}
                     >
                       <div className="px-3 py-2 rounded-xl max-w-[80%] text-sm shadow bg-blue-500 text-white">
                         {msg.content}
@@ -454,6 +457,7 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
                       <div
                         key={idx}
                         className={`my-2 flex justify-start`}
+                        ref={isLast ? messagesEndRef : null}
                       >
                         <pre className="px-3 py-2 rounded-xl max-w-[80%] text-xs shadow bg-gray-800 text-pink-200 overflow-x-auto whitespace-pre-wrap">
                           {msg.content}
@@ -467,6 +471,7 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
                     <div
                       key={idx}
                       className={`my-2 flex justify-start`}
+                      ref={isLast ? messagesEndRef : null}
                     >
                       <div className="px-3 py-2 rounded-xl max-w-[80%] text-sm shadow bg-gray-700 text-gray-100">
                         {renderMessageWithLinks(visibleContent, eventLinks)}
@@ -476,7 +481,7 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
                 }
               })}
               {loading && (
-                <div className="my-2 flex justify-start">
+                <div className="my-2 flex justify-start" ref={messages.length === 0 ? messagesEndRef : null}>
                   <div className="px-3 py-2 rounded-xl max-w-[80%] text-sm shadow bg-gray-700 text-gray-100 flex items-center">
                     <span className="typing">
                       <span className="dot">.</span>
@@ -486,7 +491,6 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
                   </div>
                 </div>
               )}
-              <div ref={messagesEndRef} />
             </div>
             {error && <div className="text-red-400 text-xs px-4 pb-1">{error}</div>}
             <form onSubmit={sendMessage} className="flex items-center px-3 py-2 border-t bg-transparent rounded-b-3xl">
