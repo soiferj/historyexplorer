@@ -469,8 +469,8 @@ function App() {
                         </button>
                         <div className="flex flex-col gap-3 mt-2">
                             <button
-                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${!showMap && !showTagEvolution && !showBookshelf && !showConversations ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowConversations(false); setShowMenu(false); }}
+                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${!showMap && !showTagEvolution && !showBookshelf && !showConversations && !showCountryCompendium ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Timeline
                             </button>
