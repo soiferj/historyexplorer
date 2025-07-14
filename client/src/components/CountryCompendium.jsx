@@ -6,9 +6,10 @@ const apiUrl = process.env.REACT_APP_API_URL;
 
 // Helper to get continent image with country highlighted
 function getContinentImage(country) {
-  // Placeholder: use a static image or API for continent map with country highlighted
-  // For now, use a generic image or avatar
-  return `/images/continents/${country}.png`;
+  // Use Supabase storage or API, similar to bookshelf
+  const base = apiUrl ? apiUrl.replace(/\/$/, "") : "";
+  // Assume endpoint: /api/country-continent-image?country=CountryName
+  return `${base}/api/country-continent-image?country=${encodeURIComponent(country)}`;
 }
 
 function CountryCompendium({ events, isAllowed }) {

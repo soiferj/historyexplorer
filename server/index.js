@@ -43,6 +43,9 @@ app.use("/config", configRouter);
 const bookCoverRouter = require("./routes/bookCover");
 app.use("/api/book-cover", bookCoverRouter);
 
+const countryImageRouter = require("./routes/countryImage");
+app.use("/api/country-continent-image", countryImageRouter);
+
 const booksRouter = require("./routes/books");
 app.use("/books", booksRouter);
 
