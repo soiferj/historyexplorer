@@ -9,6 +9,7 @@ import TagEvolutionChart from "./components/TagEvolutionChart";
 import Chatbot from "./components/Chatbot";
 import EventModal from "./components/EventModal";
 import VirtualBookshelf from "./components/VirtualBookshelf";
+import CountryCompendium from "./components/CountryCompendium";
 import Conversations from "./components/Conversations";
 import "./index.css";
 
@@ -57,8 +58,9 @@ function App() {
     // Add state for editBookMode and newBook
     const [editBookMode, setEditBookMode] = useState('existing');
     const [newBook, setNewBook] = useState('');
-    // Add state for bookshelf, conversations view, and selected conversation for chatbot
+    // Add state for bookshelf, country compendium, conversations view, and selected conversation for chatbot
     const [showBookshelf, setShowBookshelf] = useState(false);
+    const [showCountryCompendium, setShowCountryCompendium] = useState(false);
     const [showConversations, setShowConversations] = useState(false);
     const [selectedConversationId, setSelectedConversationId] = useState(null);
     // Add state for share link copied feedback
@@ -486,13 +488,19 @@ function App() {
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showBookshelf ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowConversations(false); setShowMenu(false); }}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowCountryCompendium(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Bookshelf
                             </button>
                             <button
+                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showCountryCompendium ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(true); setShowConversations(false); setShowMenu(false); }}
+                            >
+                                Country Compendium
+                            </button>
+                            <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showConversations ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowConversations(true); setShowMenu(false); }}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(false); setShowConversations(true); setShowMenu(false); }}
                             >
                                 Conversations
                             </button>
@@ -757,6 +765,8 @@ function App() {
                     />
                 ) : showBookshelf ? (
                     <VirtualBookshelf events={events} isAllowed={isAllowed} />
+                ) : showCountryCompendium ? (
+                    <CountryCompendium events={events} isAllowed={isAllowed} />
                 ) : showMap ? (
                     <MapView
                         events={filteredEvents}
