@@ -1,5 +1,63 @@
 const express = require('express');
 const router = express.Router();
+// GET /chatbot/conversations?userId=...
+router.get('/conversations', async (req, res) => {
+  const userId = req.query.userId;
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
+  try {
+    // Get all conversations for the user
+    const { data: conversations, error: convErr } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+    if (convErr) throw convErr;
+    // For each conversation, get its messages
+    const conversationIds = (conversations || []).map(c => c.id);
+    let messagesByConversation = {};
+    if (conversationIds.length > 0) {
+      const { data: messages, error: msgErr } = await supabase
+        .from('messages')
+        .select('*')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: true });
+      if (msgErr) throw msgErr;
+      // Group messages by conversation_id
+      messagesByConversation = conversationIds.reduce((acc, id) => {
+        acc[id] = (messages || []).filter(m => m.conversation_id === id);
+        return acc;
+      }, {});
+    }
+    // Return conversations and their messages
+    res.json({ conversations, messagesByConversation });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE /chatbot/conversation/:id
+router.delete('/conversation/:id', async (req, res) => {
+  const convId = req.params.id;
+  if (!convId) return res.status(400).json({ error: 'Missing conversation id' });
+  try {
+    // Delete messages first (FK constraint)
+    const { error: msgErr } = await supabase
+      .from('messages')
+      .delete()
+      .eq('conversation_id', convId);
+    if (msgErr) throw msgErr;
+    // Delete conversation
+    const { error: convErr } = await supabase
+      .from('conversations')
+      .delete()
+      .eq('id', convId);
+    if (convErr) throw convErr;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+// ...existing code...
 const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');

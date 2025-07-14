@@ -40,9 +40,6 @@ app.use("/chatbot", chatbotRouter);
 const configRouter = require("./routes/config");
 app.use("/config", configRouter);
 
-const conversationsRouter = require("./routes/conversations");
-app.use("/conversations", conversationsRouter);
-
 const bookCoverRouter = require("./routes/bookCover");
 app.use("/api/book-cover", bookCoverRouter);
 

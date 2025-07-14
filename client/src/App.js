@@ -9,6 +9,7 @@ import TagEvolutionChart from "./components/TagEvolutionChart";
 import Chatbot from "./components/Chatbot";
 import EventModal from "./components/EventModal";
 import VirtualBookshelf from "./components/VirtualBookshelf";
+import Conversations from "./components/Conversations";
 import "./index.css";
 
 function App() {
@@ -56,8 +57,9 @@ function App() {
     // Add state for editBookMode and newBook
     const [editBookMode, setEditBookMode] = useState('existing');
     const [newBook, setNewBook] = useState('');
-    // Add state for bookshelf view
+    // Add state for bookshelf and conversations view
     const [showBookshelf, setShowBookshelf] = useState(false);
+    const [showConversations, setShowConversations] = useState(false);
     // Add state for share link copied feedback
     const [shareCopied, setShareCopied] = useState(false);
 
@@ -464,28 +466,34 @@ function App() {
                         </button>
                         <div className="flex flex-col gap-3 mt-2">
                             <button
-                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${!showMap && !showTagEvolution && !showBookshelf ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowMenu(false); }}
+                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${!showMap && !showTagEvolution && !showBookshelf && !showConversations ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Timeline
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showMap ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(true); setShowTagEvolution(false); setShowBookshelf(false); setShowMenu(false); }}
+                                onClick={() => { setShowMap(true); setShowTagEvolution(false); setShowBookshelf(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 World Map
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showTagEvolution ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(true); setShowBookshelf(false); setShowMenu(false); }}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(true); setShowBookshelf(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Event Distribution
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showBookshelf ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowMenu(false); }}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Bookshelf
+                            </button>
+                            <button
+                                className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showConversations ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
+                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowConversations(true); setShowMenu(false); }}
+                            >
+                                Conversations
                             </button>
                         </div>
                         <div className="my-3 border-t border-blue-400/30" />
@@ -726,7 +734,9 @@ function App() {
                 </div>
             )}
             <div className="flex flex-col items-center w-full max-w-7xl px-8 mx-auto mt-2 mb-4 z-10 min-h-0 min-h-[60vh] lg:min-h-[70vh] xl:min-h-[80vh] 2xl:min-h-[90vh]">
-                {showBookshelf ? (
+                {showConversations ? (
+                    <Conversations userId={session?.user?.id} />
+                ) : showBookshelf ? (
                     <VirtualBookshelf events={events} isAllowed={isAllowed} />
                 ) : showMap ? (
                     <MapView
