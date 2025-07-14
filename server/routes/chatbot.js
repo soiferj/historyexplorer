@@ -1,5 +1,24 @@
 const express = require('express');
 const router = express.Router();
+
+// GET /chatbot/conversation/:id
+router.get('/conversation/:id', async (req, res) => {
+  const convId = req.params.id;
+  if (!convId) return res.status(400).json({ error: 'Missing conversation id' });
+  try {
+    // Fetch all messages for this conversation
+    const { data: messages, error: msgErr } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', convId)
+      .order('created_at', { ascending: true });
+    if (msgErr) throw msgErr;
+    res.json({ messages });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /chatbot/conversations?userId=...
 router.get('/conversations', async (req, res) => {
   const userId = req.query.userId;

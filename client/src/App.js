@@ -57,9 +57,10 @@ function App() {
     // Add state for editBookMode and newBook
     const [editBookMode, setEditBookMode] = useState('existing');
     const [newBook, setNewBook] = useState('');
-    // Add state for bookshelf and conversations view
+    // Add state for bookshelf, conversations view, and selected conversation for chatbot
     const [showBookshelf, setShowBookshelf] = useState(false);
     const [showConversations, setShowConversations] = useState(false);
+    const [selectedConversationId, setSelectedConversationId] = useState(null);
     // Add state for share link copied feedback
     const [shareCopied, setShareCopied] = useState(false);
 
@@ -561,7 +562,17 @@ function App() {
                 <span className="fixed bottom-16 left-4 z-50 px-3 py-1 rounded bg-green-700 text-white text-xs font-semibold border border-green-300 shadow">Link copied!</span>
             )}
             {/* Floating Chatbot */}
-            {isAllowed && <Chatbot userId={session?.user?.id || null} events={events} setSelectedEvent={setSelectedEvent} setEditMode={setEditMode} />}
+            {isAllowed && (
+                <Chatbot
+                    userId={session?.user?.id || null}
+                    events={events}
+                    setSelectedEvent={setSelectedEvent}
+                    setEditMode={setEditMode}
+                    conversationId={selectedConversationId}
+                    open={!!selectedConversationId}
+                    onClose={() => setSelectedConversationId(null)}
+                />
+            )}
             {/* Event Modal (always above Chatbot) */}
             {showEventModal && (
                 <EventModal
@@ -735,7 +746,15 @@ function App() {
             )}
             <div className="flex flex-col items-center w-full max-w-7xl px-8 mx-auto mt-2 mb-4 z-10 min-h-0 min-h-[60vh] lg:min-h-[70vh] xl:min-h-[80vh] 2xl:min-h-[90vh]">
                 {showConversations ? (
-                    <Conversations userId={session?.user?.id} />
+                    <Conversations
+                        userId={session?.user?.id}
+                        onSelectConversation={convId => {
+                            setSelectedConversationId(convId);
+                            setSelectedEvent(null); // close any event modal
+                            setEditMode(false);
+                            // Do NOT close conversations view
+                        }}
+                    />
                 ) : showBookshelf ? (
                     <VirtualBookshelf events={events} isAllowed={isAllowed} />
                 ) : showMap ? (

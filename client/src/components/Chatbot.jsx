@@ -4,8 +4,8 @@ import ReactMarkdown from "react-markdown";
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 // Add props for events and setSelectedEvent
-function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
-  const [open, setOpen] = useState(false);
+function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversationId: propConversationId, open, onClose }) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [conversationId, setConversationId] = useState(null);
@@ -14,11 +14,39 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
   const [model, setModel] = useState("gpt-4.1"); // Add model selection state
   const messagesEndRef = useRef(null);
 
+  // Control modal open state from prop
   useEffect(() => {
-    if (open && messagesEndRef.current) {
+    setInternalOpen(!!open);
+  }, [open]);
+
+  useEffect(() => {
+    if (internalOpen && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [messages, open]);
+  }, [messages, internalOpen]);
+
+  // Load messages for selected conversation when opened from Conversations
+  useEffect(() => {
+    if (internalOpen && propConversationId) {
+      setConversationId(propConversationId);
+      setLoading(true);
+      setError("");
+      fetch(`${API_URL}/chatbot/conversation/${propConversationId}`)
+        .then(res => res.json())
+        .then(data => {
+          setMessages(Array.isArray(data.messages) ? data.messages : []);
+        })
+        .catch(err => setError("Failed to load conversation messages"))
+        .finally(() => setLoading(false));
+    }
+    // If closed, clear state
+    if (!internalOpen) {
+      setMessages([]);
+      setConversationId(null);
+      setInput("");
+      setError("");
+    }
+  }, [internalOpen, propConversationId]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -324,22 +352,25 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
   return (
     <>
       {/* Floating Chat Button */}
-      {!open && (
+      {!internalOpen && (
         <button
           className="fixed bottom-6 right-6 z-50 bg-gradient-to-r from-blue-500 to-pink-500 hover:from-blue-600 hover:to-pink-600 text-white rounded-full shadow-lg w-12 h-12 flex items-center justify-center text-2xl font-bold transition-all duration-300"
-          onClick={() => setOpen(true)}
+          onClick={() => setInternalOpen(true)}
           aria-label="Open chat"
         >
           💬
         </button>
       )}
       {/* Chat Window */}
-      {open && (
+      {internalOpen && (
         <div className="fixed bottom-0 right-0 left-0 top-0 z-50 flex items-center justify-center" style={{ background: 'none', pointerEvents: 'auto' }}>
           {/* Modal overlay */}
           <div
             className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]"
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setInternalOpen(false);
+              if (onClose) onClose();
+            }}
             style={{ cursor: 'pointer' }}
           />
           {/* Modal content */}
@@ -370,7 +401,10 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode }) {
                 </button>
                 <button
                   className="text-white text-3xl sm:text-2xl font-bold hover:text-pink-200 focus:outline-none p-2 sm:p-0 rounded-full transition-all duration-200 min-w-[2.5rem] min-h-[2.5rem] flex items-center justify-center"
-                  onClick={() => setOpen(false)}
+                  onClick={() => {
+                    setInternalOpen(false);
+                    if (onClose) onClose();
+                  }}
                   aria-label="Close chat"
                   type="button"
                 >
