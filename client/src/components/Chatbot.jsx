@@ -277,8 +277,16 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
         }
       }
       if (matchIdx === -1) {
-        // Fallback: use the link.text as before
-        const regex = new RegExp(escapeRegExp(link.text), 'i');
+        // Fallback: use the link.text as before, but remove any text containing partial event citation patterns
+        // Remove any word containing '[e', '[event', etc from the fallback text
+        let fallbackText = link.text
+          .split(/\s+/)
+          .filter(word => !/\[e(vent)?/i.test(word))
+          .join(' ')
+          .trim();
+        // If fallbackText is now empty, skip this link
+        if (!fallbackText) continue;
+        const regex = new RegExp(escapeRegExp(fallbackText), 'i');
         const match = regex.exec(workingContent.slice(lastIndex));
         if (match) {
           matchIdx = lastIndex + match.index;
