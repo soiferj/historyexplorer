@@ -38,19 +38,46 @@ class AzureProvider extends ModelProvider {
   }
   async chatCompletion(messages, options = {}) {
     const { max_tokens = 2048, temperature = 0.1 } = options;
-    // Convert OpenAI message format to Azure's
-    const result = await this.client.path('/chat/completions')
-        .post({
-            body: {
-                messages: messages,
-                max_tokens: max_tokens,
-                temperature: temperature,
-                model: this.deploymentName,
-            },
-        });
-    // Azure returns choices as an array
-    console.log('Azure response:', JSON.stringify(result.body));
-    return result.body.choices[0].message.content.trim();
+    try {
+      // Convert OpenAI message format to Azure's
+      const result = await this.client.path('/chat/completions')
+          .post({
+              body: {
+                  messages: messages,
+                  max_tokens: max_tokens,
+                  temperature: temperature,
+                  model: this.deploymentName,
+              },
+          });
+
+      const body = result && result.body ? result.body : null;
+      console.log('Azure response:', JSON.stringify(body));
+
+      // If Azure returned an error object in body, surface that message
+      if (body && body.error) {
+        // body.error can be a string or an object with message
+        let errMsg = '';
+        if (typeof body.error === 'string') errMsg = body.error;
+        else if (body.error.message) errMsg = body.error.message;
+        else errMsg = JSON.stringify(body.error);
+        throw new Error(`Azure error: ${errMsg}`);
+      }
+
+      // Validate choices structure before accessing it
+      if (!body || !Array.isArray(body.choices) || !body.choices[0] || !body.choices[0].message || !body.choices[0].message.content) {
+        // Try to include helpful diagnostic information from the body
+        const snippet = body ? JSON.stringify(body).slice(0, 2000) : `status: ${result && result.status}`;
+        throw new Error(`Unexpected Azure response shape. ${snippet}`);
+      }
+
+      return body.choices[0].message.content.trim();
+    } catch (err) {
+      // Re-throw with a clearer prefix so callers can detect Azure provider errors
+      if (err && err.message && !err.message.startsWith('Azure error:') && !err.message.startsWith('Unexpected Azure response')) {
+        throw new Error(`AzureProvider error: ${err.message}`);
+      }
+      throw err;
+    }
   }
 }
 

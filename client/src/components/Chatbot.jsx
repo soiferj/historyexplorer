@@ -115,12 +115,27 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
           model, // Send selected model
         }),
       });
-      if (!res.ok) throw new Error("Failed to get response");
-      const data = await res.json();
+      // If server returned an error status, try to parse its JSON body and propagate its message
+      let data;
+      if (!res.ok) {
+        let errBody = null;
+        try {
+          errBody = await res.json();
+        } catch (parseErr) {
+          errBody = null;
+        }
+        const serverMsg = errBody && (errBody.error || errBody.message)
+          ? (errBody.error || errBody.message)
+          : `Server returned ${res.status} ${res.statusText}`;
+        throw new Error(serverMsg);
+      } else {
+        data = await res.json();
+      }
       setConversationId(data.conversationId);
       setMessages(data.messages);
     } catch (err) {
-      setError(err.message);
+      // Display server-provided error message (if any) in the UI
+      setError(err.message || 'Unknown error');
     } finally {
       setLoading(false);
     }
