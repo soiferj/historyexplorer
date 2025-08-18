@@ -89,6 +89,8 @@ const modelRegistry = {
   'llama-3-8b-instruct': () => new AzureProvider('llama-3-8b-instruct', process.env.AZURE_LLAMA3_8B_DEPLOYMENT || 'Meta-Llama-3.1-8B-Instruct'),
   'mistral-nemo': () => new AzureProvider('mistral-nemo', process.env.AZURE_MISTRAL_NEMO_DEPLOYMENT || 'Mistral-Nemo'),
   'gpt-4.1': () => new AzureProvider('gpt-4.1', process.env.AZURE_GPT_41_DEPLOYMENT || 'gpt-4.1'),
+  'gpt-5-mini': () => new AzureProvider('gpt-5-mini', process.env.AZURE_GPT_5_MINI_DEPLOYMENT || 'gpt-5-mini'),
+  'gpt-5-nano': () => new AzureProvider('gpt-5-nano', process.env.AZURE_GPT_5_NANO_DEPLOYMENT || 'gpt-5-nano'),
 };
 
 function getModelProvider(modelName) {
