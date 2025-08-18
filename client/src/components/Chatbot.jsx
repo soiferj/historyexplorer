@@ -49,6 +49,24 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
     }
   }, [internalOpen, propConversationId]);
 
+  // On mount, fetch configured default models from server
+  useEffect(() => {
+    let mounted = true;
+    fetch(`${API_URL}/chatbot/models`)
+      .then(res => res.json())
+      .then(data => {
+        if (!mounted) return;
+        if (data && data.chatbot_summary_model) {
+          setModel(data.chatbot_summary_model);
+        }
+      })
+      .catch(err => {
+        // ignore — we'll use existing default
+        console.warn('Could not fetch chatbot models:', err.message || err);
+      });
+    return () => { mounted = false; };
+  }, []);
+
   const sendMessage = async (e) => {
     e.preventDefault();
     if (!input.trim()) return;

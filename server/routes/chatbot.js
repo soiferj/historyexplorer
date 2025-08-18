@@ -76,12 +76,12 @@ router.delete('/conversation/:id', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// ...existing code...
 const { createClient } = require('@supabase/supabase-js');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
 const { getModelProvider } = require('./modelProvider');
+const { getConfigValue } = require('./configHelper');
 
 // Setup Supabase client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -216,8 +216,25 @@ router.post('/', async (req, res) => {
     // 4. Use LLM to generate event filters
     let filters = { text: [], tags: [], dateRange: [] };
     let filterCompletion;
-    const selectedModel = model || 'gpt-4.1-nano';
-    const provider = getModelProvider(selectedModel);
+    // Support new config values from config table for separate models for filtering and summarization
+    const defaultModel = model || 'gpt-4.1-nano';
+    let filterModelName = defaultModel;
+    let summaryModelName = defaultModel;
+    try {
+      const cfgFilter = await getConfigValue('chatbot_filter_model');
+      if (cfgFilter) filterModelName = cfgFilter;
+    } catch (e) {
+      console.warn('[Chatbot] chatbot_filter_model not found in config, using default model', e.message || e);
+    }
+    try {
+      const cfgSummary = await getConfigValue('chatbot_summary_model');
+      if (cfgSummary) summaryModelName = cfgSummary;
+    } catch (e) {
+      console.warn('[Chatbot] chatbot_summary_model not found in config, using default model', e.message || e);
+    }
+    const filterProvider = getModelProvider(filterModelName);
+    const summaryProvider = getModelProvider(summaryModelName);
+    console.log('[Chatbot] Models - filter:', filterModelName, 'summary:', summaryModelName);
     // Build filter prompt
     const filterPrompt = buildFilterPrompt(messages, message, tags);
     const filterMessages = [
@@ -226,7 +243,7 @@ router.post('/', async (req, res) => {
     ];
     let filterRaw;
     try {
-      filterRaw = await provider.chatCompletion(filterMessages, { max_tokens: 256, temperature: 0.1 });
+      filterRaw = await filterProvider.chatCompletion(filterMessages, { max_tokens: 256, temperature: 0.1 });
       filters = JSON.parse(filterRaw);
     } catch (e) {
       console.warn('[Chatbot] Could not parse filters, using all events.', e);
@@ -249,7 +266,8 @@ router.post('/', async (req, res) => {
     ];
     let botReply;
     try {
-      botReply = await provider.chatCompletion(chatMessages, { max_tokens: 1024, temperature: 0.1 });
+      // Use the configured summary model/provider for the final chatbot reply
+      botReply = await summaryProvider.chatCompletion(chatMessages, { max_tokens: 1024, temperature: 0.1 });
     } catch (e) {
       console.error('[Chatbot] Error getting bot reply:', e);
       throw e;
@@ -302,6 +320,29 @@ router.post('/delete-all', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('[Chatbot] Delete all error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Expose configured chatbot models to the client
+router.get('/models', async (req, res) => {
+  try {
+    let summaryModel = null;
+    let filterModel = null;
+    try {
+      summaryModel = await getConfigValue('chatbot_summary_model');
+    } catch (e) {
+      // not fatal — may not be set
+      console.warn('[Chatbot] chatbot_summary_model not set in config');
+    }
+    try {
+      filterModel = await getConfigValue('chatbot_filter_model');
+    } catch (e) {
+      console.warn('[Chatbot] chatbot_filter_model not set in config');
+    }
+    res.json({ chatbot_summary_model: summaryModel, chatbot_filter_model: filterModel });
+  } catch (err) {
+    console.error('[Chatbot] Error fetching models from config:', err);
     res.status(500).json({ error: err.message });
   }
 });
