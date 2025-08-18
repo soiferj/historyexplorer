@@ -45,6 +45,20 @@ function AddEventForm({ onClose, onEventAdded, accessToken, allEvents = [] }) {
                 return;
             }
         }
+
+        // Duplicate title check (case-insensitive)
+        const titleTrim = form.title ? form.title.trim() : "";
+        if (titleTrim) {
+            const duplicate = (allEvents || []).some(ev => ev.title && ev.title.trim().toLowerCase() === titleTrim.toLowerCase());
+            if (duplicate) {
+                const proceed = window.confirm("An event with this title already exists. Do you want to add it anyway?");
+                if (!proceed) {
+                    setSubmitting(false);
+                    return;
+                }
+            }
+        }
+
         try {
             const paddedYear = padYear(form.year);
             const regionsArr = form.regions.split(",").map(r => r.trim()).filter(Boolean);
