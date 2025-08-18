@@ -71,6 +71,34 @@ jobs:
 
             echo "Uploading $ARCHIVE as $SANITIZED_BLOB_NAME to container $AZURE_STORAGE_CONTAINER"
             az storage blob upload --connection-string "$AZURE_STORAGE_CONNECTION_STRING" --container-name "$AZURE_STORAGE_CONTAINER" --file "$ARCHIVE" --name "$SANITIZED_BLOB_NAME"
+
+            # Prune blobs older than 7 days, but only if there are at least 7 backup .zip files
+            echo "Checking number of .zip backups in container $AZURE_STORAGE_CONTAINER"
+            ZIP_COUNT=$(az storage blob list --container-name "$AZURE_STORAGE_CONTAINER" --connection-string "$AZURE_STORAGE_CONNECTION_STRING" --query "[].name" -o tsv | grep -E "\.zip$" || true | wc -l)
+            echo "Found $ZIP_COUNT .zip files in container"
+
+            if [ "$ZIP_COUNT" -lt 7 ]; then
+              echo "Less than 7 backups present ($ZIP_COUNT). Skipping pruning."
+            else
+              echo "Pruning blobs older than 7 days from container $AZURE_STORAGE_CONTAINER"
+              CUTOFF=$(date -d "7 days ago" +%s)
+
+              # List name and lastModified, filter to .zip entries
+              az storage blob list --container-name "$AZURE_STORAGE_CONTAINER" --connection-string "$AZURE_STORAGE_CONNECTION_STRING" --query "[].{name:name,lastModified:properties.lastModified}" -o tsv \
+                | awk -F '\t' '{print $1"\t"$2}' \
+                | grep -E "\.zip$" \
+                | while IFS=$'\t' read -r name lastModified; do
+                  if [ -z "$name" ]; then
+                    continue
+                  fi
+                  # Convert lastModified to epoch
+                  blob_ts=$(date -d "$lastModified" +%s)
+                  if [ "$blob_ts" -lt "$CUTOFF" ]; then
+                    echo "Deleting $name (lastModified: $lastModified)"
+                    az storage blob delete --container-name "$AZURE_STORAGE_CONTAINER" --connection-string "$AZURE_STORAGE_CONNECTION_STRING" --name "$name" >/dev/null || true
+                  fi
+                done
+            fi
         env:
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
