@@ -43,17 +43,34 @@ jobs:
           ARCHIVE="${BACKUP_FILE}.zip"
           zip -j "$ARCHIVE" "$BACKUP_FILE"
 
-      - name: Upload to Azure Blob
+      - name: Upload to Azure Blob (validate & sanitize)
         uses: azure/cli@v1
         with:
           inlineScript: |
             set -euo pipefail
+
             ARCHIVE=$(ls ./.dbbackups/*.zip | tail -n1)
             if [ -z "$ARCHIVE" ]; then
               echo "No archive file found"
               exit 1
             fi
-            az storage blob upload --connection-string "$AZURE_STORAGE_CONNECTION_STRING" --container-name "$AZURE_STORAGE_CONTAINER" --file "$ARCHIVE" --name "$(basename "$ARCHIVE")"
+
+            # validate container name: 3-63 chars, lowercase letters/numbers/hyphens, start/end with letter/number
+            if ! echo "$AZURE_STORAGE_CONTAINER" | grep -Eq '^[a-z0-9]([a-z0-9-]{1,61}[a-z0-9])?$'; then
+              echo "Invalid Azure container name: $AZURE_STORAGE_CONTAINER"
+              echo "Container names must be 3-63 chars, lowercase, and may contain hyphens (no underscores)."
+              exit 1
+            fi
+
+            BLOB_NAME=$(basename "$ARCHIVE")
+            # sanitize blob name: lowercase and replace invalid chars with '-'
+            SANITIZED_BLOB_NAME=$(echo "$BLOB_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9._-]/-/g')
+
+            echo "Ensuring container exists: $AZURE_STORAGE_CONTAINER"
+            az storage container create --name "$AZURE_STORAGE_CONTAINER" --connection-string "$AZURE_STORAGE_CONNECTION_STRING" >/dev/null || true
+
+            echo "Uploading $ARCHIVE as $SANITIZED_BLOB_NAME to container $AZURE_STORAGE_CONTAINER"
+            az storage blob upload --connection-string "$AZURE_STORAGE_CONNECTION_STRING" --container-name "$AZURE_STORAGE_CONTAINER" --file "$ARCHIVE" --name "$SANITIZED_BLOB_NAME"
         env:
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
           AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}
