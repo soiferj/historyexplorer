@@ -238,7 +238,8 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
       } else {
         // Use the four words prior to the citation in the original content, EXCLUDING any [event:id] citations
         const citationIdx = finalMatch.index;
-        let beforeCitation = content.slice(0, citationIdx);
+        // Use the updated content indexes (newContent) since finalMatch.index is taken from newContent
+        let beforeCitation = newContent.slice(0, citationIdx);
         // Remove all [event:id] patterns from beforeCitation
         beforeCitation = beforeCitation.replace(/\[event:[^\]]+\]/gi, '').trim();
         // Get up to 4 words before the citation, but stop at punctuation
@@ -326,7 +327,10 @@ function Chatbot({ userId, events = [], setSelectedEvent, setEditMode, conversat
           matchLen = match[0].length;
           matchText = match[0];
         } else {
-          continue; // No match found, skip
+          // No exact snippet found in visible content — append a clickable fallback after the current content
+          matchIdx = workingContent.length;
+          matchLen = 0;
+          matchText = fallbackText;
         }
       }
       // Render markdown for text before the link
