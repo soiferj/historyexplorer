@@ -470,37 +470,37 @@ function App() {
                         <div className="flex flex-col gap-3 mt-2">
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${!showMap && !showTagEvolution && !showBookshelf && !showConversations && !showCountryCompendium ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(false); setShowConversations(false); setShowMenu(false); }}
+                                onClick={() => { setShowAdminToolsModal(false); setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Timeline
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showMap ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(true); setShowTagEvolution(false); setShowBookshelf(false); setShowConversations(false); setShowMenu(false); }}
+                                onClick={() => { setShowAdminToolsModal(false); setShowMap(true); setShowTagEvolution(false); setShowBookshelf(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 World Map
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showTagEvolution ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(true); setShowBookshelf(false); setShowConversations(false); setShowMenu(false); }}
+                                onClick={() => { setShowAdminToolsModal(false); setShowMap(false); setShowTagEvolution(true); setShowBookshelf(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Event Distribution
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showBookshelf ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowCountryCompendium(false); setShowConversations(false); setShowMenu(false); }}
+                                onClick={() => { setShowAdminToolsModal(false); setShowMap(false); setShowTagEvolution(false); setShowBookshelf(true); setShowCountryCompendium(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Bookshelf
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showCountryCompendium ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(true); setShowConversations(false); setShowMenu(false); }}
+                                onClick={() => { setShowAdminToolsModal(false); setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(true); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Country Compendium
                             </button>
                             <button
                                 className={`w-full px-4 py-2 rounded-xl font-bold shadow border border-blue-400 text-white text-left transition-all duration-150 text-base tracking-wide ${showConversations ? 'bg-blue-700/90 scale-[1.03]' : 'bg-gray-700/80 hover:bg-blue-700/80 hover:scale-105'}`}
-                                onClick={() => { setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(false); setShowConversations(true); setShowMenu(false); }}
+                                onClick={() => { setShowAdminToolsModal(false); setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(false); setShowConversations(true); setShowMenu(false); }}
                             >
                                 Conversations
                             </button>
@@ -509,7 +509,7 @@ function App() {
                         {isAllowed && (
                             <button
                                 className="w-full px-4 py-2 rounded-xl font-bold shadow border border-pink-400 text-white text-left bg-gray-700/80 hover:bg-pink-700/80 hover:scale-105 transition-all duration-150 text-base tracking-wide"
-                                onClick={() => { setShowAdminToolsModal(true); setRemovalSelectedTags([]); setRemovalError(""); setShowMenu(false); }}
+                                onClick={() => { setShowAdminToolsModal(true); setRemovalSelectedTags([]); setRemovalError(""); setShowMap(false); setShowTagEvolution(false); setShowBookshelf(false); setShowCountryCompendium(false); setShowConversations(false); setShowMenu(false); }}
                             >
                                 Admin Tools
                             </button>
