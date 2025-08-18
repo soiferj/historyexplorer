@@ -4,10 +4,11 @@
 # Load environment variables from .env
 env_file="$(dirname "$0")/../server/.env"
 if [ -f "$env_file" ]; then
+  echo "Loading environment variables from $env_file"
+  # shellcheck disable=SC2046
   export $(grep -v '^#' "$env_file" | grep -v '^//' | xargs)
 else
-  echo ".env file not found in $(dirname "$0")/../server"
-  exit 1
+  echo ".env file not found in $(dirname "$0")/../server — continuing with existing environment variables"
 fi
 
 # Check required variables
