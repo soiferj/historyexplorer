@@ -1,0 +1,50 @@
+name: nightly-db-backup
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # daily at 02:00 UTC, adjust as needed
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    env:
+      PGSSLMODE: require
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client zip
+
+      - name: Run backup script
+        run: |
+          mkdir -p ./.dbbackups
+          bash scripts/backup_supabase.sh
+        env:
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: ${{ secrets.PGPORT }}
+          PGUSER: ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+          PGDUMP_EXECUTABLE: pg_dump
+          PGSSLMODE: ${{ env.PGSSLMODE }}
+
+      - name: Compress and upload to Azure Blob
+        uses: azure/cli@v1
+        with:
+          inlineScript: |
+            set -euo pipefail
+            BACKUP_FILE=$(ls ./.dbbackups/*.sql | tail -n1)
+            if [ -z "$BACKUP_FILE" ]; then
+              echo "No backup file found"
+              exit 1
+            fi
+            ARCHIVE="${BACKUP_FILE}.zip"
+            zip -j "$ARCHIVE" "$BACKUP_FILE"
+            az storage blob upload --connection-string "$AZURE_STORAGE_CONNECTION_STRING" --container-name "$AZURE_STORAGE_CONTAINER" --file "$ARCHIVE" --name "$(basename "$ARCHIVE")"
+        env:
+          AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
+          AZURE_STORAGE_CONTAINER: ${{ secrets.AZURE_STORAGE_CONTAINER }}

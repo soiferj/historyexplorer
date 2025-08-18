@@ -165,5 +165,28 @@ The frontend will run on [http://localhost:3000](http://localhost:3000) and the 
 - Deploy the backend (`server/`) to your preferred Node.js hosting (e.g., Render, Railway, Heroku, or your own server).
 - Ensure both frontend and backend have access to the correct environment variables and can communicate over HTTPS.
 
+## Automated nightly DB backup (GitHub Actions)
+
+This repository includes a scheduled GitHub Actions workflow at `.github/workflows/nightly-db-backup.yml` that runs your `scripts/backup_supabase.sh`, compresses the SQL dump, and uploads it to Azure Blob Storage.
+
+Quick details:
+- Workflow path: `.github/workflows/nightly-db-backup.yml`
+- Default schedule: daily at 02:00 UTC (cron `0 2 * * *`). Change the cron expression in the workflow to adjust the time.
+- Script used: `scripts/backup_supabase.sh` (outputs to `./.dbbackups`).
+
+Required GitHub repository secrets (set under Settings → Secrets):
+- PGHOST
+- PGPORT
+- PGUSER
+- PGPASSWORD
+- PGDATABASE
+- AZURE_STORAGE_CONNECTION_STRING
+- AZURE_STORAGE_CONTAINER
+
+Notes:
+- The workflow runs on `ubuntu-latest` and installs `postgresql-client` so `pg_dump` is available. The workflow sets `PGSSLMODE=require` so pg_dump connects to Supabase over TLS.
+- Do not commit database credentials or `.env` files. Use repository secrets or Azure App Settings for production.
+- You can trigger the workflow manually from the Actions tab (the workflow supports `workflow_dispatch` for testing).
+
 ## License
 MIT
