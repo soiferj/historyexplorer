@@ -330,8 +330,12 @@ function AdminToolsModal({
     }
 
     return (
-        <div className="w-full max-h-[70vh] overflow-y-auto flex flex-col items-center mt-8 sm:mt-12">
-            <h2 className="text-3xl font-extrabold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight text-center drop-shadow-lg">Admin Tools</h2>
+        // Full-screen admin tools page (replaces modal)
+        <div className="min-h-screen w-full overflow-y-auto flex flex-col items-center p-6 sm:p-10 bg-gradient-to-br from-gray-900 via-gray-800 to-black">
+            <div className="w-full max-w-6xl">
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-pink-400 font-[Orbitron,sans-serif] tracking-tight drop-shadow-lg">Admin Tools</h2>
+                </div>
             {/* Delete Tags Section */}
             <div className="w-full mb-8">
                 <h3 className="text-lg font-semibold text-red-300 mb-2">Delete Tags</h3>
@@ -721,6 +725,7 @@ function AdminToolsModal({
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 }

@@ -713,47 +713,26 @@ function App() {
                     </div>
                 </div>
             )}
-            {/* Admin Tools Modal */}
-            {isAllowed && showAdminToolsModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ alignItems: 'flex-start', marginTop: '6rem' }}>
-                    <div className="fixed inset-0 bg-gradient-to-br from-[#181c24cc] via-[#00c6ff55] to-[#ff512f77] backdrop-blur-[2px]" onClick={() => { setShowAdminToolsModal(false); setShowDeleteConfirm(false); }} />
-                    <div
-                        className="relative glass p-10 rounded-3xl shadow-2xl border-2 border-blue-400/60 w-full max-w-xl z-60 flex flex-col items-center justify-center animate-fade-in-modal bg-gradient-to-br from-[#232526ee] via-[#00c6ff22] to-[#ff512f22] backdrop-blur-xl text-center"
-                        style={{
-                            maxHeight: '70vh',
-                            overflow: 'hidden',
-                            margin: '1rem',
-                            boxSizing: 'border-box',
-                        }}
-                    >
-                        <button
-                            className="absolute top-4 right-4 text-3xl text-blue-200 hover:text-pink-400 focus:outline-none"
-                            onClick={() => { setShowAdminToolsModal(false); setShowDeleteConfirm(false); }}
-                            aria-label="Close admin tools modal"
-                        >
-                            &times;
-                        </button>
-                        <div className="w-full flex flex-col items-center justify-center text-center">
-                            <AdminToolsModal
-                                removalSelectedTags={removalSelectedTags}
-                                setRemovalSelectedTags={setRemovalSelectedTags}
-                                removalLoading={removalLoading}
-                                setRemovalLoading={setRemovalLoading}
-                                removalError={removalError}
-                                setRemovalError={setRemovalError}
-                                showDeleteConfirm={showDeleteConfirm}
-                                setShowDeleteConfirm={setShowDeleteConfirm}
-                                allEvents={events}
-                                accessToken={session?.access_token}
-                                onClose={() => setShowAdminToolsModal(false)}
-                                onEventsUpdated={fetchEvents}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Admin Tools (page) is rendered in main content area below when open */}
             <div className="flex flex-col items-center w-full max-w-7xl px-8 mx-auto mt-2 mb-4 z-10 min-h-0 min-h-[60vh] lg:min-h-[70vh] xl:min-h-[80vh] 2xl:min-h-[90vh]">
-                {showConversations ? (
+                {isAllowed && showAdminToolsModal ? (
+                    <div className="w-full">
+                        <AdminToolsModal
+                            removalSelectedTags={removalSelectedTags}
+                            setRemovalSelectedTags={setRemovalSelectedTags}
+                            removalLoading={removalLoading}
+                            setRemovalLoading={setRemovalLoading}
+                            removalError={removalError}
+                            setRemovalError={setRemovalError}
+                            showDeleteConfirm={showDeleteConfirm}
+                            setShowDeleteConfirm={setShowDeleteConfirm}
+                            allEvents={events}
+                            accessToken={session?.access_token}
+                            onClose={() => setShowAdminToolsModal(false)}
+                            onEventsUpdated={fetchEvents}
+                        />
+                    </div>
+                ) : showConversations ? (
                     <Conversations
                         userId={session?.user?.id}
                         onSelectConversation={convId => {
@@ -850,6 +829,7 @@ function App() {
                         setLocalEditForm={setLocalEditForm}
                     />
                 )}
+                
             </div>
         </div>
     );
