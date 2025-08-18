@@ -32,18 +32,27 @@ jobs:
           PGDUMP_EXECUTABLE: pg_dump
           PGSSLMODE: ${{ env.PGSSLMODE }}
 
-      - name: Compress and upload to Azure Blob
+      - name: Compress latest backup (on runner)
+        run: |
+          set -euo pipefail
+          BACKUP_FILE=$(ls ./.dbbackups/*.sql | tail -n1)
+          if [ -z "$BACKUP_FILE" ]; then
+            echo "No backup file found"
+            exit 1
+          fi
+          ARCHIVE="${BACKUP_FILE}.zip"
+          zip -j "$ARCHIVE" "$BACKUP_FILE"
+
+      - name: Upload to Azure Blob
         uses: azure/cli@v1
         with:
           inlineScript: |
             set -euo pipefail
-            BACKUP_FILE=$(ls ./.dbbackups/*.sql | tail -n1)
-            if [ -z "$BACKUP_FILE" ]; then
-              echo "No backup file found"
+            ARCHIVE=$(ls ./.dbbackups/*.zip | tail -n1)
+            if [ -z "$ARCHIVE" ]; then
+              echo "No archive file found"
               exit 1
             fi
-            ARCHIVE="${BACKUP_FILE}.zip"
-            zip -j "$ARCHIVE" "$BACKUP_FILE"
             az storage blob upload --connection-string "$AZURE_STORAGE_CONNECTION_STRING" --container-name "$AZURE_STORAGE_CONTAINER" --file "$ARCHIVE" --name "$(basename "$ARCHIVE")"
         env:
           AZURE_STORAGE_CONNECTION_STRING: ${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}
