@@ -47,6 +47,47 @@ router.post('/add', async (req, res) => {
         } else if (olData.authors && typeof olData.authors === 'string') {
             author = olData.authors;
         }
+        // If no covers on the work, try to find covers from an edition referenced in the URL or from editions list
+        if ((!olData.covers || olData.covers.length === 0) && olType === 'works') {
+            try {
+                // 1) Try to extract an edition OLID anywhere in the provided URL (e.g., OL51055111M)
+                const editionInUrl = (openlibrary_url.match(/OL[\dA-Z]+M/i) || [null])[0];
+                if (editionInUrl) {
+                    const bookApi = `https://openlibrary.org/books/${editionInUrl}.json`;
+                    const bookResp = await fetch(bookApi);
+                    if (bookResp.ok) {
+                        const bookData = await bookResp.json();
+                        if (bookData.covers && Array.isArray(bookData.covers) && bookData.covers.length > 0) {
+                            olData.covers = bookData.covers;
+                            console.log('books/add: found covers from edition in URL', editionInUrl);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('books/add: failed to fetch edition from URL', e.message);
+            }
+            // 2) If still no covers, fetch the editions list for the work and search for covers on editions
+            if ((!olData.covers || olData.covers.length === 0)) {
+                try {
+                    const editionsApi = `https://openlibrary.org/works/${olId}/editions.json?limit=20`;
+                    const edResp = await fetch(editionsApi);
+                    if (edResp.ok) {
+                        const edData = await edResp.json();
+                        if (edData && Array.isArray(edData.entries)) {
+                            for (const ed of edData.entries) {
+                                if (ed.covers && ed.covers.length > 0) {
+                                    olData.covers = ed.covers;
+                                    console.log('books/add: found covers from editions list');
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('books/add: failed to fetch editions list', e.message);
+                }
+            }
+        }
         // Insert into Supabase (books table)
         const { data, error } = await supabase
             .from('books')
@@ -61,17 +102,33 @@ router.post('/add', async (req, res) => {
         }
 
         // --- Book Cover Logic ---
-        // Normalize file name as in bookCover.js
-        const fileName = title
-            .normalize("NFKD")
-            .replace(/[^a-zA-Z0-9 ]/g, "")
-            .replace(/\s+/g, "_") + '.jpg';
+        // Allow the frontend to suggest a cover filename (cover_filename). Sanitize it; otherwise derive from title.
+        const sanitizeFileName = (input) => {
+            if (!input || typeof input !== 'string') return '';
+            // strip path, remove extension, remove unsafe chars (but keep underscores), replace spaces with underscores
+            const parts = input.replace(/\\/g, '/').split('/');
+            let name = parts[parts.length - 1];
+            name = name.replace(/\.[^/.]+$/, '');
+            // keep underscores by allowing \w (letters, numbers, underscore) and spaces
+            name = name.normalize('NFKD').replace(/[^\w ]/g, '').replace(/\s+/g, '_');
+            return name ? (name + '.jpg') : '';
+        };
+        let fileName = sanitizeFileName(req.body.cover_filename || '');
+        if (!fileName) {
+            fileName = (title || '')
+                .normalize("NFKD")
+                .replace(/[^\w ]/g, "")
+                .replace(/\s+/g, "_") + '.jpg';
+        }
         // Check if file exists in bucket
         const { data: existing, error: listError } = await supabaseClient
             .storage
             .from(coversBucket)
             .list('', { search: fileName });
         const alreadyExists = Array.isArray(existing) && existing.some(f => f.name === fileName);
+        // Determine if any covers exist after augmentation
+        const coversFound = Array.isArray(olData.covers) && olData.covers.length > 0;
+
         if (!alreadyExists) {
             // Use selected cover_id if provided, else first available
             let coverId = cover_id;
@@ -88,7 +145,7 @@ router.post('/add', async (req, res) => {
                     const arrayBuffer = await coverResp.arrayBuffer();
                     const buffer = Buffer.from(arrayBuffer);
                     // Upload to Supabase Storage
-                    const { error: uploadError } = await supabaseClient
+                    const { data: uploadData, error: uploadError } = await supabaseClient
                         .storage
                         .from(coversBucket)
                         .upload(fileName, buffer, {
@@ -97,12 +154,16 @@ router.post('/add', async (req, res) => {
                         });
                     if (uploadError) {
                         console.warn('Failed to upload cover:', uploadError.message);
+                    } else {
+                        console.log('Uploaded cover:', { fileName, uploadData });
                     }
+                } else {
+                    console.warn('Failed to fetch cover URL:', coverUrl, 'status', coverResp.status);
                 }
             }
         }
         // --- End Book Cover Logic ---
-        return res.json({ success: true, book: data[0] });
+        return res.json({ success: true, book: data[0], covers_found: coversFound });
     } catch (err) {
         return res.status(500).json({ error: err.message });
     }

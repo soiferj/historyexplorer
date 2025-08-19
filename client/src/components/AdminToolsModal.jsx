@@ -31,6 +31,8 @@ function AdminToolsModal({
     const [addBookResult, setAddBookResult] = useState("");
     const [bookCoverOptions, setBookCoverOptions] = useState([]); // [{url, id}]
     const [selectedBookCover, setSelectedBookCover] = useState(null);
+    const [coverSuggestedName, setCoverSuggestedName] = useState("");
+    const [coverFileNameInput, setCoverFileNameInput] = useState("");
     const [showBookCoverModal, setShowBookCoverModal] = useState(false);
     const apiUrl = process.env.REACT_APP_API_URL;
 
@@ -280,29 +282,61 @@ function AdminToolsModal({
                 id,
                 url: `https://covers.openlibrary.org/b/id/${id}-L.jpg`
             }));
-            if (coverOptions.length > 1) {
-                setBookCoverOptions(coverOptions);
-                setShowBookCoverModal(true);
-                setAddBookLoading(false);
-                return; // Wait for admin to select
-            } else if (coverOptions.length === 1) {
-                setSelectedBookCover(coverOptions[0]);
-                // Immediately submit with the only available cover
-                await submitBookToBackend(addBookUrl, coverOptions[0].id);
-                return;
-            } else {
-                setSelectedBookCover(null);
-                // No covers, submit with no coverId
-                await submitBookToBackend(addBookUrl, undefined);
-                return;
+            // Always prompt admin to select/confirm the cover and filename when at least one cover exists
+            // Extract a suggested filename from the title, or fall back to URL segment or cover id
+            const title = olData.title || "";
+            const normalizeFileName = (t) => {
+                const base = (t || "").normalize("NFKD").replace(/[^a-zA-Z0-9 ]/g, "").replace(/\s+/g, "_");
+                return base ? (base + '.jpg') : '';
+            };
+            const deriveFromUrl = (u) => {
+                try {
+                    const parsed = new URL(u);
+                    const segs = parsed.pathname.split('/').filter(Boolean);
+                    // try third segment (e.g. /works/OL.../Formula), then second (id), else empty
+                    return segs[2] || segs[1] || '';
+                } catch (e) {
+                    return '';
+                }
+            };
+            const urlFallback = deriveFromUrl(addBookUrl);
+            const suggestedFromTitle = normalizeFileName(title);
+            const suggestedFromUrl = normalizeFileName(urlFallback);
+            // If no title-based suggestion, use URL-based suggestion, else use cover id as last resort
+            let suggested = suggestedFromTitle || suggestedFromUrl;
+            if (!suggested && coverOptions && coverOptions.length > 0) {
+                suggested = `cover_${coverOptions[0].id}.jpg`;
             }
+            setCoverSuggestedName(suggested);
+            setCoverFileNameInput(suggested);
+
+            // Always show modal so admin can confirm/edit filename.
+            setBookCoverOptions(coverOptions);
+            setCoverSuggestedName(suggested);
+            setCoverFileNameInput(suggested);
+            // Pre-select first cover if available (keeps selection logic identical)
+            setSelectedBookCover(coverOptions.length > 0 ? coverOptions[0] : null);
+            setShowBookCoverModal(true);
+            setAddBookLoading(false);
+            return; // Wait for admin to confirm filename/cover (even if no covers)
         } catch (err) {
             setAddBookResult("Failed to add book: " + err.message);
             setAddBookLoading(false);
         }
     }
 
-    async function submitBookToBackend(url, coverId) {
+    function sanitizeFileNameInput(input) {
+        if (!input) return '';
+        // remove path chars, keep base name
+        let name = input.replace(/\\/g, '/').split('/').pop();
+        // remove extension if present
+        name = name.replace(/\.[^/.]+$/, '');
+    // keep underscores by allowing word chars (letters, numbers, underscore) and spaces
+    const clean = name.normalize("NFKD").replace(/[^\w ]/g, "").replace(/\s+/g, "_");
+        return clean ? (clean + '.jpg') : '';
+    }
+
+    async function submitBookToBackend(url, coverId, coverFilename) {
         setAddBookLoading(true);
         setAddBookResult("");
         try {
@@ -312,11 +346,14 @@ function AdminToolsModal({
                     "Content-Type": "application/json",
                     ...(accessToken && { Authorization: `Bearer ${accessToken}` })
                 },
-                body: JSON.stringify({ openlibrary_url: url, cover_id: coverId })
+                body: JSON.stringify({ openlibrary_url: url, cover_id: coverId, cover_filename: coverFilename })
             });
             const data = await response.json();
             if (response.ok) {
                 setAddBookResult("Book added successfully!");
+                if (data && data.covers_found === false) {
+                    setAddBookResult("Book added, but no cover image was available to upload.");
+                }
                 setAddBookUrl("");
             } else {
                 setAddBookResult(data.error || "Failed to add book.");
@@ -689,7 +726,7 @@ function AdminToolsModal({
                 {addBookResult && <div className="mt-2 text-orange-200 text-sm">{addBookResult}</div>}
             </div>
             {/* Book Cover Selection Modal */}
-            {showBookCoverModal && bookCoverOptions.length > 1 && (
+            {showBookCoverModal && (
                 <div className="fixed inset-0 z-60 flex items-center justify-center bg-black bg-opacity-60">
                     <div className="bg-gray-900 p-6 rounded-xl shadow-xl max-w-lg w-full border border-orange-400 flex flex-col items-center">
                         <h2 className="text-lg font-bold text-orange-300 mb-2">Select Book Cover</h2>
@@ -704,6 +741,20 @@ function AdminToolsModal({
                                 </button>
                             ))}
                         </div>
+                                    {/* Filename validation / edit area */}
+                                    <div className="w-full max-w-md">
+                                        <label className="text-sm text-orange-200">Image filename</label>
+                                        <input
+                                            className="w-full px-3 py-2 rounded border border-orange-400 bg-orange-900 text-orange-100 mt-1"
+                                            type="text"
+                                            value={coverFileNameInput}
+                                            onChange={e => setCoverFileNameInput(e.target.value)}
+                                            placeholder={coverSuggestedName || 'example_book_title.jpg'}
+                                        />
+                                        <div className="text-xs text-orange-300 mt-1">
+                                            Will be saved as: <span className="font-mono text-orange-100">{sanitizeFileNameInput(coverFileNameInput) || '(invalid name)'}</span>
+                                        </div>
+                                    </div>
                         <div className="flex gap-4 mt-2">
                             <button
                                 className="px-4 py-2 rounded bg-gray-700 text-white font-semibold border border-gray-500 hover:bg-gray-600"
@@ -713,13 +764,14 @@ function AdminToolsModal({
                             </button>
                             <button
                                 className="px-4 py-2 rounded bg-orange-700 text-white font-bold border border-orange-400 hover:bg-orange-800 disabled:opacity-60"
-                                disabled={!selectedBookCover}
+                                disabled={!sanitizeFileNameInput(coverFileNameInput)}
                                 onClick={() => {
+                                    const filename = sanitizeFileNameInput(coverFileNameInput);
                                     setShowBookCoverModal(false);
-                                    submitBookToBackend(addBookUrl, selectedBookCover.id);
+                                    submitBookToBackend(addBookUrl, selectedBookCover ? selectedBookCover.id : undefined, filename);
                                 }}
                             >
-                                Use Selected Cover
+                                Confirm
                             </button>
                         </div>
                     </div>
