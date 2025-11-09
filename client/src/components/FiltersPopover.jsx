@@ -53,31 +53,34 @@ function FiltersPopover({
     const [regionOpen, setRegionOpen] = useState(false);
     const [countryOpen, setCountryOpen] = useState(false);
 
+    // Debounce delay from environment variable
+    const debounceDelay = Number(process.env.REACT_APP_DEBOUNCE_DELAY) || 300;
+
     // --- Local state for country search term to avoid parent/global updates on every keystroke ---
     const [countrySearchTerm, setCountrySearchTerm] = useState("");
-    const debouncedCountrySearchTerm = useDebounce(countrySearchTerm, 300);
+    const debouncedCountrySearchTerm = useDebounce(countrySearchTerm, debounceDelay);
 
     // --- Local state and debounce for tag, book, and region search terms ---
     const [tagSearch, setTagSearch] = useState(tagSearchTerm || "");
-    const debouncedTagSearch = useDebounce(tagSearch, 300);
+    const debouncedTagSearch = useDebounce(tagSearch, debounceDelay);
     React.useEffect(() => { setTagSearch(tagSearchTerm || ""); }, [tagSearchTerm]);
     React.useEffect(() => { if (debouncedTagSearch !== tagSearchTerm) setTagSearchTerm(debouncedTagSearch); }, [debouncedTagSearch]);
 
     const [bookSearch, setBookSearch] = useState(bookSearchTerm || "");
-    const debouncedBookSearch = useDebounce(bookSearch, 300);
+    const debouncedBookSearch = useDebounce(bookSearch, debounceDelay);
     React.useEffect(() => { setBookSearch(bookSearchTerm || ""); }, [bookSearchTerm]);
     React.useEffect(() => { if (debouncedBookSearch !== bookSearchTerm) setBookSearchTerm(debouncedBookSearch); }, [debouncedBookSearch]);
 
     const [regionSearch, setRegionSearch] = useState(regionSearchTerm || "");
-    const debouncedRegionSearch = useDebounce(regionSearch, 300);
+    const debouncedRegionSearch = useDebounce(regionSearch, debounceDelay);
     React.useEffect(() => { setRegionSearch(regionSearchTerm || ""); }, [regionSearchTerm]);
     React.useEffect(() => { if (debouncedRegionSearch !== regionSearchTerm) setRegionSearchTerm(debouncedRegionSearch); }, [debouncedRegionSearch]);
 
     // --- Local state and debounce for year filters ---
     const [localStartYear, setLocalStartYear] = useState(dateFilter.startYear || "");
     const [localEndYear, setLocalEndYear] = useState(dateFilter.endYear || "");
-    const debouncedStartYear = useDebounce(localStartYear, 300);
-    const debouncedEndYear = useDebounce(localEndYear, 300);
+    const debouncedStartYear = useDebounce(localStartYear, debounceDelay);
+    const debouncedEndYear = useDebounce(localEndYear, debounceDelay);
 
     // Keep local year state in sync with parent/global (if needed)
     React.useEffect(() => { setLocalStartYear(dateFilter.startYear || ""); }, [dateFilter.startYear]);
@@ -96,7 +99,7 @@ function FiltersPopover({
     }, [debouncedEndYear]);
 
     // Debounced search terms for performance
-    const debouncedSearchTerms = useDebounce(searchTerms);
+    const debouncedSearchTerms = useDebounce(searchTerms, debounceDelay);
     React.useEffect(() => {
         if (onDebouncedSearchTermsChange) {
             onDebouncedSearchTermsChange(debouncedSearchTerms);

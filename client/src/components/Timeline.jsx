@@ -41,8 +41,10 @@ const Timeline = (props) => {
     const [localEditForm, setLocalEditForm] = useState({ title: '', description: '', book_reference: '', year: '', tags: '', date_type: 'CE', regions: '', countries: '' });
     const [localEditError, setLocalEditError] = useState("");
 
+    // Debounce delay from environment variable
+    const debounceDelay = Number(process.env.REACT_APP_DEBOUNCE_DELAY) || 300;
     // Debounced edit description for event editing
-    const debouncedEditForm = useDebounce(localEditForm);
+    const debouncedEditForm = useDebounce(localEditForm, debounceDelay);
 
     const apiUrl = process.env.REACT_APP_API_URL;
 
